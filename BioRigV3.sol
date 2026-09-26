@@ -22,7 +22,7 @@ interface ITokenURIGenerator {
     function generateURI(uint256 tokenId, uint96 dbh, uint96 biomass, bool isAlive) external view returns (string memory);
 }
 
-contract BioRigCoreV4 is 
+contract BioRigCoreV5 is 
     Initializable, 
     ERC721Upgradeable, 
     AccessControlUpgradeable, 
@@ -58,6 +58,7 @@ contract BioRigCoreV4 is
     error TreeIsDead();
     error NullifierInUse();
     error InvalidGrowthData();
+    error ZeroAdminAddress();
 
     event TreeMinted(uint256 indexed tokenId, address indexed tba, bytes32 indexed spatialNullifier);
     event GrowthUpdated(uint256 indexed tokenId, uint96 newDBH, uint96 newBiomass);
@@ -71,12 +72,14 @@ contract BioRigCoreV4 is
     }
 
     function initialize(
+        address _defaultAdmin,
         address _registry,
         address _implementation,
         uint256 _chainId,
         address _bufferPool,
         address _uriGenerator
     ) initializer public {
+        if (_defaultAdmin == address(0)) revert ZeroAdminAddress();
         if (_registry == address(0) || _implementation == address(0) || _bufferPool == address(0)) revert InvalidAddress();
 
         __ERC721_init("BioRig Tree", "TREE");
@@ -92,8 +95,9 @@ contract BioRigCoreV4 is
         uriGenerator = _uriGenerator;
         _nextTokenId = 1;
 
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _grantRole(UPGRADER_ROLE, msg.sender);
+        // تعيين الصلاحيات للعنوان الممرر (يحمي العقد إذا تم نشره عبر Factory)
+        _grantRole(DEFAULT_ADMIN_ROLE, _defaultAdmin);
+        _grantRole(UPGRADER_ROLE, _defaultAdmin);
     }
 
     function mintTree(
@@ -141,7 +145,8 @@ contract BioRigCoreV4 is
     ) external whenNotPaused onlyRole(VERIFIER_ROLE) {
         TreeStats storage tree = _trees[tokenId];
         
-        if (ownerOf(tokenId) == address(0)) revert InvalidTree();
+        // التحقق الصحيح من وجود الشجرة (تجنب الـ Revert التلقائي لـ ownerOf)
+        if (tree.tbaAddress == address(0)) revert InvalidTree();
         if (!tree.isAlive) revert TreeIsDead();
         if (newDBH < tree.dbh || newBiomass < tree.biomass) revert InvalidGrowthData();
 
@@ -152,10 +157,11 @@ contract BioRigCoreV4 is
         emit GrowthUpdated(tokenId, newDBH, newBiomass);
     }
 
-    function reportMortality(uint256 tokenId) external onlyRole(VERIFIER_ROLE) {
+    function reportMortality(uint256 tokenId) external whenNotPaused onlyRole(VERIFIER_ROLE) {
         TreeStats storage tree = _trees[tokenId];
         
-        if (ownerOf(tokenId) == address(0)) revert InvalidTree();
+        // التحقق الصحيح من الوجود
+        if (tree.tbaAddress == address(0)) revert InvalidTree();
         if (!tree.isAlive) revert TreeIsDead();
 
         tree.isAlive = false;
@@ -165,7 +171,7 @@ contract BioRigCoreV4 is
     }
 
     function getTreeStats(uint256 tokenId) external view returns (TreeStats memory) {
-        if (ownerOf(tokenId) == address(0)) revert InvalidTree();
+        if (_trees[tokenId].tbaAddress == address(0)) revert InvalidTree();
         return _trees[tokenId];
     }
 
@@ -174,10 +180,12 @@ contract BioRigCoreV4 is
     }
 
     function tokenURI(uint256 tokenId) public view override returns (string memory) {
-        if (ownerOf(tokenId) == address(0)) revert InvalidTree();
+        TreeStats memory tree = _trees[tokenId];
+        
+        // التحقق بدون استخدام ownerOf لتجنب تعطل الواجهة الأمامية
+        if (tree.tbaAddress == address(0)) revert InvalidTree();
         
         if (uriGenerator != address(0)) {
-            TreeStats memory tree = _trees[tokenId];
             return ITokenURIGenerator(uriGenerator).generateURI(tokenId, tree.dbh, tree.biomass, tree.isAlive);
         }
         
