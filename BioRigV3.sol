@@ -95,7 +95,6 @@ contract BioRigCoreV5 is
         uriGenerator = _uriGenerator;
         _nextTokenId = 1;
 
-        // تعيين الصلاحيات للعنوان الممرر (يحمي العقد إذا تم نشره عبر Factory)
         _grantRole(DEFAULT_ADMIN_ROLE, _defaultAdmin);
         _grantRole(UPGRADER_ROLE, _defaultAdmin);
     }
@@ -145,7 +144,6 @@ contract BioRigCoreV5 is
     ) external whenNotPaused onlyRole(VERIFIER_ROLE) {
         TreeStats storage tree = _trees[tokenId];
         
-        // التحقق الصحيح من وجود الشجرة (تجنب الـ Revert التلقائي لـ ownerOf)
         if (tree.tbaAddress == address(0)) revert InvalidTree();
         if (!tree.isAlive) revert TreeIsDead();
         if (newDBH < tree.dbh || newBiomass < tree.biomass) revert InvalidGrowthData();
@@ -160,7 +158,6 @@ contract BioRigCoreV5 is
     function reportMortality(uint256 tokenId) external whenNotPaused onlyRole(VERIFIER_ROLE) {
         TreeStats storage tree = _trees[tokenId];
         
-        // التحقق الصحيح من الوجود
         if (tree.tbaAddress == address(0)) revert InvalidTree();
         if (!tree.isAlive) revert TreeIsDead();
 
@@ -182,7 +179,6 @@ contract BioRigCoreV5 is
     function tokenURI(uint256 tokenId) public view override returns (string memory) {
         TreeStats memory tree = _trees[tokenId];
         
-        // التحقق بدون استخدام ownerOf لتجنب تعطل الواجهة الأمامية
         if (tree.tbaAddress == address(0)) revert InvalidTree();
         
         if (uriGenerator != address(0)) {
