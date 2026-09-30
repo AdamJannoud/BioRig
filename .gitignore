@@ -14,3 +14,12 @@ broadcast/**/dry-run/
 __pycache__/
 .bolter/
 .bolter-task.md
+
+# demo: rendered media and local check artefacts
+assets/media/*.mp4
+assets/media/*.wav
+assets/media/.voiceover/
+.shot*.png
+.shot.py
+.streamlit-run.log
+.pytest_cache/
