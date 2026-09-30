@@ -3,7 +3,8 @@ from pathlib import Path
 
 import pytest
 
-from dashboard.config import ProxyResolutionError, Settings, load_dotenv, resolve_proxy, load_settings
+from dashboard.config import (CONFIG_KEYS, ProxyResolutionError, Settings, load_dotenv, resolve_proxy,
+                              load_settings)
 
 CHAIN = 11142220
 PROXY = "0x21ab8b36177f65ce69e04e281e4aff3db6b5f7e6"
@@ -104,3 +105,86 @@ def test_real_repo_resolves_live_proxy():
     r = resolve_proxy(REPO, {})
     assert r.address == PROXY
     assert "DeployAll.s.sol" in r.source
+
+
+# --------------------------------------------------------------------------- hosted deployment
+
+
+@pytest.fixture(autouse=True)
+def _clean_config_env(monkeypatch):
+    """Keep the process environment out of every test here, so precedence is what is under test."""
+    for key in CONFIG_KEYS:
+        monkeypatch.delenv(key, raising=False)
+
+
+def test_static_deployment_is_the_last_resort(tmp_path):
+    (tmp_path / "dashboard").mkdir()
+    (tmp_path / "dashboard" / "deployment.json").write_text(
+        json.dumps({"chain_id": CHAIN, "proxy_address": PROXY.upper().replace("0X", "0x"),
+                    "proxy_deploy_block": 37511856}))
+    r = resolve_proxy(tmp_path, {"PROXY_ADDRESS": ""})
+    assert r.address == PROXY
+    assert r.source == "dashboard/deployment.json (static fallback)"
+    assert r.deploy_block == 37511856
+    assert len(r.skipped) == 3  # both broadcasts, then the empty env var
+
+
+def test_static_deployment_never_beats_a_configured_address(tmp_path):
+    (tmp_path / "dashboard").mkdir()
+    (tmp_path / "dashboard" / "deployment.json").write_text(
+        json.dumps({"chain_id": CHAIN, "proxy_address": "0x" + "ab" * 20}))
+    r = resolve_proxy(tmp_path, {"PROXY_ADDRESS": PROXY})
+    assert r.address == PROXY and r.source == ".env PROXY_ADDRESS"
+
+
+def test_static_deployment_for_another_chain_is_refused(tmp_path):
+    (tmp_path / "dashboard").mkdir()
+    (tmp_path / "dashboard" / "deployment.json").write_text(
+        json.dumps({"chain_id": 42220, "proxy_address": PROXY}))
+    with pytest.raises(ProxyResolutionError, match="records chain 42220, not 11142220"):
+        resolve_proxy(tmp_path, {})
+
+
+def test_committed_deployment_json_matches_the_live_broadcast():
+    """The static record must agree with the broadcast that actually deployed it, or the fallback lies."""
+    from dashboard.config import _proxy_from_deployment
+
+    addr, block = _proxy_from_deployment(REPO / "dashboard" / "deployment.json", CHAIN)
+    assert addr == PROXY and block == 37511856
+    broadcast = json.loads((REPO / "broadcast" / "DeployAll.s.sol" / str(CHAIN) / "run-latest.json").read_text())
+    proxy_tx = [t for t in broadcast["transactions"]
+                if t.get("contractName") == "ERC1967Proxy"
+                and t.get("transactionType") in ("CREATE", "CREATE2")][-1]
+    assert proxy_tx["contractAddress"].lower() == addr
+
+
+def test_hosted_secrets_reach_the_settings(tmp_path):
+    (tmp_path / ".env").write_text(f"PROXY_ADDRESS={PROXY}\n")
+    s = load_settings(tmp_path, secrets={"PRIVATE_KEY": "0x" + "cd" * 32, "ALLOW_MINT": "false",
+                                         "RPC_URL": "https://rpc.example", "CHAIN_ID": str(CHAIN)})
+    assert s.private_key == "0x" + "cd" * 32
+    assert s.allow_mint is False
+    assert s.rpc_url == "https://rpc.example"
+    assert "PRIVATE_KEY" not in repr(s) or "0x" + "cd" * 32 not in repr(s)
+
+
+def test_secrets_beat_the_env_file_but_not_the_process_environment(tmp_path, monkeypatch):
+    (tmp_path / ".env").write_text(f"PROXY_ADDRESS={PROXY}\nRPC_URL=https://from-file\n")
+    assert load_settings(tmp_path, secrets={"RPC_URL": "https://from-secrets"}).rpc_url == "https://from-secrets"
+    monkeypatch.setenv("RPC_URL", "https://from-process")
+    assert load_settings(tmp_path, secrets={"RPC_URL": "https://from-secrets"}).rpc_url == "https://from-process"
+
+
+def test_allow_mint_defaults_to_on_and_parses_off(tmp_path):
+    (tmp_path / ".env").write_text(f"PROXY_ADDRESS={PROXY}\n")
+    assert load_settings(tmp_path).allow_mint is True
+    for value, expected in (("false", False), ("False", False), ("0", False), ("no", False), ("off", False),
+                            ("true", True), ("1", True), ("yes", True), ("on", True), ("", True),
+                            ("junk", False)):
+        assert load_settings(tmp_path, secrets={"ALLOW_MINT": value}).allow_mint is expected, value
+
+
+def test_hosted_secrets_are_empty_and_silent_without_a_secrets_file():
+    from dashboard.config import hosted_secrets
+
+    assert hosted_secrets() == {}

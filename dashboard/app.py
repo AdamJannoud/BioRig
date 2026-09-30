@@ -199,9 +199,13 @@ with left:
                 ("from", sim.sender),
             ]) + "</div>", unsafe_allow_html=True)
 
+    if not settings.allow_mint:
+        st.info("Read-only deployment: the form and the eth_call simulation run, the broadcast does not. "
+                "Set ALLOW_MINT=true in Secrets to enable signing a real mintTree.")
+    mintable = bool(sim and sim.ok) and settings.allow_mint
     confirm = st.checkbox("I confirm: broadcast this mintTree from the server-side verifier key",
-                          disabled=not (sim and sim.ok))
-    if st.button("Mint tree", type="primary", disabled=not (sim and sim.ok and confirm)):
+                          disabled=not mintable)
+    if st.button("Mint tree", type="primary", disabled=not (mintable and confirm)):
         with st.spinner("Signing on the server and waiting for the receipt…"):
             try:
                 result = chain.send_mint(planter, d.nullifier, int(dbh), int(biomass), confirmed=confirm)

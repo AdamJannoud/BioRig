@@ -1,0 +1,8 @@
+# Runtime dependencies for the hosted BioRig demo dashboard (dashboard/app.py, root streamlit_app.py).
+# Read from the repository root by Streamlit Community Cloud and Hugging Face Spaces. Only what the
+# dashboard imports at run time is here: the video generator, pytest and playwright are local tooling and
+# live in tools/requirements.txt instead.
+streamlit==1.64.0
+web3==8.0.0
+eth-account==0.14.0
+h3==4.5.0

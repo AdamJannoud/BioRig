@@ -23,3 +23,6 @@ assets/media/.voiceover/
 .shot.py
 .streamlit-run.log
 .pytest_cache/
+
+# Hosted Streamlit secrets: paste them into the platform's Secrets UI, never commit them
+.streamlit/secrets.toml

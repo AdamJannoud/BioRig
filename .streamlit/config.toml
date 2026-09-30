@@ -1,0 +1,15 @@
+# Streamlit runtime config. Applies to `streamlit run dashboard/app.py` and to the root streamlit_app.py
+# entrypoint those platforms look for by default.
+#
+# Only the accent colour is pinned here. The dashboard paints its own light/dark palette from --app-*
+# custom properties, keyed on the background Streamlit actually painted, so pinning the surface colours
+# in this file would fight that and lose the dark theme.
+
+[theme]
+primaryColor = "#2456d6"
+
+[server]
+headless = true
+
+[browser]
+gatherUsageStats = false
