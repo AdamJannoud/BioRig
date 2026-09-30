@@ -1,0 +1,10 @@
+# Video generator (tools/generate_demo.py) and dashboard (dashboard/). Also needs ffmpeg/ffprobe on PATH
+# (falls back to the imageio-ffmpeg binary for encoding).
+pillow>=11
+matplotlib>=3.8      # only for its bundled DejaVu fonts
+imageio-ffmpeg>=0.5
+gTTS>=2.5            # --voiceover only; needs network
+h3>=4.0
+web3>=7
+streamlit>=1.46
+pytest>=8

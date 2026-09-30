@@ -1,0 +1,37 @@
+{
+  "chain_id": 11142220,
+  "explorer": "https://celo-sepolia.blockscout.com",
+  "proxy": "0x21ab8B36177F65ce69e04e281E4aFf3Db6b5f7E6",
+  "core_implementation": "0x4c998C6553C78bb9d5A67Aac6fBC526d64DBa3a4",
+  "registry": "0x000000006551c19487814612e58FE06813775758",
+  "account_implementation": "0x3d8a53dB1bBcab6D47097B25080527e5560C5165",
+  "buffer_pool": "0xb5aB2054b43040593805Cf662A938eFE924F2778",
+  "paused": false,
+  "token_id": 1,
+  "mint_tx": "0x486bc529b9238ce2db41b439eb57ea7b0554062d2dfc1e8e3ebcd0cd4b9d5f9e",
+  "mint_block": 37512380,
+  "mint_gas_used": 267565,
+  "planter": "0xb5aB2054b43040593805Cf662A938eFE924F2778",
+  "tba": "0x61bd8BEcE5a38209Fc10d4DA3f837EE83a10124a",
+  "tba_bound_token": [
+    11142220,
+    "0x21ab8B36177F65ce69e04e281E4aFf3Db6b5f7E6",
+    1
+  ],
+  "dbh": 10,
+  "biomass": 20,
+  "last_updated": 1790796368,
+  "is_alive": true,
+  "spatial_nullifier": "0xf8fa2658012341dda81dbb7d27a6bb0accd68b63e618001d8ccbed1375dbf667",
+  "growth_updates": 0,
+  "demo_h3": {
+    "lat": -1.2921,
+    "lng": 36.8219,
+    "resolution": 12,
+    "cell": "8c7a6e42ca207ff",
+    "salt": "plot-1",
+    "nullifier": "0xb7a55a6b1b7e4fe0fba76f303772cba7fdf3715d4030e3fcd91ed297c756d741",
+    "cell_area_m2": 307
+  },
+  "read_at_block": 37520299
+}
