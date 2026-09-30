@@ -15,6 +15,29 @@ Live on **Celo Sepolia** (chain id `11142220`), all four contracts verified on B
 
 Proxy deployed in block `37511856`; that address also lives in `dashboard/deployment.json`.
 
+## Architecture
+
+![BioRig end-to-end system architecture](BioRig_Architecture_Pro.png)
+
+Four tiers, top to bottom. **Off-chain edge capture** (mobile dMRV, the H3 spatial nullifier, the zk-ML
+prover) is untrusted: the contract executes and verifies none of it. The handoff into the chain is a
+verifier-signed `mintTree` carrying the nullifier, DBH and biomass; `mintTree` takes no proof, so the trust
+boundary is `onlyRole(VERIFIER_ROLE)`, not cryptography. **On-chain execution** is the four deployed contracts
+above, with the token-bound account created through the canonical ERC-6551 registry at
+`keccak256(tokenId ++ planter ++ nullifier)`. The **protocol tier** (carbon accrual, the 20% buffer pool,
+ReFi rails, demand side) is roadmap and badged as such on every box. The **demo dashboard** runs today; its
+public host is still being deployed, so the diagram marks it in progress and prints no URL.
+
+The PNG (4800 px wide) and its vector source `assets/BioRig_Architecture_v5.svg` are generated, not drawn:
+`tools/generate_architecture.py` reads every address from `dashboard/deployment.json` and the DeployAll
+broadcast, and `tools/test_architecture.py` fails if any address in the scene, the SVG or the PNG's pixels
+(read back with tesseract) drifts from that record. After a redeploy:
+
+```bash
+.venv/bin/python tools/generate_architecture.py            # rewrite the SVG and PNG, byte-identical on rerun
+.venv/bin/python -m pytest -q tools/test_architecture.py
+```
+
 ## Layout
 
 | path | what it is |
@@ -23,7 +46,7 @@ Proxy deployed in block `37511856`; that address also lives in `dashboard/deploy
 | `test/` | Foundry test suite (`forge test`) |
 | `script/` | deployment scripts, including `DeployAll.s.sol`, which deployed the live addresses |
 | `dashboard/` | Streamlit + web3.py demo dashboard over the live proxy |
-| `tools/` | the 90-second explainer video generator |
+| `tools/` | the 90-second explainer video generator, and the architecture diagram generator |
 | `broadcast/` | the recorded deployment run the dashboard reads its proxy address from |
 | `scripts/verify-demo.sh` | one command that checks all of the above and exits non-zero on any failure |
 

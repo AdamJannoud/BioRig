@@ -8,3 +8,5 @@ h3>=4.0
 web3>=7
 streamlit>=1.46
 pytest>=8
+# tools/test_architecture.py also reads the diagram's pixels back with the tesseract CLI
+# (apt-get install tesseract-ocr); that one test skips if it is missing.
