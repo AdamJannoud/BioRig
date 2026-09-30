@@ -227,10 +227,10 @@ admin were the throwaway account `0xb5aB2054b43040593805Cf662A938eFE924F2778`, w
 
 | Contract | Address | Tx | Gas | Blockscout |
 | --- | --- | --- | --- | --- |
-| ERC-6551 registry (canonical) | `0x000000006551c19487814612e58FE06813775758` | `0xb8f54434…451320` | 177,170 | not verified, see below |
+| ERC-6551 registry (canonical) | `0x000000006551c19487814612e58FE06813775758` | `0xb8f54434…451320` | 177,170 | verified (partial match) |
 | ERC-6551 account implementation | `0x3d8a53dB1bBcab6D47097B25080527e5560C5165` | `0x5abd3074…8c6e99` | 626,504 | verified |
 | BioRigCoreV5 implementation | `0x4c998C6553C78bb9d5A67Aac6fBC526d64DBa3a4` | `0x32c7fdff…33199d` | 2,942,890 | verified |
-| ERC1967Proxy (the address to use) | `0x21ab8B36177F65ce69e04E281E4aFf3Db6b5f7E6` | `0xdcf0dd8b…39184e` | 389,203 | submission rate-limited |
+| ERC1967Proxy (the address to use) | `0x21ab8B36177F65ce69e04E281E4aFf3Db6b5f7E6` | `0xdcf0dd8b…39184e` | 389,203 | verified |
 | `grantRole(VERIFIER_ROLE, admin)` | `0x21ab8B36…f7E6` | `0x9a004384…6e0203` | 56,613 | — |
 
 A deployment that only reads back correctly is still not proof the system works, so one tree was minted: `mintTree`,
@@ -246,11 +246,11 @@ Tree 1's token-bound account is `0x61bd8BEcE5a38209Fc10d4DA3f837EE83a10124a`. It
 to the account implementation, it reports ERC-165 `0x6faff5f1`, and its `token()` returns `(11142220,
 0x21ab8B36177F65ce69e04E281E4aFf3Db6b5f7E6, 1)`, so the registry and account path genuinely works on this chain.
 
-Two contracts are not source-verified on Blockscout:
+Both contracts that were still unverified when the broadcast ended are now verified:
 
-- **The proxy.** It was submitted during the broadcast, but Blockscout rate-limited its verification endpoint
-  (`status=0, Too many requests`) while the run was still going. Resubmitting later works, with the source and
-  settings unchanged from the build that produced it:
+- **The proxy.** Its submission during the broadcast hit the rate limit (`status=0, Too many requests`), but Blockscout
+  verifies asynchronously and the accepted submission completed anyway. The command used for it, reusable for any
+  future proxy, is:
   ```bash
   ARGS=$(cast abi-encode "f(address,bytes)" 0x4c998C6553C78bb9d5A67Aac6fBC526d64DBa3a4 "$(cast calldata \
     'initialize(address,address,address,uint256,address,address)' 0xb5aB2054b43040593805Cf662A938eFE924F2778 \
@@ -260,11 +260,12 @@ Two contracts are not source-verified on Blockscout:
     lib/openzeppelin-contracts/contracts/proxy/ERC1967/ERC1967Proxy.sol:ERC1967Proxy \
     --verifier blockscout --verifier-url "$VERIFIER_URL" --chain 11142220 --constructor-args "$ARGS"
   ```
-- **The canonical registry** cannot be exact-match verified from this repository at all. On chain it is the EIP-6551
-  canonical creation code, compiled with solc 0.8.17; this repo compiles the vendored source with solc 0.8.28, so
-  neither the executable bytes nor the metadata match. Blockscout's "similar match" submission, from the explorer UI,
-  is the route. It is behaviourally proven regardless: `DeployAll` checks `account()` against an independent CREATE2
-  derivation before broadcasting, and a real tree minted through it.
+- **The canonical registry** is verified as a **partial match** (2026-09-30 19:39:04 UTC), resolved by Blockscout's
+  Ethereum Bytecode Database, which matches an unverified contract on the executable part of its bytecode and ignores
+  metadata. A full match is still out of reach from here: on chain it is the EIP-6551 canonical creation code compiled
+  with solc 0.8.17, this repo compiles the vendored source with solc 0.8.28, and the original file that would reproduce
+  the metadata hash is not available. Its behaviour is proven independently anyway: `DeployAll` checks `account()`
+  against a CREATE2 derivation before broadcasting, and a real tree was minted through it.
 
 ## 7. Verification outcome
 
@@ -273,7 +274,7 @@ verification call's exit status:
 
 | Contract | `is_verified` |
 | --- | --- |
-| canonical ERC-6551 registry | false |
+| canonical ERC-6551 registry | true (partial match) |
 | ERC1967Proxy | true |
 | BioRigCoreV5 implementation | true |
 | ERC-6551 account implementation | true |
@@ -288,21 +289,30 @@ Blockscout's unauthenticated v1 API allows **10 requests per window**, with the 
 one burst spent the whole window and every attempt after it got a 429. The rewrite does a single
 attempt per run and reads status through the v2 API, which is not quota-limited.
 
-The canonical registry is a different problem, and quota does not fix it. Compiling the vendored
-source with the settings the canonical deployment used, recovered from Blockscout's record of the
-same contract on Ethereum mainnet (`ERC6551Registry`, solc 0.8.17, optimizer on, runs 200, evm
+The registry's own obstacle was the metadata hash, which no amount of quota would have fixed. Compiling
+the vendored source with the settings the canonical deployment used, recovered from Blockscout's record
+of the same contract on Ethereum mainnet (`ERC6551Registry`, solc 0.8.17, optimizer on, runs 200, evm
 london):
 
 - **Executable runtime code is identical** (518 bytes), so the deployed behaviour is exactly what the
   canonical source produces. `script/registry-byte-match.py` reproduces this locally, and re-running
   it costs no Blockscout quota.
 - **The 53-byte metadata blob differs**, and only in its 32-byte content hash, which is keccak256 of
-  the metadata JSON covering the original source text and its path. Reproducing it needs the original
-  file byte for byte; neither this repo's vendored copy nor Blockscout's own stored copy of the
-  mainnet source does so across the six path variants tried, so an exact match is out of reach from
-  what is available here.
+  the metadata JSON covering the original source text and its path.
 
-The registry is third-party canonical code deployed through a keyless factory: the same address
-carries byte-identical executable code on every chain it is deployed to, and Blockscout has it
-verified on Ethereum mainnet. Its behaviour on Celo Sepolia is established by the code comparison
-above and by `DeployAll`'s independent CREATE2 check, not by an explorer badge.
+That second point is exactly what Blockscout's **Ethereum Bytecode Database** exists to ignore. It
+stores verified sources keyed by bytecode rather than by chain and address, and matches an unverified
+contract on the **Main** (functionally significant) part of the bytecode, metadata excluded. The
+registry was resolved through it and is recorded as **partially verified** at 2026-09-30 19:39:04 UTC:
+`is_verified` and `is_partially_verified` true, `is_fully_verified` false,
+`is_verified_via_eth_bytecode_db` true, with the canonical name, path (`src/ERC6551Registry.sol`) and
+settings. The explorer's contract page states the route in words: "Contract source code verified
+(partial match) — This contract has been partially verified using Blockscout Bytecode Database".
+
+The source text that match attached is the database's own copy, not this repo's and not the
+mainnet-verified one: it misspells `keccak256(bytecode)` as `keccak256(bytedcode)` in one comment, which
+is why its text differs from this repo's vendored file. Comments never reach executable bytecode, so the
+behaviour the explorer displays is correct; the difference only explains partial rather than full match.
+A full match would need the original file byte for byte, which is not available here, and for
+third-party canonical code deployed through a keyless factory the partial match is the expected
+outcome: the same address carries byte-identical executable code on every chain.

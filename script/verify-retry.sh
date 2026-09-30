@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
-# Verifies the two contracts Blockscout still needs, within its unauthenticated quota.
+# Verifies BioRig's contracts on Blockscout, within its unauthenticated quota.
+#
+# Status as of 2026-09-30: all four are verified. The canonical registry was resolved by Blockscout's
+# Ethereum Bytecode Database as a partial match (identical executable bytecode, different metadata
+# hash — see DEPLOY.md section 7), so the 'registry' target below has nothing left to do and stays for
+# redeployments. The other three were verified from this build's own submissions.
 #
 # Blockscout's v1 API (module=contract) allows 10 requests per window for an unauthenticated IP.
 # The window length is in the x-ratelimit-reset header, in milliseconds. forge verify-contract
