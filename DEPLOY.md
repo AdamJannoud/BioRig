@@ -217,3 +217,51 @@ The script runs these steps:
 5. **`DeployBioRig` dry run (no `--broadcast`):** the proxy is deployed and every read-back passes.
 6. Fork smoke test: BioRig is broadcast to the fork, `VERIFIER_ROLE` is granted, and one tree is minted. This proves
    the registry and account path works, not just the deployment.
+
+## 6. Executed deployment: Celo Sepolia, 30 September 2026
+
+Run with `DeployAll` exactly as in "One command" above, plus `--verify --verifier blockscout --verifier-url
+"$VERIFIER_URL"`. One broadcast, 5 transactions, 4,192,380 gas, 0.2096 CELO at a ~50 gwei base fee. Deployer and
+admin were the throwaway account `0xb5aB2054b43040593805Cf662A938eFE924F2778`, with `BUFFER_POOL` the same address and
+`URI_GENERATOR` zero.
+
+| Contract | Address | Tx | Gas | Blockscout |
+| --- | --- | --- | --- | --- |
+| ERC-6551 registry (canonical) | `0x000000006551c19487814612e58FE06813775758` | `0xb8f54434…451320` | 177,170 | not verified, see below |
+| ERC-6551 account implementation | `0x3d8a53dB1bBcab6D47097B25080527e5560C5165` | `0x5abd3074…8c6e99` | 626,504 | verified |
+| BioRigCoreV5 implementation | `0x4c998C6553C78bb9d5A67Aac6fBC526d64DBa3a4` | `0x32c7fdff…33199d` | 2,942,890 | verified |
+| ERC1967Proxy (the address to use) | `0x21ab8B36177F65ce69e04E281E4aFf3Db6b5f7E6` | `0xdcf0dd8b…39184e` | 389,203 | submission rate-limited |
+| `grantRole(VERIFIER_ROLE, admin)` | `0x21ab8B36…f7E6` | `0x9a004384…6e0203` | 56,613 | — |
+
+A deployment that only reads back correctly is still not proof the system works, so one tree was minted: `mintTree`,
+tx `0x486bc529…4b9d5f9e`, 267,565 gas.
+
+```bash
+cast call "$PROXY" "ownerOf(uint256)(address)" 1     # 0xb5aB2054b43040593805Cf662A938eFE924F2778
+cast call "$PROXY" "totalSupply()(uint256)"          # 1
+cast call "$PROXY" "getTreeStats(uint256)((uint96,uint96,uint64,address,bool,bytes32))" 1
+```
+
+Tree 1's token-bound account is `0x61bd8BEcE5a38209Fc10d4DA3f837EE83a10124a`. Its code is an ERC-1167 minimal proxy
+to the account implementation, it reports ERC-165 `0x6faff5f1`, and its `token()` returns `(11142220,
+0x21ab8B36177F65ce69e04E281E4aFf3Db6b5f7E6, 1)`, so the registry and account path genuinely works on this chain.
+
+Two contracts are not source-verified on Blockscout:
+
+- **The proxy.** It was submitted during the broadcast, but Blockscout rate-limited its verification endpoint
+  (`status=0, Too many requests`) while the run was still going. Resubmitting later works, with the source and
+  settings unchanged from the build that produced it:
+  ```bash
+  ARGS=$(cast abi-encode "f(address,bytes)" 0x4c998C6553C78bb9d5A67Aac6fBC526d64DBa3a4 "$(cast calldata \
+    'initialize(address,address,address,uint256,address,address)' 0xb5aB2054b43040593805Cf662A938eFE924F2778 \
+    0x000000006551c19487814612e58FE06813775758 0x3d8a53dB1bBcab6D47097B25080527e5560C5165 11142220 \
+    0xb5aB2054b43040593805Cf662A938eFE924F2778 0x0000000000000000000000000000000000000000)")
+  forge verify-contract 0x21ab8B36177F65ce69e04E281E4aFf3Db6b5f7E6 \
+    lib/openzeppelin-contracts/contracts/proxy/ERC1967/ERC1967Proxy.sol:ERC1967Proxy \
+    --verifier blockscout --verifier-url "$VERIFIER_URL" --chain 11142220 --constructor-args "$ARGS"
+  ```
+- **The canonical registry** cannot be exact-match verified from this repository at all. On chain it is the EIP-6551
+  canonical creation code, compiled with solc 0.8.17; this repo compiles the vendored source with solc 0.8.28, so
+  neither the executable bytes nor the metadata match. Blockscout's "similar match" submission, from the explorer UI,
+  is the route. It is behaviourally proven regardless: `DeployAll` checks `account()` against an independent CREATE2
+  derivation before broadcasting, and a real tree minted through it.
