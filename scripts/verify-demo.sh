@@ -52,6 +52,36 @@ echo "$probe" | grep -qx 'r_frame_rate=30/1' || { echo "fps is not 30"; exit 1; 
 echo "$probe" | grep -qx 'nb_read_frames=2700' || { echo "frame count is not 2700"; exit 1; }
 echo "$probe" | grep -qx 'duration=90.000000'  || { echo "duration is not 90.000000"; exit 1; }
 
+step "5b. the roadmap label is in the rendered pixels, not only in the source"
+$PY - "$MP4" <<'PY'
+import sys
+import cv2
+import numpy as np
+
+cap = cv2.VideoCapture(sys.argv[1])
+WARN_BGR = np.array((36, 191, 251))  # demo_style.WARN (251, 191, 36), reversed for OpenCV
+
+
+def warn_pixels(t):
+    cap.set(cv2.CAP_PROP_POS_MSEC, t * 1000)
+    ok, frame = cap.read()
+    if not ok:
+        sys.exit(f"could not read a frame at t={t}")
+    strip = frame[455:525, 95:520]  # the solid ROADMAP pill, scene 4
+    return int((np.abs(strip.astype(int) - WARN_BGR).sum(axis=2) < 120).sum())
+
+
+before, on_screen, closing = warn_pixels(71.0), warn_pixels(76.0), warn_pixels(89.0)
+print(f"ROADMAP pill pixels: t=71 {before}, t=76 {on_screen}, closing card t=89 {closing}")
+if before != 0:
+    sys.exit("the 20% split was labelled as roadmap before its cue")
+if on_screen < 2000:
+    sys.exit("the roadmap pill is not on screen in scene 4 after its cue")
+if closing <= 0:
+    sys.exit("the roadmap line is missing from the closing card")
+print("label burned into scene 4 and the closing card")
+PY
+
 step "6. secrets: the .env key is in no tracked file"
 $PY - <<'PY'
 import subprocess, sys
