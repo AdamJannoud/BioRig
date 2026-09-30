@@ -6,6 +6,8 @@ libs = ["lib"]
 solc = "0.8.28"
 optimizer = true
 optimizer_runs = 200
+# Deploy scripts read the EIP-6551 canonical registry creation code from script/data (see DeployCommon.sol).
+fs_permissions = [{ access = "read", path = "./script/data" }]
 
 [fmt]
 line_length = 120

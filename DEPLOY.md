@@ -10,7 +10,39 @@ CELO, explorer Blockscout at <https://celo-sepolia.blockscout.com>). Celo Alfajo
 replaced by Celo Sepolia. Its RPC no longer resolves, so nothing here targets it. Every value comes from the
 environment, so the same commands work on another chain once `.env` is changed.
 
-Faucets: <https://faucet.celo.org/celo-sepolia> and the Google Cloud Web3 faucet (Celo Sepolia).
+Faucets: <https://faucet.celo.org/celo-sepolia> and the Google Cloud Web3 faucet (Celo Sepolia). The Celo faucet's
+browser flow is gated on reCAPTCHA v3 and its unauthenticated API path rejects requests without a captcha token, so
+headless callers need either a real browser or a self-serve API key from <https://faucet.celo.org/keys>.
+
+## One command, when the chain has neither prerequisite
+
+On a chain with no ERC-6551 registry and no account implementation (Celo Sepolia, at the time of writing),
+`script/DeployAll.s.sol` deploys **all three** in a single broadcast, in dependency order:
+
+```bash
+cp .env.example .env          # PRIVATE_KEY, ADMIN, BUFFER_POOL (CHAIN_ID defaults to Celo Sepolia)
+set -a; source .env; set +a
+
+# dry run: simulates against live chain state, sends nothing
+forge script script/DeployAll.s.sol:DeployAll --rpc-url "$RPC_URL"
+
+# broadcast, waiting for each receipt
+forge script script/DeployAll.s.sol:DeployAll --rpc-url "$RPC_URL" --broadcast --slow
+```
+
+It (1) puts the canonical registry at `0x000000006551c19487814612e58FE06813775758` through Nick's factory, or reuses
+it if already present; (2) deploys the reference account implementation and checks it reports ERC-165 `0x6faff5f1`;
+(3) deploys the `BioRigCoreV5` implementation and an `ERC1967Proxy` that runs `initialize(...)` in its own constructor;
+(4) grants `VERIFIER_ROLE` to `ADMIN`, which `initialize` does not do, and without which `mintTree` reverts. Both
+deployed addresses are fed into `initialize` from the deployments themselves, so no environment value can point the
+contract at a different registry than the one that run created.
+
+`DeployAll` needs no `ERC6551_REGISTRY` or `ERC6551_IMPLEMENTATION` in `.env`. `DeployBioRig.s.sol` remains the
+contract-only path for chains where both already exist.
+
+**`ADMIN` must be the deployer address** for either script: only the holder of `DEFAULT_ADMIN_ROLE` can grant
+`VERIFIER_ROLE`, and the scripts refuse to run when `ADMIN` is a different account rather than deploying something
+nobody can mint with.
 
 ## Deployment is not proof of a working system
 
