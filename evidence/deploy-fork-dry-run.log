@@ -1,0 +1,196 @@
+
+
+######## 0. Fork facts
+upstream: https://forno.celo-sepolia.celo-testnet.org
+fork eth_chainId: 11142220   fork block: 37505689
+code at canonical ERC-6551 registry 0x000000006551c19487814612e58FE06813775758: '0x'
+code size at Nick's factory 0x4e59b448...: 69
+
+
+######## 1. GUARD: DeployBioRig with the canonical registry, which has no code on Celo Sepolia (must refuse)
+No files changed, compilation skipped
+Traces:
+  [4558600] → new DeployBioRig@0x9f7cF1d1F558E57ef88a59ac3D47214eF25B6A06
+    └─ ← [Return] 22656 bytes of code
+
+  [13163] DeployBioRig::run()
+    ├─ [0] VM::envUint("PRIVATE_KEY") [staticcall]
+    │   └─ ← [Return] <env var value>
+    ├─ [0] VM::envAddress("ADMIN") [staticcall]
+    │   └─ ← [Return] <env var value>
+    ├─ [0] VM::envAddress("ERC6551_REGISTRY") [staticcall]
+    │   └─ ← [Return] <env var value>
+    ├─ [0] VM::envAddress("ERC6551_IMPLEMENTATION") [staticcall]
+    │   └─ ← [Return] <env var value>
+    ├─ [0] VM::envUint("CHAIN_ID") [staticcall]
+    │   └─ ← [Return] <env var value>
+    ├─ [0] VM::envAddress("BUFFER_POOL") [staticcall]
+    │   └─ ← [Return] <env var value>
+    ├─ [0] VM::envAddress("URI_GENERATOR") [staticcall]
+    │   └─ ← [Return] <env var value>
+    ├─ [0] VM::toString(11142220 [1.114e7]) [staticcall]
+    │   └─ ← [Return] "11142220"
+    ├─ [0] VM::toString(11142220 [1.114e7]) [staticcall]
+    │   └─ ← [Return] "11142220"
+    ├─ [0] VM::toString(0x000000006551c19487814612e58FE06813775758) [staticcall]
+    │   └─ ← [Return] "0x000000006551c19487814612e58FE06813775758"
+    ├─ [0] VM::toString(11142220 [1.114e7]) [staticcall]
+    │   └─ ← [Return] "11142220"
+    └─ ← [Revert] ERC6551_REGISTRY 0x000000006551c19487814612e58FE06813775758 has no code on chain 11142220. Refusing to deploy a BioRig whose mintTree would always revert; deploy one with script/DeployERC6551Registry.s.sol and set ERC6551_REGISTRY.
+
+
+Error: script failed: ERC6551_REGISTRY 0x000000006551c19487814612e58FE06813775758 has no code on chain 11142220. Refusing to deploy a BioRig whose mintTree would always revert; deploy one with script/DeployERC6551Registry.s.sol and set ERC6551_REGISTRY.
+>>> AS EXPECTED (fail, exit 1): registry-code guard fired
+
+
+######## 2. GUARD: DeployBioRig with CHAIN_ID=44787 (Alfajores) against a Celo Sepolia RPC (must refuse)
+No files changed, compilation skipped
+Traces:
+  [4558600] → new DeployBioRig@0x9f7cF1d1F558E57ef88a59ac3D47214eF25B6A06
+    └─ ← [Return] 22656 bytes of code
+
+  [8170] DeployBioRig::run()
+    ├─ [0] VM::envUint("PRIVATE_KEY") [staticcall]
+    │   └─ ← [Return] <env var value>
+    ├─ [0] VM::envAddress("ADMIN") [staticcall]
+    │   └─ ← [Return] <env var value>
+    ├─ [0] VM::envAddress("ERC6551_REGISTRY") [staticcall]
+    │   └─ ← [Return] <env var value>
+    ├─ [0] VM::envAddress("ERC6551_IMPLEMENTATION") [staticcall]
+    │   └─ ← [Return] <env var value>
+    ├─ [0] VM::envUint("CHAIN_ID") [staticcall]
+    │   └─ ← [Return] <env var value>
+    ├─ [0] VM::envAddress("BUFFER_POOL") [staticcall]
+    │   └─ ← [Return] <env var value>
+    ├─ [0] VM::envAddress("URI_GENERATOR") [staticcall]
+    │   └─ ← [Return] <env var value>
+    ├─ [0] VM::toString(44787 [4.478e4]) [staticcall]
+    │   └─ ← [Return] "44787"
+    ├─ [0] VM::toString(11142220 [1.114e7]) [staticcall]
+    │   └─ ← [Return] "11142220"
+    └─ ← [Revert] CHAIN_ID mismatch: env CHAIN_ID=44787 but the RPC reports eth_chainId=11142220
+
+
+Error: script failed: CHAIN_ID mismatch: env CHAIN_ID=44787 but the RPC reports eth_chainId=11142220
+>>> AS EXPECTED (fail, exit 1): chain-id guard fired
+
+
+######## 3. DRY RUN (no --broadcast): DeployERC6551Registry, canonical mode
+No files changed, compilation skipped
+Script ran successfully.
+
+== Return ==
+registry: address 0x000000006551c19487814612e58FE06813775758
+
+== Logs ==
+  === ERC-6551 registry ===
+  chain id:           11142220
+  mode:               canonical
+  registry:           0x000000006551c19487814612e58FE06813775758
+  code size (bytes):  571
+  Set ERC6551_REGISTRY to this address before running DeployBioRig.
+
+## Setting up 1 EVM.
+
+==========================
+
+Chain 11142220
+
+Estimated max fee per gas: 100.000000001 gwei
+Estimated base fee per gas: 50 gwei
+Estimated max priority fee per gas: 0.000000001 gwei
+
+Estimated total gas used for script: 259110
+
+Estimated amount required: 0.02591100000025911 CELO
+
+==========================
+
+SIMULATION COMPLETE. To broadcast these transactions, add --broadcast and wallet configuration(s) to the previous command. See forge script --help for more.
+
+Transactions saved to: /workspace/bio-rig/cache/fork-dry-run/broadcast/DeployERC6551Registry.s.sol/11142220/dry-run/run-latest.json
+
+Sensitive values saved to: /workspace/bio-rig/cache/DeployERC6551Registry.s.sol/11142220/dry-run/run-latest.json
+
+>>> AS EXPECTED (ok, exit 0): registry deployment simulated
+
+
+######## 4. LOCAL FORK SETUP ONLY: broadcast the registry and example account to the anvil fork (not Celo Sepolia)
+registry: address 0x000000006551c19487814612e58FE06813775758
+  registry:           0x000000006551c19487814612e58FE06813775758
+  code size (bytes):  571
+ONCHAIN EXECUTION COMPLETE & SUCCESSFUL.
+>>> AS EXPECTED (ok, exit 0): registry on fork
+>>> AS EXPECTED (ok, exit 0): account implementation on fork
+registry code size now: 571
+ERC6551_IMPLEMENTATION=0x4ed7c70F96B99c776995fB64377f0d4aB3B0e1C1 (code size 2651)
+
+
+######## 5. DRY RUN (no --broadcast): DeployBioRig, the real deployment script
+No files changed, compilation skipped
+Script ran successfully.
+
+== Return ==
+core: contract BioRigCoreV5 0xa85233C63b9Ee964Add6F2cffe00Fd84eb32338f
+implementation: address 0x322813Fd9A801c5507c9de605d63CEA4f2CE6c44
+
+== Logs ==
+  Deployer:               0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+  Deployer balance (wei): 9999968211020037528078
+  === BioRigCoreV5 deployment (values read back through the proxy) ===
+  chain id (block.chainid):  11142220
+  implementation:            0x322813Fd9A801c5507c9de605d63CEA4f2CE6c44
+  proxy (use this address):  0xa85233C63b9Ee964Add6F2cffe00Fd84eb32338f
+  ERC1967 impl slot:         0x322813Fd9A801c5507c9de605d63CEA4f2CE6c44
+  name():                    BioRig Tree
+  symbol():                  TREE
+  erc6551Registry():         0x000000006551c19487814612e58FE06813775758
+  erc6551Implementation():   0x4ed7c70F96B99c776995fB64377f0d4aB3B0e1C1
+  chainId():                 11142220
+  bufferPool():              0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+  uriGenerator():            0x0000000000000000000000000000000000000000
+  admin:                     0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+  admin DEFAULT_ADMIN_ROLE:  true
+  admin UPGRADER_ROLE:       true
+  NOTE: no VERIFIER_ROLE is granted; the admin must grant it before mintTree can be called.
+
+## Setting up 1 EVM.
+
+==========================
+
+Chain 11142220
+
+Estimated max fee per gas: 76.725400125 gwei
+Estimated base fee per gas: 38.362700062 gwei
+Estimated max priority fee per gas: 0.000000001 gwei
+
+Estimated total gas used for script: 4331720
+
+Estimated amount required: 0.332352950229465 CELO
+
+==========================
+
+SIMULATION COMPLETE. To broadcast these transactions, add --broadcast and wallet configuration(s) to the previous command. See forge script --help for more.
+
+Transactions saved to: /workspace/bio-rig/cache/fork-dry-run/broadcast/DeployBioRig.s.sol/11142220/dry-run/run-latest.json
+
+Sensitive values saved to: /workspace/bio-rig/cache/DeployBioRig.s.sol/11142220/dry-run/run-latest.json
+
+>>> AS EXPECTED (ok, exit 0): BioRig deployment simulated with read-back
+
+
+######## 6. FORK SMOKE TEST: broadcast DeployBioRig to the fork, then grant VERIFIER_ROLE and mint one tree
+>>> AS EXPECTED (ok, exit 0): BioRig on fork
+proxy on fork: 0xa85233C63b9Ee964Add6F2cffe00Fd84eb32338f
+planter 0x1764e7d416076b0f97552f7de8bbc6173aa66fa0 code: '0x'   (anvil #1 code: '0xef01006bd9b71559e3b2013596726a4e2ca1ee97189606')
+>>> AS EXPECTED (ok, exit 0): grantRole(VERIFIER_ROLE, admin)
+status               1 (success)
+>>> AS EXPECTED (ok, exit 0): mintTree
+ownerOf(1):      0x1764e7D416076b0F97552F7De8bBc6173aA66fA0
+TBA 0x42299E97af5f02501AE2CC1e8f0a426Cca8bE675 token(): 11142220 [1.114e7] 0xa85233C63b9Ee964Add6F2cffe00Fd84eb32338f 1 
+getTreeStats(1): (10, 20, 1790789737 [1.79e9], 0x42299E97af5f02501AE2CC1e8f0a426Cca8bE675, true, 0xf8fa2658012341dda81dbb7d27a6bb0accd68b63e618001d8ccbed1375dbf667)
+
+
+######## SUMMARY
+all steps behaved as expected
+[anvil stopped]

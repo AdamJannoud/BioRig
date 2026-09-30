@@ -1,2 +1,9 @@
 cache/
 out/
+
+# Deployment secrets (copy .env.example to .env; never commit .env)
+.env
+.env.*
+!.env.example
+# forge script simulation logs (fork-dry-run.sh writes its broadcast logs under cache/)
+broadcast/**/dry-run/

@@ -1,0 +1,29 @@
+Blockscout verify probe, 2026-09-30. Transcribed from the terminal output of the commands below, tail only.
+No ETHERSCAN_API_KEY or other API key was set. Nothing was deployed, so the target is an existing contract
+on Celo Sepolia, Nick's factory. The source submitted does not match it, so this is a deliberate negative
+control. It proves the endpoint and the flag set work unauthenticated. It does not prove a positive match.
+
+$ forge verify-contract 0x4e59b44847b379578588920cA78FbF26c0B4956C src/vendor/ERC6551Registry.sol:ERC6551Registry \
+    --chain-id 11142220 --verifier blockscout --verifier-url https://celo-sepolia.blockscout.com/api/ --watch
+	GUID: `4e59b44847b379578588920ca78fbf26c0b4956c6abd47b2`
+	URL: https://celo-sepolia.blockscout.com/address/0x4e59b44847b379578588920ca78fbf26c0b4956c
+Waiting for blockscout verification result...
+Contract verification status:
+Response: `OK`
+Details: `Pending in queue`
+Warning: Verification is still pending...; waiting 5 seconds before trying again (4 tries remaining)
+Contract verification status:
+Response: `OK`
+Details: `Fail - Unable to verify`
+
+$ (same, with --verifier-url https://celo-sepolia.blockscout.com/api  [no trailing slash], run immediately after)
+Response: `OK`
+Details: `Pending in queue`
+Warning: Failed to request verification status; Received error response: status=0,message=Too many requests.
+  Increase limits now at https://dev.blockscout.com, result=None; waiting 5 seconds before trying again (3 tries remaining)
+  ... (repeated until retries exhausted)
+Error: Checking verification result failed
+
+Also observed: GET https://celo-sepolia.blockscout.com/api/v2/smart-contracts?q=ERC1967Proxy lists many verified
+ERC1967Proxy instances on Celo Sepolia (e.g. 0x1a21a117A9Ffb2a043C6Bcf704A2A5A120a2F4a8, solc 0.8.24, verified 2026-09-24).
+Blockscout backend version: v11.3.2.
