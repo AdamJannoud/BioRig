@@ -121,6 +121,7 @@ contract BioRigCoreV5 is
             address(this),
             tokenId
         );
+        if (treeWallet == address(0)) revert InvalidAddress();
 
         _trees[tokenId] = TreeStats({
             dbh: initialDBH,
