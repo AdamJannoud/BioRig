@@ -313,6 +313,16 @@ The source text that match attached is the database's own copy, not this repo's 
 mainnet-verified one: it misspells `keccak256(bytecode)` as `keccak256(bytedcode)` in one comment, which
 is why its text differs from this repo's vendored file. Comments never reach executable bytecode, so the
 behaviour the explorer displays is correct; the difference only explains partial rather than full match.
+
 A full match would need the original file byte for byte, which is not available here, and for
 third-party canonical code deployed through a keyless factory the partial match is the expected
 outcome: the same address carries byte-identical executable code on every chain.
+
+An explicit manual submission was also attempted, to confirm the "similar match" route. It was
+**accepted** by the explorer ("Smart-contract verification started", HTTP 200) with the canonical
+source at solc 0.8.17 / optimizer 200 / evm london via the UI's `flattened-code` method, but changed
+nothing: the contract keeps the bytecode-database partial match (`verified_at` unchanged), because an
+exact or full match would require the submitted source to reproduce the deployed metadata hash, which
+no available copy of the file does. Note also that the UI/`v2` verify route is not rate-limited the way
+the `v1` `module=contract` API is (180 requests per window here), so the 429s earlier were specific to
+the `v1`-based `forge verify-contract` path, not to verification on this explorer generally.
