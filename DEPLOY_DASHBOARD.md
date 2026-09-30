@@ -28,28 +28,26 @@ process environment, then `dashboard/deployment.json`. The chain id, RPC endpoin
 So a hosted instance needs no configuration at all to render; secrets only add the signing account and
 change from read-only to interactive.
 
-## 1. Push the repository to GitHub
+## 1. Repository state (done — pushed 2026-09-30)
 
-The repository has no remote yet. From the checkout:
+`main` on <https://github.com/AdamJannoud/BioRig> is at commit `f863608` and already carries the entrypoint
+`streamlit_app.py`, the pinned `requirements.txt`, `.streamlit/config.toml`, `dashboard/` and
+`dashboard/deployment.json`, alongside the contracts and the test suite. Deploy from `main`.
 
-```bash
-git remote add origin git@github.com:<you>/bio-rig.git   # or the https:// URL
-git push -u origin master
-```
+The repository is private. Streamlit's free tier deploys one private repository, so this works as it stands;
+if the picker will not list it, either grant the Streamlit GitHub app access to `BioRig` or make the
+repository public. Either way the running app is public — reviewers need only the `*.streamlit.app` URL,
+not the source.
 
-The local branch is `master`, so use `master` in the branch fields below (or rename it first with
-`git branch -m master main`).
-
-Community Cloud can deploy a private repository, but a public one is simpler for reviewers and needs no
-extra GitHub permissions.
+This branch is `master` locally and was pushed to `main` remotely, so nothing on GitHub is named `master`.
 
 ## 2. Deploy on Streamlit Community Cloud
 
 1. Open <https://share.streamlit.io> and sign in with GitHub.
 2. Click **Create app** (top right), then **Yup, I have an app**.
 3. Fill in:
-   - **Repository**: `<you>/bio-rig`
-   - **Branch**: `master` (rename to `main` first if you prefer that)
+   - **Repository**: `AdamJannoud/BioRig`
+   - **Branch**: `main`
    - **Main file path**: `streamlit_app.py`
 4. Optionally set the **App URL** subdomain, e.g. `biorig-demo`, giving `https://biorig-demo.streamlit.app`.
 5. Open **Advanced settings**:
