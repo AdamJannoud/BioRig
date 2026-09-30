@@ -23,6 +23,9 @@ step "3. live chain: getTreeStats, TBA derivation, mintTree eth_call simulation 
 $PY -m dashboard.smoke --token 1
 
 step "4. dashboard in a real browser"
+# The pip package does not ship the browser binary, so a fresh machine fails the check below with
+# "Executable doesn't exist" rather than a real UI fault. Bootstrap it once; a no-op when present.
+$PY -m playwright install chromium >/dev/null 2>&1 || { echo "could not install playwright chromium"; exit 1; }
 $PY -m streamlit run dashboard/app.py --server.headless true --server.port "$PORT" \
   --browser.gatherUsageStats false > .streamlit-run.log 2>&1 &
 ST_PID=$!
