@@ -30,13 +30,15 @@ change from read-only to interactive.
 
 ## 1. Repository state (done — pushed 2026-09-30)
 
-`main` on <https://github.com/AdamJannoud/BioRig> is at commit `a9e24df` and already carries the entrypoint
-`streamlit_app.py`, the pinned `requirements.txt`, `.streamlit/config.toml`, `dashboard/` and
-`dashboard/deployment.json`, alongside the contracts and the test suite. Deploy from the head of `main`.
+`main` on <https://github.com/AdamJannoud/BioRig> already carries the entrypoint `streamlit_app.py`, the
+pinned `requirements.txt`, `.streamlit/config.toml`, `dashboard/` and `dashboard/deployment.json`, alongside
+the contracts and the test suite. Deploy from the head of `main`.
 
-That head has moved twice and will move again: `f863608` brought the entrypoint, `a9e24df` the regenerated
-architecture diagram and its README section. The hash is a landmark, not a pin. `git ls-remote
-origin refs/heads/main` gives the current tip; what the deploy needs is the entrypoint, and it is on `main`.
+For reference: the entrypoint landed in `f863608`, `668a99f` was a deploy-doc update, and `a9e24df` is the
+commit that added the regenerated architecture diagram and its README section. `a9e24df` was the head of
+`main` when this section was written. Treat the hash as a landmark rather than a pin — commits that only
+touch documentation, including the one that wrote this sentence, keep moving the tip. `git ls-remote
+origin refs/heads/main` gives the live tip, and what a deploy needs is the entrypoint, which is on `main`.
 
 The repository is private. Streamlit's free tier deploys one private repository, so this works as it stands;
 if the picker will not list it, either grant the Streamlit GitHub app access to `BioRig` or make the
