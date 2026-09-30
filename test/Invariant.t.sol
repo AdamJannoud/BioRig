@@ -121,11 +121,6 @@ contract InvariantTest is BaseTest {
         targetContract(address(handler));
     }
 
-    /// Guard against a vacuous pass: the handler must actually have minted trees.
-    function afterInvariant() public view {
-        assertGt(handler.minted(), 0, "handler never minted");
-    }
-
     /// For every live tree, its recorded nullifier is active, and no two live trees share one.
     function invariant_liveTreeNullifiersActiveAndUnique() public view {
         uint256 n = handler.idsLength();

@@ -87,7 +87,7 @@ contract ReentrancyTest is BaseTest {
 
     /// A planter that is ALSO a verifier can call updateTreeGrowth from onERC721Received,
     /// because growth is not nonReentrant. Only effect: GrowthUpdated is logged before TreeMinted.
-    /// Requires a trusted role; no state is corrupted. (FINDINGS I-2)
+    /// Requires a trusted role; no state is corrupted. (FINDINGS I-2, H4)
     function test_H4_verifierPlanter_growsDuringMintCallback_eventOrderOnly() public {
         VerifierPlanter vp = new VerifierPlanter(address(core), false);
         vm.prank(admin);

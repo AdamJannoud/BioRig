@@ -65,7 +65,7 @@ contract TokenBoundAccountTest is BaseTest {
 
     // ---- Hypothesis 1: registry returns address(0) ----
 
-    /// H1 / FINDINGS M-1. Correct behaviour: a mint whose registry returns address(0)
+    /// H1 / FINDINGS F-1. Correct behaviour: a mint whose registry returns address(0)
     /// must revert, instead of producing an owned NFT that every tree path rejects.
     function test_H1_zeroRegistry_mintReverts() public {
         BioRigCoreV5 c = _deployWithRegistry(address(new ZeroRegistry()));

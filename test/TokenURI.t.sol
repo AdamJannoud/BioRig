@@ -58,7 +58,7 @@ contract TokenURITest is BaseTest {
     }
 
     // ---- Hypothesis 3: generator with no code / reverting generator ----
-    // FINDINGS L-2: documents behaviour. Availability-only, admin-caused, admin-recoverable.
+    // FINDINGS L-1: documents behaviour. Availability-only, admin-caused, admin-recoverable.
 
     /// A codeless generator makes tokenURI revert for every token: the high-level call
     /// expects return data, so ABI-decoding the empty returndata reverts (with empty data).
