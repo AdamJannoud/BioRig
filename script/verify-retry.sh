@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-# Verifies BioRig's contracts on Blockscout, within its unauthenticated quota.
+# Verifies BioRig's contracts on Blockscout.
 #
-# Status as of 2026-09-30: all four are verified. The canonical registry was resolved by Blockscout's
-# Ethereum Bytecode Database as a partial match (identical executable bytecode, different metadata
-# hash — see DEPLOY.md section 7), so the 'registry' target below has nothing left to do and stays for
-# redeployments. The other three were verified from this build's own submissions.
+# All four are verified (2026-09-30): the canonical registry as a partial match via Blockscout's
+# Ethereum Bytecode Database, the other three from own submissions. The 'registry' target below is
+# kept for redeployments and for the record; the manual submission note is in DEPLOY.md section 7.
+# Prefer the v2 verify route (POST /api/v2/smart-contracts/{addr}/verification/via/flattened-code):
+# the v1 module=contract API throttles to 10 requests per window, the v2 route ran at 180 here.
 #
 # Blockscout's v1 API (module=contract) allows 10 requests per window for an unauthenticated IP.
 # The window length is in the x-ratelimit-reset header, in milliseconds. forge verify-contract

@@ -18,6 +18,10 @@ interface IERC6551Registry {
     ) external returns (address);
 }
 
+interface IERC6551Account {
+    function token() external view returns (uint256 chainId, address tokenContract, uint256 tokenId);
+}
+
 interface ITokenURIGenerator {
     function generateURI(uint256 tokenId, uint96 dbh, uint96 biomass, bool isAlive) external view returns (string memory);
 }
@@ -32,6 +36,9 @@ contract BioRigCoreV5 is
 {
     bytes32 public constant VERIFIER_ROLE = keccak256("VERIFIER_ROLE");
     bytes32 public constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
+
+    /// @dev ERC-165 id of the ERC-6551 account interface. A constant: occupies no storage.
+    bytes4 private constant _IERC6551_ACCOUNT_INTERFACE_ID = 0x6faff5f1;
 
     uint256 private _nextTokenId;
 
@@ -52,6 +59,9 @@ contract BioRigCoreV5 is
 
     mapping(uint256 => TreeStats) private _trees;
     mapping(bytes32 => bool) private _activeNullifiers;
+    /// @dev Appended in slot 8 (after `_activeNullifiers`), so slots 0-7 are unchanged. Unset ("")
+    /// until an admin calls setBaseURI; an upgraded proxy reads it as "" and behaves as before.
+    string private _baseTokenURI;
 
     error InvalidAddress();
     error InvalidTree();
@@ -59,12 +69,15 @@ contract BioRigCoreV5 is
     error NullifierInUse();
     error InvalidGrowthData();
     error ZeroAdminAddress();
+    error InvalidNullifier();
+    error InvalidTba();
 
     event TreeMinted(uint256 indexed tokenId, address indexed tba, bytes32 indexed spatialNullifier);
     event GrowthUpdated(uint256 indexed tokenId, uint96 newDBH, uint96 newBiomass);
     event TreeMortalityReported(uint256 indexed tokenId, bytes32 releasedNullifier, address tba);
     event URIGeneratorUpdated(address indexed oldGenerator, address indexed newGenerator);
     event BufferPoolUpdated(address indexed oldPool, address indexed newPool);
+    event BaseURIUpdated(string oldBaseURI, string newBaseURI);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -106,6 +119,7 @@ contract BioRigCoreV5 is
         uint96 initialBiomass
     ) external nonReentrant whenNotPaused onlyRole(VERIFIER_ROLE) returns (uint256) {
         if (planter == address(0)) revert InvalidAddress();
+        if (spatialNullifier == bytes32(0)) revert InvalidNullifier();
         if (_activeNullifiers[spatialNullifier]) revert NullifierInUse();
 
         uint256 tokenId = _nextTokenId++;
@@ -122,6 +136,7 @@ contract BioRigCoreV5 is
             tokenId
         );
         if (treeWallet == address(0)) revert InvalidAddress();
+        _validateTba(treeWallet, tokenId);
 
         _trees[tokenId] = TreeStats({
             dbh: initialDBH,
@@ -182,14 +197,25 @@ contract BioRigCoreV5 is
 
         if (tree.tbaAddress == address(0)) revert InvalidTree();
 
-        if (uriGenerator != address(0)) {
-            return ITokenURIGenerator(uriGenerator).generateURI(tokenId, tree.dbh, tree.biomass, tree.isAlive);
+        address generator = uriGenerator;
+        // A codeless generator is skipped explicitly: a high-level call to it would "succeed" with
+        // empty returndata and the ABI decode would revert in this frame, outside the try/catch.
+        if (generator != address(0) && generator.code.length != 0) {
+            try ITokenURIGenerator(generator).generateURI(tokenId, tree.dbh, tree.biomass, tree.isAlive) returns (
+                string memory uri
+            ) {
+                return uri;
+            } catch {
+                // reverted or ran out of gas: fall through to the base path (_baseURI() + tokenId)
+            }
         }
 
         return super.tokenURI(tokenId);
     }
 
     function setURIGenerator(address _newGenerator) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        // address(0) stays legal: it selects the base-path fallback in tokenURI
+        if (_newGenerator != address(0) && _newGenerator.code.length == 0) revert InvalidAddress();
         address oldGenerator = uriGenerator;
         uriGenerator = _newGenerator;
         emit URIGeneratorUpdated(oldGenerator, _newGenerator);
@@ -202,12 +228,49 @@ contract BioRigCoreV5 is
         emit BufferPoolUpdated(oldPool, _newPool);
     }
 
+    /// @notice Base for the tokenURI fallback: baseURI + tokenId. The value is not validated;
+    /// "" restores the empty-string fallback.
+    function setBaseURI(string calldata newBaseURI) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        string memory oldBaseURI = _baseTokenURI;
+        _baseTokenURI = newBaseURI;
+        emit BaseURIUpdated(oldBaseURI, newBaseURI);
+    }
+
+    function baseURI() external view returns (string memory) {
+        return _baseTokenURI;
+    }
+
     function pause() external onlyRole(DEFAULT_ADMIN_ROLE) {
         _pause();
     }
 
     function unpause() external onlyRole(DEFAULT_ADMIN_ROLE) {
         _unpause();
+    }
+
+    /// @dev Rejects a registry-returned account unless it is a contract that reports ERC-6551
+    /// support and is bound to exactly (chainId, this contract, tokenId). Low-level staticcalls
+    /// so that a missing function or undecodable returndata reverts InvalidTba, not a bare revert.
+    function _validateTba(address account, uint256 tokenId) private view {
+        if (account.code.length == 0) revert InvalidTba();
+
+        (bool ok, bytes memory ret) = account.staticcall(
+            abi.encodeWithSelector(IERC165.supportsInterface.selector, _IERC6551_ACCOUNT_INTERFACE_ID)
+        );
+        if (!ok || ret.length < 32 || uint256(bytes32(ret)) != 1) revert InvalidTba();
+
+        (ok, ret) = account.staticcall(abi.encodeWithSelector(IERC6551Account.token.selector));
+        if (!ok || ret.length < 96) revert InvalidTba();
+        // decoded as words so a dirty address word cannot trigger a decoder revert
+        (uint256 boundChainId, uint256 boundContract, uint256 boundTokenId) =
+            abi.decode(ret, (uint256, uint256, uint256));
+        if (boundChainId != chainId || boundContract != uint256(uint160(address(this))) || boundTokenId != tokenId) {
+            revert InvalidTba();
+        }
+    }
+
+    function _baseURI() internal view override returns (string memory) {
+        return _baseTokenURI;
     }
 
     function _authorizeUpgrade(address newImplementation) internal override onlyRole(UPGRADER_ROLE) {}

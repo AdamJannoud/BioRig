@@ -8,6 +8,7 @@ import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/Pau
 import {BioRigCoreV5} from "../src/BioRigCoreV5.sol";
 import {ERC6551RegistryMock} from "./mocks/Registries.sol";
 import {URIGeneratorMock} from "./mocks/Misc.sol";
+import {TokenBoundAccount} from "./mocks/TokenBoundAccount.sol";
 
 /// @notice Shared fixture. The target is always deployed behind a real ERC1967Proxy
 /// and initialized through the proxy, exactly like production.
@@ -24,7 +25,9 @@ abstract contract BaseTest is Test {
     address internal planter = makeAddr("planter");
     address internal alice = makeAddr("alice");
     address internal bob = makeAddr("bob");
-    address internal accountImpl = makeAddr("accountImpl");
+    /// Real ERC-6551 account implementation (deployed in setUp). mintTree validates the
+    /// registry's returned account by calling it, so the ERC-1167 proxies need live code behind them.
+    address internal accountImpl;
     address internal bufferPool = makeAddr("bufferPool");
 
     bytes32 internal VERIFIER_ROLE;
@@ -44,6 +47,7 @@ abstract contract BaseTest is Test {
 
     function setUp() public virtual {
         vm.warp(1_700_000_000);
+        accountImpl = address(new TokenBoundAccount());
         registry = new ERC6551RegistryMock();
         generator = new URIGeneratorMock();
         impl = new BioRigCoreV5();

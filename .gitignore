@@ -10,3 +10,7 @@ broadcast/**/dry-run/
 
 # Throwaway deployer key material written by deploy runs
 .deploy/
+.venv/
+__pycache__/
+.bolter/
+.bolter-task.md

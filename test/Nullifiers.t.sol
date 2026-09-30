@@ -61,14 +61,19 @@ contract NullifiersTest is BaseTest {
         assertFalse(core.isNullifierActive(N1));
     }
 
-    /// Informational (FINDINGS I-5): bytes32(0) is accepted as a nullifier.
-    function test_zeroNullifier_isAccepted() public {
-        uint256 id = _mint(planter, bytes32(0));
-        assertTrue(core.isNullifierActive(bytes32(0)));
-        assertEq(core.getTreeStats(id).spatialNullifier, bytes32(0));
+    /// FINDINGS I-5 -> R3. Previously bytes32(0) was accepted as a nullifier; it is now rejected
+    /// with InvalidNullifier() and nothing persists.
+    function test_zeroNullifier_isRejected() public {
+        vm.prank(verifier);
+        vm.expectRevert(BioRigCoreV5.InvalidNullifier.selector);
+        core.mintTree(planter, bytes32(0), 10, 20);
+        assertFalse(core.isNullifierActive(bytes32(0)));
+        assertEq(core.balanceOf(planter), 0);
+        assertEq(uint256(vm.load(address(core), bytes32(0))), 1, "token id not consumed");
     }
 
     function testFuzz_nullifierUniqueness(bytes32 a, bytes32 b) public {
+        vm.assume(a != bytes32(0) && b != bytes32(0));
         _mint(planter, a);
         vm.prank(verifier);
         if (a == b) {

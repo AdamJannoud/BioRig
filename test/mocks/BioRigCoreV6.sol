@@ -4,7 +4,8 @@ pragma solidity ^0.8.20;
 import {BioRigCoreV5} from "../../src/BioRigCoreV5.sol";
 
 /// @notice Successor implementation. Inherits V5 unchanged and APPENDS one state
-/// variable after V5's last slot (_activeNullifiers, slot 7), so it lands in slot 8.
+/// variable after V5's last slot (_baseTokenURI, slot 8), so it lands in slot 9. It was slot 8
+/// until I-6 appended _baseTokenURI to V5 at slot 8; every successor's appended state shifts by one.
 contract BioRigCoreV6 is BioRigCoreV5 {
     uint256 public v6Marker;
 

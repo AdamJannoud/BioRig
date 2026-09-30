@@ -96,8 +96,37 @@ interface IBioRigTarget {
     function reportMortality(uint256) external;
 }
 
+/// @notice Buggy/hostile registry: deploys a genuine account, but for a different binding than the
+/// one requested (the tokenId shifted by one, or a different tokenContract).
+contract MisbindingRegistry is IERC6551Registry {
+    enum Mode {
+        WrongTokenId,
+        WrongTokenContract,
+        WrongChainId
+    }
+
+    ERC6551RegistryMock public immutable inner = new ERC6551RegistryMock();
+    Mode public immutable mode;
+    address public constant OTHER_CONTRACT = address(0xC0FFEE);
+
+    constructor(Mode _mode) {
+        mode = _mode;
+    }
+
+    function createAccount(address impl, bytes32 salt, uint256 chainId, address tokenContract, uint256 tokenId)
+        external
+        returns (address)
+    {
+        if (mode == Mode.WrongTokenId) tokenId += 1;
+        else if (mode == Mode.WrongTokenContract) tokenContract = OTHER_CONTRACT;
+        else chainId += 1;
+        return inner.createAccount(impl, salt, chainId, tokenContract, tokenId);
+    }
+}
+
 /// @notice Hostile registry that re-enters the core contract from inside createAccount
-/// and bubbles up whatever revert the re-entrant call produced.
+/// and bubbles up whatever revert the re-entrant call produced. When it does not re-enter
+/// it behaves like the conforming registry, so the benign mint passes TBA validation.
 contract ReentrantRegistry is IERC6551Registry {
     enum Mode {
         None,
@@ -109,13 +138,17 @@ contract ReentrantRegistry is IERC6551Registry {
     IBioRigTarget public target;
     Mode public mode;
     uint256 public calls;
+    ERC6551RegistryMock public immutable inner = new ERC6551RegistryMock();
 
     function configure(address _target, Mode _mode) external {
         target = IBioRigTarget(_target);
         mode = _mode;
     }
 
-    function createAccount(address, bytes32, uint256, address, uint256 tokenId) external returns (address) {
+    function createAccount(address impl, bytes32 salt, uint256 chainId, address tokenContract, uint256 tokenId)
+        external
+        returns (address)
+    {
         calls++;
         if (mode == Mode.Mint) {
             target.mintTree(address(0xBEEF), keccak256("reentrant"), 1, 1);
@@ -124,6 +157,6 @@ contract ReentrantRegistry is IERC6551Registry {
         } else if (mode == Mode.Mortality) {
             target.reportMortality(tokenId);
         }
-        return address(uint160(uint256(keccak256(abi.encode("tba", tokenId)))));
+        return inner.createAccount(impl, salt, chainId, tokenContract, tokenId);
     }
 }

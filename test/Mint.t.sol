@@ -108,6 +108,7 @@ contract MintTest is BaseTest {
     function testFuzz_mint_storesArbitraryStats(address to, bytes32 n, uint96 dbh, uint96 bio) public {
         vm.assume(to != address(0) && to.code.length == 0);
         vm.assume(uint160(to) > 0xff); // skip precompiles
+        vm.assume(n != bytes32(0)); // rejected by InvalidNullifier (tested separately)
         vm.prank(verifier);
         uint256 id = core.mintTree(to, n, dbh, bio);
         BioRigCoreV5.TreeStats memory s = core.getTreeStats(id);

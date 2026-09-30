@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 import {BaseTest} from "./Base.t.sol";
+import {URIGeneratorMock} from "./mocks/Misc.sol";
 import {BioRigCoreV5} from "../src/BioRigCoreV5.sol";
 
 contract AccessControlTest is BaseTest {
@@ -161,11 +162,12 @@ contract AccessControlTest is BaseTest {
     // ---- admin setters happy paths ----
 
     function test_setURIGenerator_emitsAndStores() public {
+        address gen2 = address(new URIGeneratorMock());
         vm.expectEmit(true, true, false, false, address(core));
-        emit URIGeneratorUpdated(address(generator), alice);
+        emit URIGeneratorUpdated(address(generator), gen2);
         vm.prank(admin);
-        core.setURIGenerator(alice);
-        assertEq(core.uriGenerator(), alice);
+        core.setURIGenerator(gen2);
+        assertEq(core.uriGenerator(), gen2);
     }
 
     function test_setURIGenerator_toZero() public {

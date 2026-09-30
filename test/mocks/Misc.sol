@@ -32,6 +32,31 @@ contract RevertingURIGenerator is ITokenURIGenerator {
     }
 }
 
+/// @notice Burns every unit of gas it is given (unbounded loop), so the call always ends out-of-gas.
+contract GasBurningURIGenerator is ITokenURIGenerator {
+    uint256 public sink;
+
+    function generateURI(uint256, uint96, uint96, bool) external view returns (string memory) {
+        uint256 x = sink;
+        while (true) {
+            x = uint256(keccak256(abi.encode(x)));
+        }
+        return "";
+    }
+}
+
+/// @notice Returns successfully, but with returndata that does not ABI-decode as a string
+/// (a string header claiming 1000 bytes, followed by none).
+contract MalformedURIGenerator {
+    fallback() external {
+        assembly {
+            mstore(0x00, 0x20)
+            mstore(0x20, 1000)
+            return(0x00, 0x40)
+        }
+    }
+}
+
 /// @notice Contract planter with no onERC721Received: must be rejected by _safeMint/safeTransferFrom.
 contract RejectingPlanter {}
 
