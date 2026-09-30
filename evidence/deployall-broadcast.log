@@ -1,0 +1,132 @@
+No files changed, compilation skipped
+Script ran successfully.
+
+== Return ==
+registry: address 0x000000006551c19487814612e58FE06813775758
+accountImplementation: address 0x3d8a53dB1bBcab6D47097B25080527e5560C5165
+implementation: address 0x4c998C6553C78bb9d5A67Aac6fBC526d64DBa3a4
+core: contract BioRigCoreV5 0x21ab8B36177F65ce69e04e281E4aFf3Db6b5f7E6
+
+== Logs ==
+  Deployer:               0xb5aB2054b43040593805Cf662A938eFE924F2778
+  Deployer balance (wei): 2000000000000000000
+  === BioRig deployment summary ===
+  chain id: 11142220
+  ERC-6551 registry:      0x000000006551c19487814612e58FE06813775758
+     https://celo-sepolia.blockscout.com/address/0x000000006551c19487814612e58FE06813775758
+  ERC-6551 account impl:  0x3d8a53dB1bBcab6D47097B25080527e5560C5165
+     https://celo-sepolia.blockscout.com/address/0x3d8a53dB1bBcab6D47097B25080527e5560C5165
+  BioRig implementation:  0x4c998C6553C78bb9d5A67Aac6fBC526d64DBa3a4
+     https://celo-sepolia.blockscout.com/address/0x4c998C6553C78bb9d5A67Aac6fBC526d64DBa3a4
+  BioRig proxy:           0x21ab8B36177F65ce69e04e281E4aFf3Db6b5f7E6
+     https://celo-sepolia.blockscout.com/address/0x21ab8B36177F65ce69e04e281E4aFf3Db6b5f7E6
+  admin (= deployer):     0xb5aB2054b43040593805Cf662A938eFE924F2778
+  buffer pool:            0xb5aB2054b43040593805Cf662A938eFE924F2778
+  uri generator:          0x0000000000000000000000000000000000000000
+  VERIFIER_ROLE held by admin: true
+  Set these in .env for later runs:
+  ERC6551_REGISTRY=0x000000006551c19487814612e58FE06813775758
+  ERC6551_IMPLEMENTATION=0x3d8a53dB1bBcab6D47097B25080527e5560C5165
+
+## Setting up 1 EVM.
+
+==========================
+
+Chain 11142220
+
+Estimated max fee per gas: 100.000000001 gwei
+Estimated base fee per gas: 50 gwei
+Estimated max priority fee per gas: 0.000000001 gwei
+
+Estimated total gas used for script: 5483481
+
+Estimated amount required: 0.548348100005483481 CELO
+
+==========================
+
+
+==========================
+
+ONCHAIN EXECUTION COMPLETE & SUCCESSFUL.
+Warning: We haven't found any matching bytecode for the following contracts: [0x000000006551c19487814612e58fe06813775758].
+
+This may occur when resuming a verification, but the underlying source code or compiler version has changed.
+Run `forge clean` to make sure builds are in sync with project files, then try again. Alternatively, use `forge verify-contract` to verify contracts that are already deployed.
+##
+Start verification for (3) contracts
+Start verifying contract `0x3d8a53dB1bBcab6D47097B25080527e5560C5165` deployed on celo-sepolia
+EVM version: prague
+Compiler version: 0.8.28
+Optimizations:    200
+
+Verifying on blockscout...
+Submitting verification for [src/vendor/ERC6551Account.sol:ERC6551Account] 0x3d8a53dB1bBcab6D47097B25080527e5560C5165.
+Warning: Could not detect deployment: Address is not a smart-contract; waiting 5 seconds before trying again (4 tries remaining)
+Submitting verification for [src/vendor/ERC6551Account.sol:ERC6551Account] 0x3d8a53dB1bBcab6D47097B25080527e5560C5165.
+Warning: Could not detect deployment: Address is not a smart-contract; waiting 5 seconds before trying again (3 tries remaining)
+Submitting verification for [src/vendor/ERC6551Account.sol:ERC6551Account] 0x3d8a53dB1bBcab6D47097B25080527e5560C5165.
+Warning: Could not detect deployment: Address is not a smart-contract; waiting 5 seconds before trying again (2 tries remaining)
+Submitting verification for [src/vendor/ERC6551Account.sol:ERC6551Account] 0x3d8a53dB1bBcab6D47097B25080527e5560C5165.
+Warning: Could not detect deployment: Address is not a smart-contract; waiting 5 seconds before trying again (1 tries remaining)
+Submitting verification for [src/vendor/ERC6551Account.sol:ERC6551Account] 0x3d8a53dB1bBcab6D47097B25080527e5560C5165.
+Submitted contract for verification:
+	Response: `OK`
+	GUID: `3d8a53db1bbcab6d47097b25080527e5560c51656abd605d`
+	URL: https://celo-sepolia.blockscout.com/address/0x3d8a53db1bbcab6d47097b25080527e5560c5165
+
+Waiting for blockscout verification result...
+Contract verification status:
+Response: `OK`
+Details: `Pending in queue`
+Warning: Verification is still pending...; waiting 5 seconds before trying again (4 tries remaining)
+Contract verification status:
+Response: `OK`
+Details: `Pass - Verified`
+Contract successfully verified
+Start verifying contract `0x4c998C6553C78bb9d5A67Aac6fBC526d64DBa3a4` deployed on celo-sepolia
+EVM version: prague
+Compiler version: 0.8.28
+Optimizations:    200
+
+Verifying on blockscout...
+Submitting verification for [src/BioRigCoreV5.sol:BioRigCoreV5] 0x4c998C6553C78bb9d5A67Aac6fBC526d64DBa3a4.
+Submitted contract for verification:
+	Response: `OK`
+	GUID: `4c998c6553c78bb9d5a67aac6fbc526d64dba3a46abd6062`
+	URL: https://celo-sepolia.blockscout.com/address/0x4c998c6553c78bb9d5a67aac6fbc526d64dba3a4
+
+Waiting for blockscout verification result...
+Contract verification status:
+Response: `OK`
+Details: `Pending in queue`
+Warning: Verification is still pending...; waiting 5 seconds before trying again (4 tries remaining)
+Warning: Failed to request verification status; Received error response: status=0,message=Too many requests. Increase limits now at https://dev.blockscout.com, result=None; waiting 5 seconds before trying again (3 tries remaining)
+Warning: Failed to request verification status; Received error response: status=0,message=Too many requests. Increase limits now at https://dev.blockscout.com, result=None; waiting 5 seconds before trying again (2 tries remaining)
+Warning: Failed to request verification status; Received error response: status=0,message=Too many requests. Increase limits now at https://dev.blockscout.com, result=None; waiting 5 seconds before trying again (1 tries remaining)
+Warning: Failed to request verification status; Received error response: status=0,message=Too many requests. Increase limits now at https://dev.blockscout.com, result=None; waiting 5 seconds before trying again (0 tries remaining)
+Error: Failed to verify contract: Checking verification result failed; Failed to request verification status; Received error response: status=0,message=Too many requests. Increase limits now at https://dev.blockscout.com, result=None
+Start verifying contract `0x21ab8B36177F65ce69e04e281E4aFf3Db6b5f7E6` deployed on celo-sepolia
+EVM version: prague
+Compiler version: 0.8.28
+Optimizations:    200
+Constructor args: 0000000000000000000000004c998c6553c78bb9d5a67aac6fbc526d64dba3a4000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000c432b5a1b3000000000000000000000000b5ab2054b43040593805cf662a938efe924f2778000000000000000000000000000000006551c19487814612e58fe068137757580000000000000000000000003d8a53db1bbcab6d47097b25080527e5560c51650000000000000000000000000000000000000000000000000000000000aa044c000000000000000000000000b5ab2054b43040593805cf662a938efe924f2778000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+
+Verifying on blockscout...
+Submitting verification for [lib/openzeppelin-contracts/contracts/proxy/ERC1967/ERC1967Proxy.sol:ERC1967Proxy] 0x21ab8B36177F65ce69e04e281E4aFf3Db6b5f7E6.
+Warning: Failed to submit Etherscan contract verification; Received error response: status=0,message=Too many requests. Increase limits now at https://dev.blockscout.com, result=None; waiting 5 seconds before trying again (4 tries remaining)
+Submitting verification for [lib/openzeppelin-contracts/contracts/proxy/ERC1967/ERC1967Proxy.sol:ERC1967Proxy] 0x21ab8B36177F65ce69e04e281E4aFf3Db6b5f7E6.
+Warning: Failed to submit Etherscan contract verification; Received error response: status=0,message=Too many requests. Increase limits now at https://dev.blockscout.com, result=None; waiting 5 seconds before trying again (3 tries remaining)
+Submitting verification for [lib/openzeppelin-contracts/contracts/proxy/ERC1967/ERC1967Proxy.sol:ERC1967Proxy] 0x21ab8B36177F65ce69e04e281E4aFf3Db6b5f7E6.
+Warning: Failed to submit Etherscan contract verification; Received error response: status=0,message=Too many requests. Increase limits now at https://dev.blockscout.com, result=None; waiting 5 seconds before trying again (2 tries remaining)
+Submitting verification for [lib/openzeppelin-contracts/contracts/proxy/ERC1967/ERC1967Proxy.sol:ERC1967Proxy] 0x21ab8B36177F65ce69e04e281E4aFf3Db6b5f7E6.
+Warning: Failed to submit Etherscan contract verification; Received error response: status=0,message=Too many requests. Increase limits now at https://dev.blockscout.com, result=None; waiting 5 seconds before trying again (1 tries remaining)
+Submitting verification for [lib/openzeppelin-contracts/contracts/proxy/ERC1967/ERC1967Proxy.sol:ERC1967Proxy] 0x21ab8B36177F65ce69e04e281E4aFf3Db6b5f7E6.
+Warning: Failed to submit Etherscan contract verification; Received error response: status=0,message=Too many requests. Increase limits now at https://dev.blockscout.com, result=None; waiting 5 seconds before trying again (0 tries remaining)
+Submitting verification for [lib/openzeppelin-contracts/contracts/proxy/ERC1967/ERC1967Proxy.sol:ERC1967Proxy] 0x21ab8B36177F65ce69e04e281E4aFf3Db6b5f7E6.
+Error: Failed to verify contract: Failed to submit Etherscan contract verification; Received error response: status=0,message=Too many requests. Increase limits now at https://dev.blockscout.com, result=None
+
+Transactions saved to: /workspace/bio-rig/broadcast/DeployAll.s.sol/11142220/run-latest.json
+
+Sensitive values saved to: /workspace/bio-rig/cache/DeployAll.s.sol/11142220/run-latest.json
+
+Error: Not all (1 / 3) contracts were verified!

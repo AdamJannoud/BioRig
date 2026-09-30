@@ -1,0 +1,63 @@
+--- evidence/i6/upgrades-test.before.sol	2026-09-30 16:17:01.843938795 +0000
++++ evidence/i6/upgrades-test.after.sol	2026-09-30 16:17:16.579938458 +0000
+@@ -11,20 +11,24 @@
+         vm.prank(planter);
+         core.approve(bob, a);
+         URIGeneratorMock gen2 = new URIGeneratorMock();
++        // short (< 32 bytes) so the whole string is stored inline in V5's slot 8
++        string memory base = "ipfs://bafyI6layout/";
+         vm.startPrank(admin);
+         core.setURIGenerator(address(gen2));
+         core.setBufferPool(bob);
++        core.setBaseURI(base);
+         core.pause();
+         vm.stopPrank();
+ 
+         BioRigCoreV5.TreeStats memory sa = core.getTreeStats(a);
+         BioRigCoreV5.TreeStats memory sb = core.getTreeStats(b);
+ 
+-        // raw slots before upgrade
+-        bytes32[8] memory before;
+-        for (uint256 i; i < 8; ++i) {
++        // raw slots before upgrade: all of V5's own sequential slots, 0-7 plus _baseTokenURI at 8
++        bytes32[9] memory before;
++        for (uint256 i; i < 9; ++i) {
+             before[i] = vm.load(address(core), bytes32(i));
+         }
++        assertTrue(before[8] != bytes32(0), "slot 8 must hold the base URI at snapshot time");
+ 
+         // --- upgrade ---
+         BioRigCoreV6 v6impl = new BioRigCoreV6();
+@@ -32,12 +36,19 @@
+         core.upgradeToAndCall(address(v6impl), abi.encodeCall(BioRigCoreV6.initializeV6, (0xC0FFEE)));
+         BioRigCoreV6 v6 = BioRigCoreV6(address(core));
+ 
+-        // --- raw slots unchanged, appended var is in slot 8 ---
+-        for (uint256 i; i < 8; ++i) {
++        // --- raw slots unchanged, appended var is in slot 9 (V5 now ends at slot 8) ---
++        for (uint256 i; i < 9; ++i) {
+             assertEq(vm.load(address(core), bytes32(i)), before[i], "V5 slot moved");
+         }
+-        assertEq(uint256(vm.load(address(core), bytes32(uint256(8)))), 0xC0FFEE);
++        assertEq(uint256(vm.load(address(core), bytes32(uint256(9)))), 0xC0FFEE);
+         assertEq(v6.v6Marker(), 0xC0FFEE);
++        // non-collision: initializeV6 wrote the marker into none of V5's own slots, and no V5 slot
++        // held it before either (so the post-upgrade check can't be satisfied by coincidence)
++        for (uint256 i; i < 9; ++i) {
++            assertTrue(before[i] != bytes32(uint256(0xC0FFEE)), "marker value already in a V5 slot");
++            assertTrue(vm.load(address(core), bytes32(i)) != bytes32(uint256(0xC0FFEE)), "V6 marker collided with a V5 slot");
++        }
++        assertEq(v6.baseURI(), base);
+ 
+         // --- V6 reads V5 state ---
+         assertEq(v6.nextTokenIdV6(), 3);
+@@ -73,4 +84,9 @@
+         vm.expectRevert(BioRigCoreV5.NullifierInUse.selector);
+         v6.mintTree(planter, N1, 1, 1);
+         assertEq(v6.tokenURI(a), "tree:1:15:25:alive");
++        // with the generator cleared, V6 resolves the fallback from V5's preserved base URI
++        vm.prank(admin);
++        v6.setURIGenerator(address(0));
++        assertEq(v6.tokenURI(a), string.concat(base, vm.toString(a)));
++        assertEq(v6.tokenURI(a), "ipfs://bafyI6layout/1");
+     }

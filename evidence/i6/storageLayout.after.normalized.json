@@ -1,0 +1,177 @@
+{
+ "storage": [
+  [
+   "_nextTokenId",
+   "0",
+   0,
+   "t_uint256"
+  ],
+  [
+   "erc6551Registry",
+   "1",
+   0,
+   "t_address"
+  ],
+  [
+   "erc6551Implementation",
+   "2",
+   0,
+   "t_address"
+  ],
+  [
+   "chainId",
+   "3",
+   0,
+   "t_uint256"
+  ],
+  [
+   "bufferPool",
+   "4",
+   0,
+   "t_address"
+  ],
+  [
+   "uriGenerator",
+   "5",
+   0,
+   "t_address"
+  ],
+  [
+   "_trees",
+   "6",
+   0,
+   "t_mapping(t_uint256,t_struct(TreeStats)_storage)"
+  ],
+  [
+   "_activeNullifiers",
+   "7",
+   0,
+   "t_mapping(t_bytes32,t_bool)"
+  ],
+  [
+   "_baseTokenURI",
+   "8",
+   0,
+   "t_string_storage"
+  ]
+ ],
+ "types": {
+  "t_address": {
+   "encoding": "inplace",
+   "key": "",
+   "label": "address",
+   "members": [],
+   "numberOfBytes": "20",
+   "value": ""
+  },
+  "t_bool": {
+   "encoding": "inplace",
+   "key": "",
+   "label": "bool",
+   "members": [],
+   "numberOfBytes": "1",
+   "value": ""
+  },
+  "t_bytes32": {
+   "encoding": "inplace",
+   "key": "",
+   "label": "bytes32",
+   "members": [],
+   "numberOfBytes": "32",
+   "value": ""
+  },
+  "t_mapping(t_bytes32,t_bool)": {
+   "encoding": "mapping",
+   "key": "t_bytes32",
+   "label": "mapping(bytes32 => bool)",
+   "members": [],
+   "numberOfBytes": "32",
+   "value": "t_bool"
+  },
+  "t_mapping(t_uint256,t_struct(TreeStats)_storage)": {
+   "encoding": "mapping",
+   "key": "t_uint256",
+   "label": "mapping(uint256 => struct TreeStats)",
+   "members": [],
+   "numberOfBytes": "32",
+   "value": "t_struct(TreeStats)_storage"
+  },
+  "t_string_storage": {
+   "encoding": "bytes",
+   "key": "",
+   "label": "string",
+   "members": [],
+   "numberOfBytes": "32",
+   "value": ""
+  },
+  "t_struct(TreeStats)_storage": {
+   "encoding": "inplace",
+   "key": "",
+   "label": "struct TreeStats",
+   "members": [
+    [
+     "dbh",
+     "0",
+     0,
+     "t_uint96"
+    ],
+    [
+     "biomass",
+     "0",
+     12,
+     "t_uint96"
+    ],
+    [
+     "lastUpdated",
+     "0",
+     24,
+     "t_uint64"
+    ],
+    [
+     "tbaAddress",
+     "1",
+     0,
+     "t_address"
+    ],
+    [
+     "isAlive",
+     "1",
+     20,
+     "t_bool"
+    ],
+    [
+     "spatialNullifier",
+     "2",
+     0,
+     "t_bytes32"
+    ]
+   ],
+   "numberOfBytes": "96",
+   "value": ""
+  },
+  "t_uint256": {
+   "encoding": "inplace",
+   "key": "",
+   "label": "uint256",
+   "members": [],
+   "numberOfBytes": "32",
+   "value": ""
+  },
+  "t_uint64": {
+   "encoding": "inplace",
+   "key": "",
+   "label": "uint64",
+   "members": [],
+   "numberOfBytes": "8",
+   "value": ""
+  },
+  "t_uint96": {
+   "encoding": "inplace",
+   "key": "",
+   "label": "uint96",
+   "members": [],
+   "numberOfBytes": "12",
+   "value": ""
+  }
+ }
+}

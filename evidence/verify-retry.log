@@ -1,0 +1,86 @@
+=== registry bytecode: on-chain vs this repo's compile ===
+on-chain runtime : 571 bytes (executable 518, metadata 53)
+compiled runtime : 551 bytes (executable 498, metadata 53)
+executable code identical : False
+metadata identical        : False
+
+--- proxy: attempt 1 ---
+Start verifying contract `0x21ab8B36177F65ce69e04e281E4aFf3Db6b5f7E6` deployed on celo-sepolia
+
+Verifying on blockscout...
+Error: Failed to obtain contract ABI for 0x21ab8B36177F65ce69e04e281E4aFf3Db6b5f7E6
+
+Context:
+- Response result is unexpectedly empty: status=0, message=Too many requests. Increase limits now at https://dev.blockscout.com
+blockscout is_verified=false
+
+--- proxy: attempt 2 ---
+Start verifying contract `0x21ab8B36177F65ce69e04e281E4aFf3Db6b5f7E6` deployed on celo-sepolia
+
+Verifying on blockscout...
+Error: Failed to obtain contract ABI for 0x21ab8B36177F65ce69e04e281E4aFf3Db6b5f7E6
+
+Context:
+- Response result is unexpectedly empty: status=0, message=Too many requests. Increase limits now at https://dev.blockscout.com
+blockscout is_verified=false
+
+--- proxy: attempt 3 ---
+Start verifying contract `0x21ab8B36177F65ce69e04e281E4aFf3Db6b5f7E6` deployed on celo-sepolia
+
+Verifying on blockscout...
+Error: Failed to obtain contract ABI for 0x21ab8B36177F65ce69e04e281E4aFf3Db6b5f7E6
+
+Context:
+- Response result is unexpectedly empty: status=0, message=Too many requests. Increase limits now at https://dev.blockscout.com
+blockscout is_verified=false
+
+--- proxy: attempt 4 ---
+Start verifying contract `0x21ab8B36177F65ce69e04e281E4aFf3Db6b5f7E6` deployed on celo-sepolia
+
+Verifying on blockscout...
+Error: Failed to obtain contract ABI for 0x21ab8B36177F65ce69e04e281E4aFf3Db6b5f7E6
+
+Context:
+- Response result is unexpectedly empty: status=0, message=Too many requests. Increase limits now at https://dev.blockscout.com
+blockscout is_verified=false
+
+--- proxy: attempt 5 ---
+Start verifying contract `0x21ab8B36177F65ce69e04e281E4aFf3Db6b5f7E6` deployed on celo-sepolia
+
+Verifying on blockscout...
+Error: Failed to obtain contract ABI for 0x21ab8B36177F65ce69e04e281E4aFf3Db6b5f7E6
+
+Context:
+- Response result is unexpectedly empty: status=0, message=Too many requests. Increase limits now at https://dev.blockscout.com
+blockscout is_verified=false
+
+--- proxy: attempt 6 ---
+Start verifying contract `0x21ab8B36177F65ce69e04e281E4aFf3Db6b5f7E6` deployed on celo-sepolia
+
+Verifying on blockscout...
+Error: Failed to obtain contract ABI for 0x21ab8B36177F65ce69e04e281E4aFf3Db6b5f7E6
+
+Context:
+- Response result is unexpectedly empty: status=0, message=Too many requests. Increase limits now at https://dev.blockscout.com
+blockscout is_verified=false
+RESULT proxy: NOT VERIFIED after 6 attempts
+
+--- canonical-registry: attempt 1 ---
+Start verifying contract `0x000000006551c19487814612e58FE06813775758` deployed on celo-sepolia
+
+Verifying on blockscout...
+Error: Failed to obtain contract ABI for 0x000000006551c19487814612e58FE06813775758
+
+Context:
+- Response result is unexpectedly empty: status=0, message=Too many requests. Increase limits now at https://dev.blockscout.com
+blockscout is_verified=false
+
+--- canonical-registry: attempt 2 ---
+Start verifying contract `0x000000006551c19487814612e58FE06813775758` deployed on celo-sepolia
+
+Verifying on blockscout...
+Error: Failed to obtain contract ABI for 0x000000006551c19487814612e58FE06813775758
+
+Context:
+- Response result is unexpectedly empty: status=0, message=Too many requests. Increase limits now at https://dev.blockscout.com
+blockscout is_verified=false

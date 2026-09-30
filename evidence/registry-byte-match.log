@@ -1,0 +1,46 @@
+on-chain runtime      : 571 bytes (executable 518, metadata 53)
+source sha256         : 34ab6dc728c39383a7f80c31064049ad217a696cf2615cdc9ee8aab86c8c3541
+source                : src/vendor/ERC6551Registry.sol (6179 bytes)
+  solc 0.8.17 runs=off viaIR=False evm=default -> 866 bytes (executable 813, metadata 53)
+  solc 0.8.17 runs=off viaIR=False evm=london -> 866 bytes (executable 813, metadata 53)
+  compile error: Invalid EVM version requested.
+  compile error: Invalid EVM version requested.
+  solc 0.8.17 runs=off viaIR=True evm=default -> 987 bytes (executable 934, metadata 53)
+  solc 0.8.17 runs=off viaIR=True evm=london -> 987 bytes (executable 934, metadata 53)
+  compile error: Invalid EVM version requested.
+  compile error: Invalid EVM version requested.
+  solc 0.8.17 runs=200 viaIR=False evm=default -> 571 bytes (executable 518, metadata 53)
+  solc 0.8.17 runs=200 viaIR=False evm=london -> 571 bytes (executable 518, metadata 53)
+  compile error: Invalid EVM version requested.
+  compile error: Invalid EVM version requested.
+  solc 0.8.17 runs=200 viaIR=True evm=default -> 497 bytes (executable 444, metadata 53)
+  solc 0.8.17 runs=200 viaIR=True evm=london -> 497 bytes (executable 444, metadata 53)
+  compile error: Invalid EVM version requested.
+  compile error: Invalid EVM version requested.
+  solc 0.8.17 runs=1000 viaIR=False evm=default -> 597 bytes (executable 544, metadata 53)
+  solc 0.8.17 runs=1000 viaIR=False evm=london -> 597 bytes (executable 544, metadata 53)
+  compile error: Invalid EVM version requested.
+  compile error: Invalid EVM version requested.
+  solc 0.8.17 runs=1000 viaIR=True evm=default -> 537 bytes (executable 484, metadata 53)
+  solc 0.8.17 runs=1000 viaIR=True evm=london -> 537 bytes (executable 484, metadata 53)
+  compile error: Invalid EVM version requested.
+  compile error: Invalid EVM version requested.
+  solc 0.8.17 runs=100000 viaIR=False evm=default -> 597 bytes (executable 544, metadata 53)
+  solc 0.8.17 runs=100000 viaIR=False evm=london -> 597 bytes (executable 544, metadata 53)
+  compile error: Invalid EVM version requested.
+  compile error: Invalid EVM version requested.
+  solc 0.8.17 runs=100000 viaIR=True evm=default -> 567 bytes (executable 514, metadata 53)
+  solc 0.8.17 runs=100000 viaIR=True evm=london -> 567 bytes (executable 514, metadata 53)
+  compile error: Invalid EVM version requested.
+  compile error: Invalid EVM version requested.
+  solc 0.8.17 runs=1000000 viaIR=False evm=default -> 597 bytes (executable 544, metadata 53)
+  solc 0.8.17 runs=1000000 viaIR=False evm=london -> 597 bytes (executable 544, metadata 53)
+  compile error: Invalid EVM version requested.
+  compile error: Invalid EVM version requested.
+  solc 0.8.17 runs=1000000 viaIR=True evm=default -> 567 bytes (executable 514, metadata 53)
+  solc 0.8.17 runs=1000000 viaIR=True evm=london -> 567 bytes (executable 514, metadata 53)
+  compile error: Invalid EVM version requested.
+  compile error: Invalid EVM version requested.
+
+exact bytecode matches      : 0 
+executable-only matches     : 2 [('0.8.17', 200, False, None), ('0.8.17', 200, False, 'london')]

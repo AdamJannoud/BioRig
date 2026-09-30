@@ -265,3 +265,44 @@ Two contracts are not source-verified on Blockscout:
   neither the executable bytes nor the metadata match. Blockscout's "similar match" submission, from the explorer UI,
   is the route. It is behaviourally proven regardless: `DeployAll` checks `account()` against an independent CREATE2
   derivation before broadcasting, and a real tree minted through it.
+
+## 7. Verification outcome
+
+Final state, read from the explorer's own API (`/api/v2/addresses/{address}`) rather than from the
+verification call's exit status:
+
+| Contract | `is_verified` |
+| --- | --- |
+| canonical ERC-6551 registry | false |
+| ERC1967Proxy | true |
+| BioRigCoreV5 implementation | true |
+| ERC-6551 account implementation | true |
+
+The proxy's first submission returned `Too many requests` and looked like a failure, but Blockscout
+verifies asynchronously: the submission was accepted and completed after the client had stopped
+polling. Read `is_verified`, not the submission's exit code.
+
+Blockscout's unauthenticated v1 API allows **10 requests per window**, with the window length in the
+`x-ratelimit-reset` header in milliseconds (about 30 minutes). The first version of
+`script/verify-retry.sh` looped six attempts, each of which forge retries three times internally, so
+one burst spent the whole window and every attempt after it got a 429. The rewrite does a single
+attempt per run and reads status through the v2 API, which is not quota-limited.
+
+The canonical registry is a different problem, and quota does not fix it. Compiling the vendored
+source with the settings the canonical deployment used, recovered from Blockscout's record of the
+same contract on Ethereum mainnet (`ERC6551Registry`, solc 0.8.17, optimizer on, runs 200, evm
+london):
+
+- **Executable runtime code is identical** (518 bytes), so the deployed behaviour is exactly what the
+  canonical source produces. `script/registry-byte-match.py` reproduces this locally, and re-running
+  it costs no Blockscout quota.
+- **The 53-byte metadata blob differs**, and only in its 32-byte content hash, which is keccak256 of
+  the metadata JSON covering the original source text and its path. Reproducing it needs the original
+  file byte for byte; neither this repo's vendored copy nor Blockscout's own stored copy of the
+  mainnet source does so across the six path variants tried, so an exact match is out of reach from
+  what is available here.
+
+The registry is third-party canonical code deployed through a keyless factory: the same address
+carries byte-identical executable code on every chain it is deployed to, and Blockscout has it
+verified on Ethereum mainnet. Its behaviour on Celo Sepolia is established by the code comparison
+above and by `DeployAll`'s independent CREATE2 check, not by an explorer badge.

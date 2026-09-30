@@ -1,0 +1,52 @@
+No files changed, compilation skipped
+Script ran successfully.
+
+== Return ==
+registry: address 0x000000006551c19487814612e58FE06813775758
+accountImplementation: address 0x3d8a53dB1bBcab6D47097B25080527e5560C5165
+implementation: address 0x4c998C6553C78bb9d5A67Aac6fBC526d64DBa3a4
+core: contract BioRigCoreV5 0x21ab8B36177F65ce69e04e281E4aFf3Db6b5f7E6
+
+== Logs ==
+  Deployer:               0xb5aB2054b43040593805Cf662A938eFE924F2778
+  Deployer balance (wei): 1000000000000000000
+  === BioRig deployment summary ===
+  chain id: 11142220
+  ERC-6551 registry:      0x000000006551c19487814612e58FE06813775758
+     https://celo-sepolia.blockscout.com/address/0x000000006551c19487814612e58FE06813775758
+  ERC-6551 account impl:  0x3d8a53dB1bBcab6D47097B25080527e5560C5165
+     https://celo-sepolia.blockscout.com/address/0x3d8a53dB1bBcab6D47097B25080527e5560C5165
+  BioRig implementation:  0x4c998C6553C78bb9d5A67Aac6fBC526d64DBa3a4
+     https://celo-sepolia.blockscout.com/address/0x4c998C6553C78bb9d5A67Aac6fBC526d64DBa3a4
+  BioRig proxy:           0x21ab8B36177F65ce69e04e281E4aFf3Db6b5f7E6
+     https://celo-sepolia.blockscout.com/address/0x21ab8B36177F65ce69e04e281E4aFf3Db6b5f7E6
+  admin (= deployer):     0xb5aB2054b43040593805Cf662A938eFE924F2778
+  buffer pool:            0xb5aB2054b43040593805Cf662A938eFE924F2778
+  uri generator:          0x0000000000000000000000000000000000000000
+  VERIFIER_ROLE held by admin: true
+  Set these in .env for later runs:
+  ERC6551_REGISTRY=0x000000006551c19487814612e58FE06813775758
+  ERC6551_IMPLEMENTATION=0x3d8a53dB1bBcab6D47097B25080527e5560C5165
+
+## Setting up 1 EVM.
+
+==========================
+
+Chain 11142220
+
+Estimated max fee per gas: 100.000000001 gwei
+Estimated base fee per gas: 50 gwei
+Estimated max priority fee per gas: 0.000000001 gwei
+
+Estimated total gas used for script: 5483481
+
+Estimated amount required: 0.548348100005483481 CELO
+
+==========================
+
+SIMULATION COMPLETE. To broadcast these transactions, add --broadcast and wallet configuration(s) to the previous command. See forge script --help for more.
+
+Transactions saved to: /workspace/bio-rig/broadcast/DeployAll.s.sol/11142220/dry-run/run-latest.json
+
+Sensitive values saved to: /workspace/bio-rig/cache/DeployAll.s.sol/11142220/dry-run/run-latest.json
+

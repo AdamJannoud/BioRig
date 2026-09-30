@@ -1,0 +1,233 @@
+Compiling 16 files with Solc 0.8.28
+Solc 0.8.28 finished in 8.06s
+Compiler run successful!
+
+Ran 1 test for test/orig/IndependentH1.t.sol:IndependentH1Test
+[PASS] test_H1_zeroRegistry_mintsUnusableToken_andLocksPlot() (gas: 329309)
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 1.41ms (367.72µs CPU time)
+
+Ran 25 tests for test/AccessControl.t.sol:AccessControlTest
+[PASS] test_grantRole_byNonAdmin_reverts() (gas: 45358)
+[PASS] test_grantRole_byVerifier_reverts() (gas: 47381)
+[PASS] test_grantRole_verifier() (gas: 366049)
+[PASS] test_renounceAdmin_locksOutAdminFunctions() (gas: 118495)
+[PASS] test_renounceRole_revertsOnBadConfirmation() (gas: 50622)
+[PASS] test_renounceRole_verifier() (gas: 50992)
+[PASS] test_revokeRole_byNonAdmin_reverts() (gas: 47304)
+[PASS] test_revokeRole_verifier_blocksMinting() (gas: 113113)
+[PASS] test_roleConstants() (gas: 43984)
+[PASS] test_setBufferPool_emitsAndStores() (gas: 62389)
+[PASS] test_setBufferPool_revertsOnZero() (gas: 49487)
+[PASS] test_setURIGenerator_emitsAndStores() (gas: 354785)
+[PASS] test_setURIGenerator_toZero() (gas: 48871)
+[PASS] test_unauth_mintTree() (gas: 52987)
+[PASS] test_unauth_mintTree_adminIsNotVerifier() (gas: 52985)
+[PASS] test_unauth_pause() (gas: 39885)
+[PASS] test_unauth_pause_byVerifier() (gas: 39885)
+[PASS] test_unauth_reportMortality() (gas: 321016)
+[PASS] test_unauth_setBufferPool() (gas: 42388)
+[PASS] test_unauth_setURIGenerator() (gas: 40042)
+[PASS] test_unauth_setURIGenerator_byVerifier() (gas: 40087)
+[PASS] test_unauth_unpause() (gas: 94859)
+[PASS] test_unauth_updateTreeGrowth() (gas: 321608)
+[PASS] test_unauth_updateTreeGrowth_byOwner() (gas: 319584)
+[PASS] test_unauth_upgradeToAndCall() (gas: 44012)
+Suite result: ok. 25 passed; 0 failed; 0 skipped; finished in 5.24ms (2.76ms CPU time)
+
+Ran 11 tests for test/ERC721Behavior.t.sol:ERC721BehaviorTest
+[PASS] test_approve_byNonOwner_reverts() (gas: 45163)
+[PASS] test_approve_thenTransferByApproved() (gas: 183465)
+[PASS] test_ownerOf_unknown_reverts() (gas: 16111)
+[PASS] test_safeTransfer_toAcceptingReceiver() (gas: 319541)
+[PASS] test_safeTransfer_toRejectingReceiver_reverts() (gas: 191095)
+[PASS] test_setApprovalForAll_operatorTransfers() (gas: 164172)
+[PASS] test_supportsInterface() (gas: 64065)
+[PASS] test_transfer_byStranger_reverts() (gas: 50189)
+[PASS] test_transfer_deadTree_isAllowed() (gas: 161834)
+[PASS] test_transfer_liveTree_keepsStatsAndTba() (gas: 155352)
+[PASS] test_transfer_toZero_reverts() (gas: 40442)
+Suite result: ok. 11 passed; 0 failed; 0 skipped; finished in 3.17ms (1.24ms CPU time)
+
+Ran 8 tests for test/Mortality.t.sol:MortalityTest
+[PASS] test_mortality_deadTreeCannotGrow() (gas: 88538)
+[PASS] test_mortality_isOneShot() (gas: 87967)
+[PASS] test_mortality_marksDead_releasesNullifier_emits() (gas: 83802)
+[PASS] test_mortality_onlyAffectsTarget() (gas: 353823)
+[PASS] test_mortality_secondReportCannotReleaseReplantedNullifier() (gas: 370558)
+[PASS] test_mortality_statsStillReadableAfterDeath() (gas: 87004)
+[PASS] test_mortality_unknownToken_reverts() (gas: 43850)
+[PASS] test_mortality_whilePaused_reverts() (gas: 96586)
+Suite result: ok. 8 passed; 0 failed; 0 skipped; finished in 9.87ms (1.18ms CPU time)
+
+Ran 15 tests for test/Growth.t.sol:GrowthTest
+[PASS] testFuzz_growth_monotonic(uint96,uint96) (runs: 256, μ: 81013, ~: 88114)
+[PASS] test_H4_growthPath_makesNoExternalCalls() (gas: 72615)
+[PASS] test_H4_mortalityPath_makesNoExternalCalls() (gas: 73775)
+[PASS] test_H6_timestampCast_truncatesOnlyBeyondUint64() (gas: 135349)
+[PASS] test_growth_biomassDecrease_reverts() (gas: 49037)
+[PASS] test_growth_bothDecrease_reverts() (gas: 48858)
+[PASS] test_growth_dbhDecrease_reverts() (gas: 48923)
+[PASS] test_growth_deadTree_reverts() (gas: 88567)
+[PASS] test_growth_emitsEvent() (gas: 55892)
+[PASS] test_growth_equalValuesAllowed_refreshesTimestamp() (gas: 67771)
+[PASS] test_growth_failedUpdateLeavesStateUntouched() (gas: 63508)
+[PASS] test_growth_maxValues() (gas: 67549)
+[PASS] test_growth_tokenZero_reverts() (gas: 44430)
+[PASS] test_growth_unknownToken_reverts() (gas: 44500)
+[PASS] test_growth_updatesStatsAndTimestamp() (gas: 103923)
+Suite result: ok. 15 passed; 0 failed; 0 skipped; finished in 28.26ms (26.33ms CPU time)
+
+Ran 12 tests for test/Pausing.t.sol:PausingTest
+[PASS] test_pause_twice_reverts() (gas: 41712)
+[PASS] test_paused_adminConfigStillWorks() (gas: 167940)
+[PASS] test_paused_blocksGrowth() (gas: 42109)
+[PASS] test_paused_blocksMint() (gas: 57009)
+[PASS] test_paused_blocksMortality() (gas: 49590)
+[PASS] test_paused_flag() (gas: 12632)
+[PASS] test_paused_mintCheckedBeforeRole() (gas: 48190)
+[PASS] test_paused_readPathsStillWork() (gas: 125893)
+[PASS] test_paused_transfersAndApprovalsStillWork() (gas: 139951)
+[PASS] test_paused_upgradeStillWorks() (gas: 56760)
+[PASS] test_unpause_restores() (gas: 415666)
+[PASS] test_unpause_whenNotPaused_reverts() (gas: 72409)
+Suite result: ok. 12 passed; 0 failed; 0 skipped; finished in 2.07ms (888.04µs CPU time)
+
+Ran 9 tests for test/Reentrancy.t.sol:ReentrancyTest
+[PASS] test_H4_nonVerifierPlanter_callbackReverts() (gas: 554725)
+[PASS] test_H4_verifierPlanter_growsDuringMintCallback_eventOrderOnly() (gas: 654618)
+[PASS] test_H4_verifierPlanter_killsDuringMintCallback_consistent() (gas: 613180)
+[PASS] test_benignModeStillMints() (gas: 364487)
+[PASS] test_reenterGrowth_withRole_seesNoTree() (gas: 293729)
+[PASS] test_reenterGrowth_withoutRole_reverts() (gas: 232458)
+[PASS] test_reenterMint_withVerifierRole_blockedByGuard() (gas: 288809)
+[PASS] test_reenterMint_withoutRole_blockedByGuard() (gas: 227045)
+[PASS] test_reenterMortality_withRole_seesNoTree() (gas: 293714)
+Suite result: ok. 9 passed; 0 failed; 0 skipped; finished in 3.10ms (1.72ms CPU time)
+
+Ran 13 tests for test/Lifecycle.t.sol:LifecycleTest
+[PASS] test_implementation_cannotBeInitialized() (gas: 42670)
+[PASS] test_implementation_hasNoAdminAndIsUnusable() (gas: 82636)
+[PASS] test_implementation_initializersDisabled() (gas: 7852)
+[PASS] test_initialize_acceptsForeignChainId() (gas: 440807)
+[PASS] test_initialize_allowsZeroUriGenerator() (gas: 441023)
+[PASS] test_initialize_revertsOnDoubleInit() (gas: 49980)
+[PASS] test_initialize_revertsOnDoubleInit_evenByAdmin() (gas: 50214)
+[PASS] test_initialize_revertsOnZeroAccountImplementation() (gas: 166455)
+[PASS] test_initialize_revertsOnZeroAdmin() (gas: 166333)
+[PASS] test_initialize_revertsOnZeroBufferPool() (gas: 166478)
+[PASS] test_initialize_revertsOnZeroRegistry() (gas: 166406)
+[PASS] test_initialize_setsState() (gas: 170430)
+[PASS] test_initialize_zeroAdminCheckedBeforeOtherArgs() (gas: 159321)
+Suite result: ok. 13 passed; 0 failed; 0 skipped; finished in 1.90ms (837.76µs CPU time)
+
+Ran 16 tests for test/TokenBoundAccount.t.sol:TokenBoundAccountTest
+[PASS] testFuzz_tba_matchesRecomputation(address,bytes32) (runs: 256, μ: 310082, ~: 310222)
+[PASS] test_H1_zeroRegistry_mintReverts() (gas: 758163)
+[PASS] test_H2_arbitraryRegistry_addressIsInstalledUnchecked() (gas: 914989)
+[PASS] test_H2_registryIsNotChangeableWithoutUpgrade() (gas: 14756)
+[PASS] test_R2_conformingRegistry_mintSucceeds_tbaMatchesCreate2() (gas: 328696)
+[PASS] test_R2_registryReturnsAccountForWrongChainId_reverts() (gas: 1228232)
+[PASS] test_R2_registryReturnsAccountForWrongTokenContract_reverts() (gas: 1228205)
+[PASS] test_R2_registryReturnsAccountForWrongTokenId_reverts() (gas: 1339638)
+[PASS] test_R2_registryReturnsContractWithoutErc165_reverts() (gas: 945553)
+[PASS] test_R2_registryReturnsContractWithoutToken_reverts() (gas: 931324)
+[PASS] test_R2_registryReturnsEoa_reverts() (gas: 807328)
+[PASS] test_R2_residual_lyingAccountIsAccepted() (gas: 1063930)
+[PASS] test_createAccount_calledWithExpectedArgs() (gas: 289693)
+[PASS] test_salt_isDeterministic() (gas: 1050)
+[PASS] test_tba_distinctPerToken() (gas: 571347)
+[PASS] test_tba_matchesIndependentRecomputation() (gas: 342072)
+Suite result: ok. 16 passed; 0 failed; 0 skipped; finished in 64.19ms (61.84ms CPU time)
+
+Ran 8 tests for test/Nullifiers.t.sol:NullifiersTest
+[PASS] testFuzz_nullifierUniqueness(bytes32,bytes32) (runs: 256, μ: 539766, ~: 539969)
+[PASS] test_killingReplantedTree_releasesAgain() (gas: 630982)
+[PASS] test_mint_activatesNullifier() (gas: 316958)
+[PASS] test_mint_duplicateNullifier_doesNotConsumeTokenId() (gas: 600876)
+[PASS] test_mint_duplicateNullifier_reverts() (gas: 327207)
+[PASS] test_mortality_releasesNullifier_andAllowsReplant() (gas: 698008)
+[PASS] test_replantedTree_distinctTba() (gas: 613072)
+[PASS] test_zeroNullifier_isRejected() (gas: 78577)
+Suite result: ok. 8 passed; 0 failed; 0 skipped; finished in 57.74ms (56.12ms CPU time)
+
+Ran 1 test for test/UpgradeFromOriginal.t.sol:UpgradeFromOriginalTest
+[PASS] test_R4_upgradeFromVerbatimOriginal_preservesStateSlotForSlot() (gas: 5166198)
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 2.33ms (1.13ms CPU time)
+
+Ran 12 tests for test/Upgrades.t.sol:UpgradesTest
+[PASS] test_H5_parentsUseNamespacedStorage() (gas: 291472)
+[PASS] test_proxy_pointsAtImplementation() (gas: 11063)
+[PASS] test_treeStatsPacking() (gas: 305383)
+[PASS] test_upgrade_adminWithoutUpgraderRole_reverts() (gas: 2965657)
+[PASS] test_upgrade_byNonUpgrader_reverts() (gas: 2932628)
+[PASS] test_upgrade_byUpgrader() (gas: 2946488)
+[PASS] test_upgrade_byVerifier_reverts() (gas: 2929864)
+[PASS] test_upgrade_calledOnImplementationDirectly_reverts() (gas: 2919687)
+[PASS] test_upgrade_grantedUpgrader() (gas: 2997071)
+[PASS] test_upgrade_toNonUUPS_reverts() (gas: 154760)
+[PASS] test_upgrade_v6ReadsV5State_layoutPreserved() (gas: 4730054)
+[PASS] test_upgrade_v6ReinitializerRunsOnce() (gas: 3050344)
+Suite result: ok. 12 passed; 0 failed; 0 skipped; finished in 4.13ms (2.85ms CPU time)
+
+Ran 12 tests for test/Mint.t.sol:MintTest
+[PASS] testFuzz_mint_storesArbitraryStats(address,bytes32,uint96,uint96) (runs: 256, μ: 312668, ~: 312772)
+[PASS] test_mint_emitsTreeMintedAndTransfer() (gas: 302235)
+[PASS] test_mint_firstIdIsOne_andIncrements() (gas: 842602)
+[PASS] test_mint_maxInitialStats() (gas: 316202)
+[PASS] test_mint_storesStats() (gas: 311605)
+[PASS] test_mint_toAcceptingContract() (gas: 530183)
+[PASS] test_mint_toRejectingContract_revertsAtomically() (gas: 706402)
+[PASS] test_mint_toWrongSelectorContract_reverts() (gas: 442488)
+[PASS] test_mint_whilePaused_reverts() (gas: 103138)
+[PASS] test_mint_withoutVerifierRole_reverts() (gas: 50933)
+[PASS] test_mint_zeroInitialStats() (gas: 388191)
+[PASS] test_mint_zeroPlanter_reverts() (gas: 56849)
+Suite result: ok. 12 passed; 0 failed; 0 skipped; finished in 36.60ms (37.09ms CPU time)
+
+Ran 16 tests for test/TokenURI.t.sol:TokenURITest
+[PASS] test_H3_codelessGenerator_bricksTokenURI_untilReset() (gas: 550857)
+[PASS] test_H3_revertingGenerator_bubblesRevert_untilReset() (gas: 293576)
+[PASS] test_R1_gasExhaustingGenerator_fallsBack() (gas: 5070953)
+[PASS] test_R1_residual_malformedReturndata_stillReverts() (gas: 174737)
+[PASS] test_R1_revertingGenerator_fallsBack() (gas: 232213)
+[PASS] test_R1_unknownToken_stillReverts_withBrokenGenerator() (gas: 220609)
+[PASS] test_R1_zeroCodeGenerator_fallsBack() (gas: 44821)
+[PASS] test_R3_setURIGenerator_contract_succeeds() (gas: 350492)
+[PASS] test_R3_setURIGenerator_eoa_reverts() (gas: 54086)
+[PASS] test_R3_setURIGenerator_zero_succeeds() (gas: 80557)
+[PASS] test_tokenURI_generatorPath() (gas: 183518)
+[PASS] test_tokenURI_noGeneratorFallback_returnsEmpty() (gas: 63833)
+[PASS] test_tokenURI_noGeneratorFromInit() (gas: 792427)
+[PASS] test_tokenURI_passesStatsToGenerator() (gas: 34212)
+[PASS] test_tokenURI_unknownToken_reverts() (gas: 21997)
+[PASS] test_tokenURI_unknownToken_reverts_noGenerator() (gas: 55648)
+Suite result: ok. 16 passed; 0 failed; 0 skipped; finished in 17.95ms (17.84ms CPU time)
+
+Ran 1 test for test/Invariant.t.sol:InvariantTest
+[PASS]
+InvariantTest invariants:
+[PASS] invariant_activeNullifierHasLiveTree
+[PASS] invariant_liveTreeNullifiersActiveAndUnique
+[PASS] invariant_statsMatchGhostAndAreConsistent
+[PASS] invariant_tokenCounter
+ InvariantTest invariants (runs: 128, calls: 12800, reverts: 0)
+
+╭-------------+-------------+-------+---------+----------╮
+| Contract    | Selector    | Calls | Reverts | Discards |
++========================================================+
+| TreeHandler | grow        | 2210  | 0       | 0        |
+|-------------+-------------+-------+---------+----------|
+| TreeHandler | kill        | 2125  | 0       | 0        |
+|-------------+-------------+-------+---------+----------|
+| TreeHandler | mint        | 2042  | 0       | 0        |
+|-------------+-------------+-------+---------+----------|
+| TreeHandler | shrink      | 2126  | 0       | 0        |
+|-------------+-------------+-------+---------+----------|
+| TreeHandler | togglePause | 2151  | 0       | 0        |
+|-------------+-------------+-------+---------+----------|
+| TreeHandler | transfer    | 2146  | 0       | 0        |
+╰-------------+-------------+-------+---------+----------╯
+
+Suite result: ok. 1 passed; 0 failed; 0 skipped; finished in 12.08s (12.08s CPU time)
+
+Ran 15 test suites in 12.09s (12.32s CPU time): 160 tests passed, 0 failed, 0 skipped (160 total tests)

@@ -1,0 +1,50 @@
+Compiling 8 files with Solc 0.8.28
+Solc 0.8.28 finished in 2.56s
+Compiler run successful!
+
+Ran 1 test for test/UpgradeFromOriginal.t.sol:UpgradeFromOriginalTest
+[FAIL: log != expected log] test_I6_upgradeFromVerbatimOriginal_baseURIUnsetUntilConfigured() (gas: 4810652)
+Suite result: FAILED. 0 passed; 1 failed; 0 skipped; finished in 2.88ms (1.41ms CPU time)
+
+Ran 14 tests for test/BaseURI.t.sol:BaseURITest
+[FAIL: assertion failed:  != ipfs://bafybase/1] test_I6_codelessGenerator_fallsBackToBaseURI() (gas: 77627)
+[FAIL: assertion failed:  != ipfs://bafybase/2] test_I6_gasExhaustingGenerator_fallsBackToBaseURI() (gas: 5099239)
+[FAIL: assertion failed:  != ipfs://bafybase/1] test_I6_revertingGenerator_fallsBackToBaseURI() (gas: 260552)
+[FAIL: log != expected log] test_I6_setBaseURI_emitsOldAndNew() (gas: 40502)
+[FAIL: assertion failed:  != ipfs://bafybase/1] test_I6_setBaseURI_empty_restoresEmptyFallback() (gas: 96942)
+[FAIL: assertion failed:  != ipfs://bafybase/] test_I6_setBaseURI_fallbackIsBasePlusTokenId() (gas: 83446)
+[FAIL: assertion failed:  != ipfs://bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi/3] test_I6_setBaseURI_longValue() (gas: 98008)
+[FAIL: assertion failed:  != ipfs://bafybase/12] test_I6_setBaseURI_multiDigitTokenId() (gas: 2425960)
+[FAIL: assertion failed:  != ar://tree2] test_I6_setBaseURI_noValidation() (gas: 96843)
+[FAIL: next call did not revert as expected] test_I6_setBaseURI_nonAdmin_reverts() (gas: 38453)
+[FAIL: assertion failed:  != ipfs://bafybase/4] test_I6_treeMintedAfterSetBaseURI_getsBaseURI() (gas: 357251)
+[FAIL: assertion failed:  != ipfs://bafybase/1] test_I6_unknownToken_stillReverts_withBaseURI() (gas: 140141)
+[PASS] test_I6_unsetBaseURI_fallbackIsEmpty() (gas: 100799)
+[FAIL: assertion failed:  != ipfs://bafybase/1] test_I6_workingGenerator_winsOverBaseURI() (gas: 162207)
+Suite result: FAILED. 1 passed; 13 failed; 0 skipped; finished in 15.95ms (16.59ms CPU time)
+
+Ran 2 test suites in 17.18ms (18.83ms CPU time): 1 tests passed, 14 failed, 0 skipped (15 total tests)
+
+Failing tests:
+Encountered 13 failing tests in test/BaseURI.t.sol:BaseURITest
+[FAIL: assertion failed:  != ipfs://bafybase/1] test_I6_codelessGenerator_fallsBackToBaseURI() (gas: 77627)
+[FAIL: assertion failed:  != ipfs://bafybase/2] test_I6_gasExhaustingGenerator_fallsBackToBaseURI() (gas: 5099239)
+[FAIL: assertion failed:  != ipfs://bafybase/1] test_I6_revertingGenerator_fallsBackToBaseURI() (gas: 260552)
+[FAIL: log != expected log] test_I6_setBaseURI_emitsOldAndNew() (gas: 40502)
+[FAIL: assertion failed:  != ipfs://bafybase/1] test_I6_setBaseURI_empty_restoresEmptyFallback() (gas: 96942)
+[FAIL: assertion failed:  != ipfs://bafybase/] test_I6_setBaseURI_fallbackIsBasePlusTokenId() (gas: 83446)
+[FAIL: assertion failed:  != ipfs://bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi/3] test_I6_setBaseURI_longValue() (gas: 98008)
+[FAIL: assertion failed:  != ipfs://bafybase/12] test_I6_setBaseURI_multiDigitTokenId() (gas: 2425960)
+[FAIL: assertion failed:  != ar://tree2] test_I6_setBaseURI_noValidation() (gas: 96843)
+[FAIL: next call did not revert as expected] test_I6_setBaseURI_nonAdmin_reverts() (gas: 38453)
+[FAIL: assertion failed:  != ipfs://bafybase/4] test_I6_treeMintedAfterSetBaseURI_getsBaseURI() (gas: 357251)
+[FAIL: assertion failed:  != ipfs://bafybase/1] test_I6_unknownToken_stillReverts_withBaseURI() (gas: 140141)
+[FAIL: assertion failed:  != ipfs://bafybase/1] test_I6_workingGenerator_winsOverBaseURI() (gas: 162207)
+
+Encountered 1 failing test in test/UpgradeFromOriginal.t.sol:UpgradeFromOriginalTest
+[FAIL: log != expected log] test_I6_upgradeFromVerbatimOriginal_baseURIUnsetUntilConfigured() (gas: 4810652)
+
+Encountered a total of 14 failing tests, 1 tests succeeded
+
+Tip: Run `forge test --rerun` to retry only the 14 failed tests
+Tip: Run `forge test --debug --match-test <TEST_NAME>` to inspect one failing test in the debugger

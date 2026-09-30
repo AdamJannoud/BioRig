@@ -77,12 +77,14 @@ case "${1:-status}" in
               "lib/openzeppelin-contracts/contracts/proxy/ERC1967/ERC1967Proxy.sol:ERC1967Proxy" \
               proxy --constructor-args "$ARGS"
             report ;;
-  # The canonical registry cannot be exact-match verified from this repo: on chain it is the
-  # EIP-6551 canonical creation code built with solc 0.8.17, while this repo compiles the vendored
-  # source with solc 0.8.28, so the executable bytes and the metadata both differ. Blockscout's
-  # "similar match" submission from the explorer UI is the route; this branch only documents the
-  # attempt so the failure is on the record rather than assumed.
-  registry) one_attempt "$REG" src/vendor/ERC6551Registry.sol:ERC6551Registry canonical-registry
+  # The canonical registry cannot be exact-match verified from what is available here. Compiling it
+  # with solc 0.8.17, optimizer on, runs 200, evm london reproduces the on-chain executable code
+  # exactly (see script/registry-byte-match.py), but the 53-byte metadata blob differs in its 32-byte
+  # content hash, which is keccak256 over the metadata JSON covering the original source text and its
+  # path. Neither this repo's vendored copy nor Blockscout's stored mainnet copy reproduces that hash,
+  # so this branch submits with the matching compiler settings and records whatever Blockscout says.
+  registry) one_attempt "$REG" src/vendor/ERC6551Registry.sol:ERC6551Registry canonical-registry \
+              --compiler-version v0.8.17 --num-of-optimizations 200 --evm-version london
             report ;;
   *)        echo "usage: $0 [status|proxy|registry]" >&2; exit 2 ;;
 esac

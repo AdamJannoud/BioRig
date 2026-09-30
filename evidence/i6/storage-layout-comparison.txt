@@ -1,0 +1,59 @@
+### normalized layout JSON hashes (evidence/normalize_layout.py, unmodified)
+d5dd06ff87acf04b8e3541ba2fa4af4449e73940bb556fbe2f463dd675183042 storageLayout.original.normalized.json
+d5dd06ff87acf04b8e3541ba2fa4af4449e73940bb556fbe2f463dd675183042 storageLayout.prei6.normalized.json
+98a9f905b8af385b68395cda95ac2c7a31159cb3539e71c9e70e21dc97831b72 storageLayout.after.normalized.json
+
+prei6 == original (normalized): True
+
+### storage entries, original vs after
+original entries: 8  after entries: 9
+SAME ["_nextTokenId", "0", 0, "t_uint256"]
+SAME ["erc6551Registry", "1", 0, "t_address"]
+SAME ["erc6551Implementation", "2", 0, "t_address"]
+SAME ["chainId", "3", 0, "t_uint256"]
+SAME ["bufferPool", "4", 0, "t_address"]
+SAME ["uriGenerator", "5", 0, "t_address"]
+SAME ["_trees", "6", 0, "t_mapping(t_uint256,t_struct(TreeStats)_storage)"]
+SAME ["_activeNullifiers", "7", 0, "t_mapping(t_bytes32,t_bool)"]
+appended (in after, not in original):
+  ["_baseTokenURI", "8", 0, "t_string_storage"]
+original entries are an exact prefix of after: True
+types added: ['t_string_storage']
+
+### forge inspect table rows for slots 0-7 (original vs after)
+rows original: 8  after: 9
+d485581d66415f95d734a7d8551053880c846df7e4fd823eaacdef4ab225514d  original rows 0-7
+d485581d66415f95d734a7d8551053880c846df7e4fd823eaacdef4ab225514d  after rows 0-7
+after rows beyond slot 7:
+  | _baseTokenURI         | string                                            | 8    | 0      | 32    | src/BioRigCoreV5.sol:BioRigCoreV5 |
+
+$ diff storageLayout.original.normalized.json storageLayout.after.normalized.json
+49a50,55
+>   ],
+>   [
+>    "_baseTokenURI",
+>    "8",
+>    0,
+>    "t_string_storage"
+91a98,105
+>   },
+>   "t_string_storage": {
+>    "encoding": "bytes",
+>    "key": "",
+>    "label": "string",
+>    "members": [],
+>    "numberOfBytes": "32",
+>    "value": ""
+
+RESULT: PASS
+
+### raw forge JSON (not normalized), slots 0-7: fields that differ between original and after
+_nextTokenId {'astId': (7430, 7444)}
+erc6551Registry {'astId': (7432, 7446)}
+erc6551Implementation {'astId': (7434, 7448)}
+chainId {'astId': (7436, 7450)}
+bufferPool {'astId': (7438, 7452)}
+uriGenerator {'astId': (7440, 7454)}
+_trees {'astId': (7458, 7472), 'type': ('t_mapping(t_uint256,t_struct(TreeStats)7453_storage)', 't_mapping(t_uint256,t_struct(TreeStats)7467_storage)')}
+_activeNullifiers {'astId': (7462, 7476)}
+after entries at slot >= 8: [{'astId': 7479, 'contract': 'src/BioRigCoreV5.sol:BioRigCoreV5', 'label': '_baseTokenURI', 'offset': 0, 'slot': '8', 'type': 't_string_storage'}]
