@@ -4,17 +4,19 @@
 # IP's window is spent, so the script first waits for the window to reopen (a 429 costs no quota, so
 # polling the reset header is free), then submits once.
 #
-# Usage: script/submit-registry-when-open.sh
+# Usage: script/submit-registry-when-open.sh              # CHAIN_ID from the environment, else the repo default
+#        CHAIN_ID=42220 script/submit-registry-when-open.sh
 set -uo pipefail
-cd /workspace/bio-rig
+cd "$(dirname "$0")/.."
 
-B=https://celo-sepolia.blockscout.com
+CHAIN_ID=$(python3 -m dashboard.config get chain_id) || exit 2
+B=$(python3 -m dashboard.config get explorer_url --chain-id "$CHAIN_ID") || exit 2
 REG=0x000000006551c19487814612e58FE06813775758
 LOG=evidence/registry-submit.log
 PROJ=/tmp/regverify
 
 exec > >(tee -a "$LOG") 2>&1
-echo "=== started $(date -u +%FT%TZ) ==="
+echo "=== started $(date -u +%FT%TZ) on chain $CHAIN_ID ($B) ==="
 
 remaining() {
   curl -s -D - -o /dev/null "$B/api?module=block&action=eth_block_number" \
@@ -58,7 +60,7 @@ fi
 # --- 4. submit, and capture Blockscout's own words ------------------------------
 echo "=== submitting $(date -u +%FT%TZ) ==="
 (cd "$PROJ" && forge verify-contract "$REG" src/ERC6551Registry.sol:ERC6551Registry \
-  --verifier blockscout --verifier-url "$B/api?" --chain 11142220 \
+  --verifier blockscout --verifier-url "$B/api?" --chain "$CHAIN_ID" \
   --skip-is-verified-check); submit_rc=$?
 echo "=== forge verify-contract exit $submit_rc $(date -u +%FT%TZ) ==="
 

@@ -12,6 +12,10 @@ reports which, if any, reproduce the on-chain bytes exactly.
 
     ./script/registry-byte-match.py            # search and print the table
     ./script/registry-byte-match.py --submit   # submit the first exact match to Blockscout
+    CHAIN_ID=42220 ./script/registry-byte-match.py
+
+The chain is CHAIN_ID from the environment or .env, else the repo default; its RPC (RPC_URL overrides) and
+Blockscout verifier come from dashboard/chains.json.
 
 Compiling spends nothing; only --submit spends Blockscout's quota (10 unauthenticated v1 requests
 per ~30 minute window, see script/verify-retry.sh).
@@ -28,6 +32,9 @@ import sys
 import urllib.request
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO))
+from dashboard.config import ChainSelectionError, _merged_env, select_chain  # noqa: E402
+
 REGISTRY = "0x000000006551c19487814612e58FE06813775758"
 SOURCE_REL = "src/vendor/ERC6551Registry.sol"
 CONTRACT = "ERC6551Registry"
@@ -80,11 +87,18 @@ def solc_path(version: str) -> pathlib.Path:
     return binary
 
 
+def chain_settings() -> tuple[int, str, str]:
+    """(chain id, RPC URL, Blockscout verifier URL) for the selected chain."""
+    env = _merged_env(REPO, None, {})
+    try:
+        chain = select_chain(env, REPO)
+    except ChainSelectionError as exc:
+        sys.exit(str(exc))
+    return chain.chain_id, env.get("RPC_URL") or chain.rpc_url, chain.verifier_url
+
+
 def rpc_url() -> str:
-    for line in (REPO / ".env").read_text().splitlines():
-        if line.startswith("RPC_URL="):
-            return line.split("=", 1)[1].strip()
-    sys.exit("RPC_URL not found in .env")
+    return chain_settings()[1]
 
 
 def on_chain_code() -> bytes:
@@ -178,8 +192,8 @@ def main() -> int:
             "forge", "verify-contract", REGISTRY,
             f"{SOURCE_REL}:{CONTRACT}",
             "--verifier", "blockscout",
-            "--verifier-url", "https://celo-sepolia.blockscout.com/api",
-            "--chain", "11142220",
+            "--verifier-url", chain_settings()[2],
+            "--chain", str(chain_settings()[0]),
             "--skip-is-verified-check",
             "--compiler-version", f"v{version}",
         ]

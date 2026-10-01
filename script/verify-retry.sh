@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
-# Verifies BioRig's contracts on Blockscout.
+# Verifies BioRig's contracts on Blockscout, for whichever chain CHAIN_ID selects (from the environment or .env,
+# else the repo default). Every address comes from that chain's DeployAll broadcast and the explorer from
+# dashboard/chains.json, so the same script serves Celo Sepolia and Celo mainnet.
 #
-# All four are verified (2026-09-30): the canonical registry as a partial match via Blockscout's
-# Ethereum Bytecode Database, the other three from own submissions. The 'registry' target below is
-# kept for redeployments and for the record; the manual submission note is in DEPLOY.md section 7.
+# On Celo Sepolia all four are verified (2026-09-30): the canonical registry as a partial match via Blockscout's
+# Ethereum Bytecode Database, the other three from own submissions. The 'registry' target below is kept for
+# redeployments and for the record; the manual submission note is in DEPLOY.md section 7.
 # Prefer the v2 verify route (POST /api/v2/smart-contracts/{addr}/verification/via/flattened-code):
 # the v1 module=contract API throttles to 10 requests per window, the v2 route ran at 180 here.
 #
@@ -15,21 +17,27 @@
 # read through the v2 API, which is not quota-limited.
 #
 # Usage:  ./script/verify-retry.sh status           # free, v2 only
-#         ./script/verify-retry.sh proxy            # one attempt
-#         ./script/verify-retry.sh registry         # one attempt
+#         ./script/verify-retry.sh proxy            # one attempt each:
+#         ./script/verify-retry.sh core             #   BioRigCoreV5 implementation
+#         ./script/verify-retry.sh account          #   ERC-6551 account implementation
+#         ./script/verify-retry.sh registry         #   canonical registry
+#         CHAIN_ID=42220 ./script/verify-retry.sh status
 set -uo pipefail
-cd /workspace/bio-rig
-set -a; . ./.env; set +a
+cd "$(dirname "$0")/.."
 
-PROXY=0x21ab8B36177F65ce69e04E281E4aFf3Db6b5f7E6
-REG=0x000000006551c19487814612e58FE06813775758
-IMPL=0x4c998C6553C78bb9d5A67Aac6fBC526d64DBa3a4
-ACCT=0x3d8a53dB1bBcab6D47097B25080527e5560C5165
-HOST=https://celo-sepolia.blockscout.com
+CHAIN_ID=$(python3 -m dashboard.config get chain_id) || exit 2
+HOST=$(python3 -m dashboard.config get explorer_url --chain-id "$CHAIN_ID") || exit 2
+REG=$(python3 -m dashboard.config get erc6551_registry --chain-id "$CHAIN_ID") || exit 2
+RUN=broadcast/DeployAll.s.sol/$CHAIN_ID/run-latest.json
+[ -f "$RUN" ] || { echo "no DeployAll broadcast for chain $CHAIN_ID ($RUN); nothing to verify" >&2; exit 2; }
+created() { jq -r --arg n "$1" '[.transactions[] | select(.transactionType == "CREATE" and .contractName == $n)]
+                                 | last | .contractAddress // empty' "$RUN"; }
+PROXY=$(created ERC1967Proxy)
+IMPL=$(created BioRigCoreV5)
+ACCT=$(created ERC6551Account)
 VU=$HOST/api
 V2=$HOST/api/v2/addresses
-mkdir -p evidence
-LOG=evidence/verify-retry.log
+echo "chain $CHAIN_ID ($HOST): proxy $PROXY, core $IMPL, account $ACCT, registry $REG"
 
 is_verified() { curl -s "$V2/$1" | jq -r '.is_verified // false'; }
 
@@ -60,7 +68,7 @@ one_attempt() {
   local addr=$1 fqn=$2 label=$3; shift 3
   echo "--- $label: single attempt $(date -u +%FT%TZ) ---"
   forge verify-contract "$addr" "$fqn" --verifier blockscout --verifier-url "$VU" \
-    --chain 11142220 --skip-is-verified-check "$@" 2>&1 \
+    --chain "$CHAIN_ID" --skip-is-verified-check "$@" 2>&1 \
     | grep -v '^Constructor args' | tail -10
   sleep 10
   local v; v=$(is_verified "$addr")
@@ -68,14 +76,9 @@ one_attempt() {
   if [ "$v" = "true" ]; then echo "RESULT $label: VERIFIED"; else print_window; fi
 }
 
-INIT=$(cast calldata "initialize(address,address,address,uint256,address,address)" \
-  0xb5aB2054b43040593805Cf662A938eFE924F2778 \
-  0x000000006551c19487814612e58FE06813775758 \
-  "$ACCT" \
-  11142220 \
-  0xb5aB2054b43040593805Cf662A938eFE924F2778 \
-  0x0000000000000000000000000000000000000000)
-ARGS=$(cast abi-encode "f(address,bytes)" "$IMPL" "$INIT")
+# The proxy's constructor args exactly as broadcast: (implementation, initialize calldata).
+ARGS=$(cast abi-encode "f(address,bytes)" $(jq -r '[.transactions[] | select(.transactionType == "CREATE"
+    and .contractName == "ERC1967Proxy")] | last | .arguments | join(" ")' "$RUN"))
 
 case "${1:-status}" in
   status)   report ;;
@@ -83,6 +86,8 @@ case "${1:-status}" in
               "lib/openzeppelin-contracts/contracts/proxy/ERC1967/ERC1967Proxy.sol:ERC1967Proxy" \
               proxy --constructor-args "$ARGS"
             report ;;
+  core)     one_attempt "$IMPL" src/BioRigCoreV5.sol:BioRigCoreV5 core; report ;;
+  account)  one_attempt "$ACCT" src/vendor/ERC6551Account.sol:ERC6551Account account; report ;;
   # The canonical registry cannot be exact-match verified from what is available here. Compiling it
   # with solc 0.8.17, optimizer on, runs 200, evm london reproduces the on-chain executable code
   # exactly (see script/registry-byte-match.py), but the 53-byte metadata blob differs in its 32-byte
@@ -92,5 +97,5 @@ case "${1:-status}" in
   registry) one_attempt "$REG" src/vendor/ERC6551Registry.sol:ERC6551Registry canonical-registry \
               --compiler-version v0.8.17 --num-of-optimizations 200 --evm-version london
             report ;;
-  *)        echo "usage: $0 [status|proxy|registry]" >&2; exit 2 ;;
+  *)        echo "usage: $0 [status|proxy|core|account|registry]" >&2; exit 2 ;;
 esac
