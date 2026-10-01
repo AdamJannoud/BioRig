@@ -15,10 +15,11 @@ take their explorer links from it. Two chains are registered:
 | chain id | `11142220` | `42220` |
 | RPC | `https://forno.celo-sepolia.celo-testnet.org` | `https://forno.celo.org` |
 | explorer / verifier | <https://celo-sepolia.blockscout.com>, `/api/` | <https://celo.blockscout.com>, `/api/` |
-| BioRig | **live** since 30 September 2026 (section 6) | approved as an Alpha v1 / pilot deployment, **not deployed yet** (section 8) |
+| BioRig | **live** since 30 September 2026 (section 6) | **live** since 1 October 2026 (section 8) |
 
 Currency is CELO on both. `CHAIN_ID` picks the chain; unset, the tooling uses `default_chain_id` in
-`dashboard/deployment.json`, which is Celo Sepolia. Every deployment input comes from the environment, so the same
+`dashboard/deployment.json`, which is Celo Sepolia and where both live chains are recorded. Every deployment input comes
+from the environment, so the same
 commands work on either chain once `.env` is switched; `python3 -m dashboard.config env --chain-id <id>` prints the
 network block for it. Celo Alfajores (`44787`) was shut down and replaced by Celo Sepolia. Its RPC no longer
 resolves, so nothing here targets it.
@@ -97,8 +98,8 @@ cast balance "$(cast wallet address --private-key "$PRIVATE_KEY")" --rpc-url "$R
 `.env` is gitignored. Use a dedicated deployer key that is used for nothing else: a low-value testnet key on Celo
 Sepolia, a fresh key on Celo mainnet (section 8). On a fork of Celo Sepolia, the full `DeployBioRig` run was estimated
 at about 4.33M gas (~0.33 CELO at the fork's 76.7 gwei max fee). The registry was estimated at about 259k gas. The real
-Celo Sepolia `DeployAll` used 4,192,380 gas (section 6); on Celo mainnet, without the registry's 177,170, that is about
-4.0M gas, roughly 0.81 CELO at the 202.5 gwei mainnet gas price of 1 October 2026.
+Celo Sepolia `DeployAll` used 4,192,380 gas (section 6); the real Celo mainnet `DeployAll` used 4,015,198 gas and
+0.803044 CELO at 200.0011 gwei, with the canonical registry reused rather than deployed (section 8).
 
 ## 1. Optional prerequisites: an ERC-6551 registry and account implementation
 
@@ -399,20 +400,42 @@ the `v1`-based `forge verify-contract` path, not to verification on this explore
 
 ## 8. Celo mainnet (chain 42220): Alpha v1 / pilot broadcast runbook
 
-Nothing is deployed on Celo mainnet yet. This section is the ordered path to it, as approved on 1 October 2026:
+**Executed 1 October 2026: steps 0-6 and 8 of the runbook below ran; step 7, the role handover, has not.** Read back
+from the chain, `DEFAULT_ADMIN_ROLE`, `UPGRADER_ROLE`, `VERIFIER_ROLE` and `bufferPool` all still sit with the deployer
+hot key `0x1DB0084Db70bF8D0E06c1785D693Fc6a95317890`, and no tree is minted: `ownerOf(1)` reverts
+`ERC721NonexistentToken(1)`.
+
+One broadcast, four transactions, 4,015,198 gas, **0.803044 CELO** at 200.0011 gwei, all in block `78935900`, every
+receipt status `0x1`. The canonical registry was reused rather than deployed, so `DeployAll` sent four transactions and
+no CREATE2. The deployer's remaining balance is `3.1969559832822` CELO.
+
+| Contract | Address | Tx | Gas | Blockscout |
+| --- | --- | --- | --- | --- |
+| ERC-6551 registry (canonical, reused) | `0x000000006551c19487814612e58FE06813775758` | none, already on chain | — | verified |
+| ERC-6551 account implementation | `0x65D18C960170ca2B4936c62945bA0e827e5cCd2B` | `0xdd6b5e99…55f53b` | 626,504 | verified |
+| BioRigCoreV5 implementation | `0xdb3a450b85D48E6e6552dB2b32aD75a7ac590c60` | `0xc06b4b99…f351eb` | 2,942,890 | verified |
+| ERC1967Proxy (the address to use) | `0x04Db169dDF8AbB80943161C01B2a71DC40384E64` | `0x2b2d42c1…f453a5` | 389,191 | verified |
+| `grantRole(VERIFIER_ROLE, admin)` | `0x04Db169d…4E64` | `0xf97d29ab…c36dc8` | 56,613 | — |
+
+All four report `is_verified: true`, read on 1 October 2026 from `/api/v2/smart-contracts/{address}` on
+<https://celo.blockscout.com> (verified between 06:38:11Z and 06:44:13Z) rather than from the submission exit codes. The
+explorer resolved the registry, the account implementation and the proxy through its Ethereum Bytecode Database, the
+same partial match Celo Sepolia reached, and `BioRigCoreV5` from this repository's own source.
+
+The rest of this section is the ordered runbook as approved, with each step's status marked:
 
 - **Alpha v1 / pilot.** The external audit is a later grant milestone, not a gate on this deployment.
 - **Admin.** Deploy from a fresh deployer hot key with `ADMIN` equal to it, which is what `_preflightBase` requires,
-  then hand admin to a Celo Safe straight after the broadcast with `script/HardenMainnetAdmin.s.sol`. That is a
-  separate run, step 7.
+  then hand admin to a Celo Safe with `script/HardenMainnetAdmin.s.sol`. That is a separate run, step 7, and it has
+  **not run**: the deployer still holds admin.
 - **Verifier.** `VERIFIER_ROLE` goes to a dedicated server-side key, never the admin. The handover refuses a
-  `VERIFIER_ADDRESS` equal to the deployer or the Safe.
+  `VERIFIER_ADDRESS` equal to the deployer or the Safe. **Pending**, step 7: the deployer holds it today.
 - **Explainer.** The video stays as rendered against Celo Sepolia (`DEMO.md`); it is not re-rendered.
 
 What the code expects of mainnet: the canonical ERC-6551 registry is already there with the canonical bytecode
 (section "Deployment is not proof"), so `DeployAll` sends **four** transactions (account implementation, BioRig
-implementation, proxy, `grantRole`) and **no CREATE2**. At the 202.5 gwei of 1 October 2026 that is about 0.81 CELO;
-the handover adds six small transactions.
+implementation, proxy, `grantRole`) and **no CREATE2**. That was estimated at about 0.81 CELO at the 202.5 gwei of
+1 October 2026; the run above actually spent 0.803044 CELO at 200.0011 gwei. The handover adds six small transactions.
 
 Before starting, have three things ready: the Celo Safe that becomes admin (deployed through app.safe.global, with
 its owners and threshold decided, and the new deployer key not among them), the verifier server's address (its key
@@ -491,10 +514,10 @@ script/verify-retry.sh account
 script/verify-retry.sh proxy
 ```
 
-The canonical registry is third-party code that predates this deployment. On 1 October 2026
-`celo.blockscout.com` showed it unverified (`is_verified: false`); its behaviour is pinned by its codehash, and
-`script/verify-retry.sh registry` submits it the way the Celo Sepolia partial match was reached, if a verified badge is
-wanted.
+The canonical registry is third-party code that predates this deployment. `script/verify-retry.sh status` on 1 October
+2026 showed it unverified (`is_verified: false`), and Blockscout then resolved it through its Ethereum Bytecode Database
+at 06:44:13 UTC, the same partial match Celo Sepolia reached, so no submission from here was needed. Its behaviour is
+pinned by its codehash.
 
 **7. Hand the roles over.** Simulate first; the broadcast reads every transition back and reverts on the first
 surprise. Then read the roles from the chain itself, and sweep what is left of the deployer's CELO.
@@ -522,7 +545,8 @@ Once the explorer shows the handover and the sweep, the deployer key has no furt
 
 **8. Record the deployment** in `dashboard/deployment.json`, from the broadcast artifact. The tool refuses an artifact
 for another chain, a transaction without a successful receipt, a proxy without code, and an RPC that answers for a
-different chain, and it adds mainnet beside Celo Sepolia without touching it. Celo Sepolia stays the default chain;
+different chain, and it adds mainnet beside Celo Sepolia without touching it. Run for mainnet on 1 October 2026, which recorded it at block
+`78935900` and left the default alone. Celo Sepolia stays the default chain;
 pass `--make-default` only when the dashboard and the diagram are meant to switch to mainnet, and regenerate the
 diagram then (`.venv/bin/python tools/generate_architecture.py`; check its "all four contracts verified" line is true
 by then).
@@ -545,6 +569,10 @@ forge test
 .venv/bin/python -m pytest tools -q
 CHAIN_ID=42220 .venv/bin/python scripts/check-hosted-entrypoint.py
 ```
+
+Run on 1 October 2026 against the recorded mainnet entry: `forge test` **175 passed, 0 failed** (16 suites); `pytest
+dashboard` **89 passed** on the default chain and **61 passed** with `--chain-id 42220`; `pytest tools` **40 passed**;
+and `check-hosted-entrypoint.py` green on the default chain and again with `CHAIN_ID=42220`.
 
 `dashboard.smoke` and `scripts/check_dashboard_ui.py` read token #1 and simulate a mint from the configured
 `PRIVATE_KEY`, so on mainnet they belong after the first pilot mint, run with `CHAIN_ID=42220` and the verifier

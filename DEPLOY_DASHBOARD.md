@@ -17,7 +17,7 @@ Both run the same repository: the entrypoint at the root, `streamlit_app.py`, st
 | `requirements.txt` | the dashboard's runtime dependencies only: `streamlit`, `web3`, `eth-account`, `h3`, pinned. Read from the repository root (or from the entrypoint's directory) by both hosts. |
 | `.streamlit/config.toml` | Streamlit runtime config: accent colour, headless, no usage stats. |
 | `streamlit_app.py` | the entrypoint both hosts look for by default; it runs `dashboard/app.py` rather than a copy of it. |
-| `dashboard/deployment.json` | static per-chain record of real deployments, plus the default chain. Today it holds one: Celo Sepolia (chain id `11142220`, proxy `0x21ab…f7e6`, deploy block `37511856`), so the page renders with no broadcast artifacts and no secrets. |
+| `dashboard/deployment.json` | static per-chain record of real deployments, plus the default chain. It holds two: Celo Sepolia (chain id `11142220`, proxy `0x21ab…f7e6`, deploy block `37511856`) and Celo mainnet (chain id `42220`, proxy `0x04db…4e64`, deploy block `78935900`, recorded 1 October 2026). Celo Sepolia stays the default, so the host renders the demo tree with no broadcast artifacts and no secrets; `CHAIN_ID = 42220` renders mainnet instead. |
 | `dashboard/chains.json` | per-chain registry: name, RPC, explorer, Blockscout verifier, canonical ERC-6551 registry, for Celo Sepolia and Celo mainnet. |
 | `.env.example` | every setting the dashboard reads, with the hosted ones marked. |
 | `tools/requirements.txt` | local tooling only (video generator, pytest, playwright) and deliberately not the deployed list. |
@@ -69,7 +69,8 @@ This branch is `master` locally and was pushed to `main` remotely, so nothing on
 
 ```toml
 # Same keys as .env, never committed. Leave a key out and the default applies: the record's default chain,
-# and that chain's RPC from dashboard/chains.json. For Celo mainnet, once it is recorded: CHAIN_ID = 42220.
+# and that chain's RPC from dashboard/chains.json. Celo mainnet is recorded (1 October 2026), so CHAIN_ID = 42220
+# renders it; keep 11142220 for the demo tree the video and the screenshots show.
 CHAIN_ID = 11142220
 PRIVATE_KEY = "0x..."              # account holding VERIFIER_ROLE; omit for a read-only page
 PROXY_ADDRESS = ""                 # empty is fine: dashboard/deployment.json is the fallback

@@ -32,6 +32,7 @@ ADDRESS_RE = re.compile(r"0x[0-9a-fA-F]{40}")
 DEPLOYMENT_JSON = ROOT / "dashboard" / "deployment.json"
 BROADCAST_DIR = ROOT / "broadcast" / "DeployAll.s.sol"
 SEPOLIA, MAINNET = 11142220, 42220
+ALFAJORES = 44787  # shut down and never recorded here: the stand-in for "no deployment recorded for this chain"
 
 
 def recorded_chain(deployment_path: Path = DEPLOYMENT_JSON) -> tuple[int, dict]:
@@ -239,5 +240,7 @@ def test_generator_refuses_a_registry_the_chain_config_does_not_name(mainnet_rec
 
 
 def test_generator_refuses_a_chain_with_no_recorded_deployment():
-    with pytest.raises(G.DeploymentMismatch, match="no deployment recorded for chain 42220"):
-        G.load_facts(chain_id=MAINNET)
+    # Mainnet used to be the unrecorded case here; it is recorded as of 1 October 2026, so this pins the refusal with a
+    # chain that has no entry at all.
+    with pytest.raises(G.DeploymentMismatch, match=f"no deployment recorded for chain {ALFAJORES}"):
+        G.load_facts(chain_id=ALFAJORES)

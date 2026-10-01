@@ -4,20 +4,33 @@
 carries a 32-byte spatial nullifier, so the same plot cannot be registered twice, and every tree gets an
 ERC-6551 token-bound account created through the canonical registry.
 
-Live on **Celo Sepolia** (chain id `11142220`), all four contracts verified on Blockscout:
+**Live on Celo mainnet** (chain id `42220`) since 1 October 2026: one broadcast, four transactions, 4,015,198 gas at
+200.0011 gwei, so **0.803044 CELO**, all four in block `78935900` with every receipt successful. The canonical ERC-6551
+registry was already on the chain, so it was reused rather than deployed. All four addresses are verified on Blockscout.
 
 | contract | address |
 | --- | --- |
-| BioRigCoreV5 (implementation) | `0x4c998c6553c78bb9d5a67aac6fbc526d64dba3a4` |
-| ERC1967Proxy (the live address) | `0x21ab8b36177f65ce69e04e281e4aff3db6b5f7e6` |
-| ERC-6551 account implementation | `0x3d8a53db1bbcab6d47097b25080527e5560c5165` |
+| BioRigCoreV5 (implementation) | `0xdb3a450b85D48E6e6552dB2b32aD75a7ac590c60` |
+| ERC1967Proxy (the live address) | `0x04Db169dDF8AbB80943161C01B2a71DC40384E64` |
+| ERC-6551 account implementation | `0x65D18C960170ca2B4936c62945bA0e827e5cCd2B` |
 | ERC-6551 registry (canonical) | `0x000000006551c19487814612e58FE06813775758` |
 
-Proxy deployed in block `37511856`; that address also lives in `dashboard/deployment.json`.
+Admin, `UPGRADER_ROLE` and `BUFFER_POOL` still sit with the deployer hot key, and **nothing is minted on mainnet yet**:
+the handover to a Celo Safe and a dedicated verifier key is step 7 of `DEPLOY.md` section 8 and has not run. That
+section records the broadcast and what it produced, address by address.
 
-**Celo mainnet** (chain id `42220`) is approved as an Alpha v1 / pilot deployment and is **not deployed yet**. The
-ordered runbook, with the post-broadcast handover of admin to a Safe and of `VERIFIER_ROLE` to a dedicated key, is
-`DEPLOY.md` section 8. Both chains are configured in one place, `dashboard/chains.json`.
+**Celo Sepolia** (chain id `11142220`) is the testnet deployment the demo pieces render, live since 30 September 2026
+in block `37511856`, and still the tooling's default chain:
+
+| contract | address |
+| --- | --- |
+| BioRigCoreV5 (implementation) | `0x4c998C6553C78bb9d5A67Aac6fBC526d64DBa3a4` |
+| ERC1967Proxy (the live address) | `0x21ab8B36177F65ce69e04E281E4aFf3Db6b5f7E6` |
+| ERC-6551 account implementation | `0x3d8a53dB1Bcab6D47097B25080527e5560C5165` |
+| ERC-6551 registry (canonical) | `0x000000006551c19487814612e58FE06813775758` |
+
+Its tree #1 is the one the dashboard and the explainer show. Both chains live in `dashboard/deployment.json`, and both
+networks are configured in one place, `dashboard/chains.json`.
 
 **How the nullifier is derived.** The production derivation is `keccak256(uint64(h3Cell) ++ utf8(salt))` with the
 cell taken at H3 resolution 12, implemented in `dashboard/h3_nullifier.py`. The contract is looser than that:
@@ -33,7 +46,7 @@ Section 4 of `DEPLOY.md` records that mint, with both digests.
 Four tiers, top to bottom. **Off-chain edge capture** (mobile dMRV, the H3 spatial nullifier, the zk-ML
 prover) is untrusted: the contract executes and verifies none of it. The handoff into the chain is a
 verifier-signed `mintTree` carrying the nullifier, DBH and biomass; `mintTree` takes no proof, so the trust
-boundary is `onlyRole(VERIFIER_ROLE)`, not cryptography. **On-chain execution** is the four deployed contracts
+boundary is `onlyRole(VERIFIER_ROLE)`, not cryptography. **On-chain execution** is the four contracts in the tables
 above, with the token-bound account created through the canonical ERC-6551 registry at
 `keccak256(tokenId ++ planter ++ nullifier)`. The **protocol tier** (carbon accrual, the 20% buffer pool,
 ReFi rails, demand side) is roadmap and badged as such on every box. The **demo dashboard** runs today; its
@@ -42,7 +55,8 @@ public host is still being deployed, so the diagram marks it in progress and pri
 The PNG (4800 px wide) and its vector source `assets/BioRig_Architecture_v5.svg` are generated, not drawn:
 `tools/generate_architecture.py` reads every address from `dashboard/deployment.json` and the DeployAll
 broadcast, and `tools/test_architecture.py` fails if any address in the scene, the SVG or the PNG's pixels
-(read back with tesseract) drifts from that record. After a redeploy:
+(read back with tesseract) drifts from that record. The diagram draws the record's default chain, Celo Sepolia, so the
+addresses printed on it are the Sepolia set; `--chain-id 42220` draws mainnet. After a redeploy:
 
 ```bash
 .venv/bin/python tools/generate_architecture.py            # rewrite the SVG and PNG, byte-identical on rerun

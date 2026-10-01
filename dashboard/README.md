@@ -1,7 +1,8 @@
 # BioRig demo dashboard
 
 Streamlit + web3.py against BioRigCoreV5 behind the ERC1967Proxy on whichever chain `CHAIN_ID` selects; unset,
-the default chain in `deployment.json`, which is Celo Sepolia, the one live deployment.
+the default chain in `deployment.json`, which is Celo Sepolia, the deployment the demo renders. Celo mainnet (chain
+42220) is recorded beside it: set `CHAIN_ID=42220` to point the page at it.
 The verifier key stays on the machine running Streamlit; the browser never sees it.
 
 ```bash
