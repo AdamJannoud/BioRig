@@ -5,6 +5,9 @@ the default chain in `deployment.json`, which is Celo Sepolia, the deployment th
 42220) is recorded beside it: set `CHAIN_ID=42220` to point the page at it.
 The verifier key stays on the machine running Streamlit; the browser never sees it.
 
+BioRig is Adam Jannoud's project: project lead, author of the contract and the tooling, and the sole deployer of the
+addresses this page reads on both Celo Sepolia and Celo mainnet.
+
 ```bash
 .venv/bin/pip install -r requirements.txt          # the dashboard's runtime deps
 .venv/bin/streamlit run dashboard/app.py           # http://localhost:8501

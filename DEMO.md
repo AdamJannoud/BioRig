@@ -3,6 +3,9 @@
 Two pieces for the Celo grant showcase, both against the live deployment on Celo Sepolia (chain 11142220):
 proxy `0x21ab8B36177F65ce69e04e281E4aFf3Db6b5f7E6`.
 
+Adam Jannoud is the project lead, the author and the sole deployer: the dashboard, the video and every address they
+show are his work, on Celo Sepolia and on Celo mainnet.
+
 ## Setup (once)
 
 ```bash

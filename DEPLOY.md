@@ -5,6 +5,10 @@ constructor runs `initialize(...)`. The proxy is therefore never live without be
 UUPS: upgrades are gated by `UPGRADER_ROLE` inside the implementation. That means no `TransparentUpgradeableProxy`
 and no `ProxyAdmin`.
 
+**Author and sole deployer: Adam Jannoud.** BioRig is his project — the contract, the scripts, the tests and this
+runbook — and he is the only account that has ever broadcast a BioRig deployment. Both executed deployments below, Celo
+Sepolia (section 6) and Celo mainnet (section 8), were sent by him from a deployer key he controls.
+
 **Networks.** Every chain BioRig targets has one entry in `dashboard/chains.json`: name, RPC, Blockscout explorer and
 verifier API, and the canonical ERC-6551 registry with its codehash. The dashboard, the diagram generator, the check
 scripts and the shell scripts all read it (`python3 -m dashboard.config chains` lists it), and the deploy scripts
@@ -290,8 +294,8 @@ wrong reason still fails the run:
 
 ## 6. Executed deployment: Celo Sepolia, 30 September 2026
 
-Run with `DeployAll` exactly as in "One command" above, plus `--verify --verifier blockscout --verifier-url
-"$VERIFIER_URL"`. One broadcast, 5 transactions, 4,192,380 gas, 0.2096 CELO at a ~50 gwei base fee. Deployer and
+Run by Adam Jannoud, the project's author and sole deployer, with `DeployAll` exactly as in "One command" above,
+plus `--verify --verifier blockscout --verifier-url "$VERIFIER_URL"`. One broadcast, 5 transactions, 4,192,380 gas, 0.2096 CELO at a ~50 gwei base fee. Deployer and
 admin were the throwaway account `0xb5aB2054b43040593805Cf662A938eFE924F2778`, with `BUFFER_POOL` the same address and
 `URI_GENERATOR` zero.
 
@@ -400,7 +404,8 @@ the `v1`-based `forge verify-contract` path, not to verification on this explore
 
 ## 8. Celo mainnet (chain 42220): Alpha v1 / pilot broadcast runbook
 
-**Executed 1 October 2026: steps 0-6 and 8 of the runbook below ran; step 7, the role handover, has not.** Read back
+**Executed by Adam Jannoud, the project's author and sole deployer, on 1 October 2026: steps 0-6 and 8 of the runbook
+below ran; step 7, the role handover, has not.** Read back
 from the chain, `DEFAULT_ADMIN_ROLE`, `UPGRADER_ROLE`, `VERIFIER_ROLE` and `bufferPool` all still sit with the deployer
 hot key `0x1DB0084Db70bF8D0E06c1785D693Fc6a95317890`, and no tree is minted: `ownerOf(1)` reverts
 `ERC721NonexistentToken(1)`.

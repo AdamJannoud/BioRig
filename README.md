@@ -4,6 +4,10 @@
 carries a 32-byte spatial nullifier, so the same plot cannot be registered twice, and every tree gets an
 ERC-6551 token-bound account created through the canonical registry.
 
+**Project lead, author and sole deployer: Adam Jannoud** ([@AdamJannoud](https://github.com/AdamJannoud)). The
+contract, the tooling, the tests and these documents are his work, and every deployment recorded below was broadcast by
+him from a deployer key he controls. Commits in this repository are authored by that account.
+
 **Live on Celo mainnet** (chain id `42220`) since 1 October 2026: one broadcast, four transactions, 4,015,198 gas at
 200.0011 gwei, so **0.803044 CELO**, all four in block `78935900` with every receipt successful. The canonical ERC-6551
 registry was already on the chain, so it was reused rather than deployed. All four addresses are verified on Blockscout.
@@ -15,7 +19,8 @@ registry was already on the chain, so it was reused rather than deployed. All fo
 | ERC-6551 account implementation | `0x65D18C960170ca2B4936c62945bA0e827e5cCd2B` |
 | ERC-6551 registry (canonical) | `0x000000006551c19487814612e58FE06813775758` |
 
-Admin, `UPGRADER_ROLE` and `BUFFER_POOL` still sit with the deployer hot key, and **nothing is minted on mainnet yet**:
+Admin, `UPGRADER_ROLE` and `BUFFER_POOL` still sit with Adam Jannoud's deployer hot key
+`0x1DB0084Db70bF8D0E06c1785D693Fc6a95317890`, and **nothing is minted on mainnet yet**:
 the handover to a Celo Safe and a dedicated verifier key is step 7 of `DEPLOY.md` section 8 and has not run. That
 section records the broadcast and what it produced, address by address.
 

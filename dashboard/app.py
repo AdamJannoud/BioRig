@@ -136,6 +136,7 @@ st.markdown(
 )
 st.caption(f"Proxy resolved from `{settings.proxy.source}`"
            + (f" (skipped: {'; '.join(settings.proxy.skipped)})" if settings.proxy.skipped else ""))
+st.caption("BioRig — project lead, author and sole deployer: Adam Jannoud")
 
 left, right = st.columns(2, gap="large")
 

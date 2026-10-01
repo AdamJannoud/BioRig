@@ -1,8 +1,8 @@
 # Deploy the demo dashboard to an independent, public, free host
 
-The dashboard currently runs at `https://forge-capability-check-h7z1dd.bolter.run:8501`, which is reachable
-from this chat only and stops when the sandbox sleeps. This file is the route to a public URL on a free host
-that has nothing to do with this runtime, suitable for Celo reviewers. Two hosts are covered:
+The dashboard currently runs only on the development machine that built it, at a private preview URL reachable from the
+originating chat and nowhere else, and it stops when that machine sleeps. This file is the route to a public URL on a
+free host that has nothing to do with that runtime, suitable for Celo reviewers. Two hosts are covered:
 
 - **Streamlit Community Cloud** (primary): free, public, permanent URL at `*.streamlit.app`, deploys straight
   from a GitHub repository.
