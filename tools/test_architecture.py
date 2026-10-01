@@ -12,6 +12,7 @@ mainnet) there is none, and a synthetic mainnet record below proves the diagram 
 from __future__ import annotations
 
 import dataclasses
+import hashlib
 import io
 import json
 import re
@@ -125,8 +126,10 @@ def test_committed_png_pixels_read_back_as_the_recorded_addresses(scene, expecte
 
 
 def test_committed_outputs_are_a_fresh_render():
-    """Byte-for-byte: the PNG and SVG on disk are what the generator produces now from the current record."""
+    """The SVG on disk is byte-for-byte a fresh render, its sidecar records that render's sha256, and the PNG is
+    a decodable raster of the right size (its content is pinned by the OCR read-back above)."""
     assert G.main(["--check"]) == 0
+    assert G.SVG_SHA_OUT.read_text().split() == [hashlib.sha256(G.SVG_OUT.read_bytes()).hexdigest(), G.SVG_OUT.name]
 
 
 def test_svg_render_is_deterministic(scene):
@@ -169,6 +172,52 @@ def test_corrupted_address_is_caught(scene, expected):
     facts = G.load_facts()
     drifted = G.build_scene(dataclasses.replace(facts, registry="0x" + "ab" * 20))
     assert address_mismatches(drifted.addresses(), expected) != []
+
+
+@pytest.fixture
+def outputs_copy(tmp_path, monkeypatch) -> tuple[Path, Path, Path]:
+    """Copies of the three committed outputs in tmp_path, with the generator pointed at them, so a negative
+    control can break them without touching the checked-in files."""
+    paths = []
+    for name in ("SVG_OUT", "SVG_SHA_OUT", "PNG_OUT"):
+        src = getattr(G, name)
+        dst = tmp_path / src.name
+        shutil.copyfile(src, dst)
+        monkeypatch.setattr(G, name, dst)
+        paths.append(dst)
+    assert G.main(["--check"]) == 0  # the copies pass before they are broken
+    return tuple(paths)
+
+
+def test_check_catches_a_wrong_sidecar_hash(outputs_copy):
+    _, sha, _ = outputs_copy
+    digest, name = sha.read_text().split()
+    sha.write_text(f"{digest[:-1]}{'0' if digest[-1] != '0' else '1'}  {name}\n")
+    assert G.main(["--check"]) == 1
+
+
+def test_check_catches_tampered_svg_bytes(outputs_copy):
+    svg, _, _ = outputs_copy
+    svg.write_bytes(svg.read_bytes().replace(b"BioRigCoreV5", b"BioRigCoreV6", 1))
+    assert G.main(["--check"]) == 1
+
+
+def test_check_catches_a_missing_png(outputs_copy):
+    _, _, png = outputs_copy
+    png.unlink()
+    assert G.main(["--check"]) == 1
+
+
+def test_check_catches_a_png_of_the_wrong_size(outputs_copy):
+    _, _, png = outputs_copy
+    Image.new("RGB", (G.GRID_W * G.PNG_SCALE, G.GRID_H * G.PNG_SCALE - 1), "white").save(png)
+    assert G.main(["--check"]) == 1
+
+
+def test_check_catches_a_png_that_does_not_decode(outputs_copy):
+    _, _, png = outputs_copy
+    png.write_bytes(png.read_bytes()[:1000])
+    assert G.main(["--check"]) == 1
 
 
 def test_generator_refuses_a_record_that_disagrees_with_the_broadcast(tmp_path):
