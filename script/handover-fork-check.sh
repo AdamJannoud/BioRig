@@ -121,10 +121,14 @@ MODE=$([ "$VERIFIER_ADDRESS" = "$DEPLOYER" ] && echo B || echo A)
 echo "### VERIFIER_ADDRESS $VERIFIER_ADDRESS   mode $MODE $([ "$MODE" = B ] && echo '(minting stays on the deployer)' || echo '(dedicated verifier key)')"
 echo "    fork stand-in verifier key held: $([ "$VERIFIER_ADDRESS" = "$FORK_VERIFIER" ] && echo yes || echo no)"
 
-# Guard-check mode: prove the mode-B preflight refuses a deployer that does not hold VERIFIER_ROLE, then stop.
+# Guard-check mode: prove the mode-B preflight refuses a deployer that does not hold VERIFIER_ROLE, then stop. Always
+# mode B, whatever VERIFIER_ADDRESS_IN says.
 if [ -n "${GUARD_ONLY:-}" ]; then
     echo
     echo "### guard check: mode B, deployer does not hold VERIFIER_ROLE"
+    # The guard under test is the mode-B preflight, so this check runs in mode B whatever VERIFIER_ADDRESS_IN says:
+    # in mode A the deployer's VERIFIER_ROLE is never consulted and the handover would rightly go through.
+    export VERIFIER_ADDRESS=$DEPLOYER
     cast send "$PROXY" "renounceRole(bytes32,address)" "$VERIFIER_ROLE" "$DEPLOYER" \
         --private-key "$PRIVATE_KEY" --rpc-url "$LOCAL" | grep -E "^status"
     who deployer "$DEPLOYER"

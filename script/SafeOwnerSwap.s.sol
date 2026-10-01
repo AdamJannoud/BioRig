@@ -79,9 +79,8 @@ contract SafeOwnerSwap is DeployBase, SafeOwnershipGuard {
         bytes32 digest = safe.getTransactionHash(
             s.safe, 0, data, OPERATION_CALL, 0, 0, 0, address(0), address(0), nonceBefore
         );
-        (uint8 v, bytes32 r, bytes32 sig) = vm.sign(s.deployerKey, digest);
-        bytes memory signatures = abi.encodePacked(r, sig, v);
-        console.log("Safe nonce:            ", nonceBefore);
+        (uint8 v, bytes32 r, bytes32 sigS) = vm.sign(s.deployerKey, digest);
+        bytes memory signatures = abi.encodePacked(r, sigS, v);
         console.log("Safe tx hash:          ", vm.toString(digest));
 
         vm.startBroadcast(s.deployerKey);

@@ -421,6 +421,9 @@ hot key `0x1DB0084Db70bF8D0E06c1785D693Fc6a95317890`, and no tree is minted: `ow
 `ERC721NonexistentToken(1)`. Step 7 is to run in **mode B**: the Safe takes `DEFAULT_ADMIN_ROLE` and
 `UPGRADER_ROLE` and the deployer key keeps `VERIFIER_ROLE` (minting), the choice recorded on 1 October 2026.
 `script/handover-fork-check.sh` rehearses exactly that against live mainnet state on a fork.
+Step 7 is blocked until the Safe's sole owner, today the deployer key itself, is moved to an address the hot key
+cannot sign for: that is step 7a, `script/SafeOwnerSwap.s.sol`, rehearsed end to end, swap and then mode-B
+handover, by `script/safe-owner-swap-fork-check.sh`.
 
 One broadcast, four transactions, 4,015,198 gas, **0.803044 CELO** at 200.0011 gwei, all in block `78935900`, every
 receipt status `0x1`. The canonical registry was reused rather than deployed, so `DeployAll` sent four transactions and
@@ -542,7 +545,42 @@ The canonical registry is third-party code that predates this deployment. `scrip
 at 06:44:13 UTC, the same partial match Celo Sepolia reached, so no submission from here was needed. Its behaviour is
 pinned by its codehash.
 
-**7. Hand the roles over.** Simulate first; the broadcast reads every transition back and reverts on the first
+**7a. Take the Safe off the deployer key (`script/SafeOwnerSwap.s.sol`).** The handover below refuses a `NEW_ADMIN`
+Safe the deployer can sign for, and the Safe supplied for mainnet, `0x3B36b3446fCB0729B0046520156933E56352D551`
+(SafeL2 1.5.0, threshold 1, nonce 0), has the deployer hot key as its **sole owner**, as had the other address supplied
+on 1 October 2026, `0xe7042bC31A13E4FD2D5C4176ec52D28907E1311E`. Handing admin to it would leave the pen in the same
+hand, so its owner is moved first, in one Safe transaction: `swapOwner(0x1, deployer, NEW_OWNER)`, hashed by the
+Safe's own `getTransactionHash`, signed by the deployer and sent with `execTransaction`, then read back (owners exactly
+`[NEW_OWNER]`, threshold 1, deployer not an owner, nonce advanced by one). `NEW_OWNER` is the address Adam controls
+and the hot key does not: a hardware wallet or another key, ideally an EOA.
+
+```bash
+export SAFE_ADDRESS=0x3B36b3446fCB0729B0046520156933E56352D551 NEW_OWNER=0x...   # the address the hot key cannot sign for
+NEW_OWNER=$NEW_OWNER SAFE_ADDRESS=$SAFE_ADDRESS forge script script/SafeOwnerSwap.s.sol:SafeOwnerSwap --rpc-url "$RPC_URL"   # simulate
+NEW_OWNER=$NEW_OWNER SAFE_ADDRESS=$SAFE_ADDRESS forge script script/SafeOwnerSwap.s.sol:SafeOwnerSwap --rpc-url "$RPC_URL" --broadcast
+cast call "$SAFE_ADDRESS" "getOwners()(address[])" --rpc-url "$RPC_URL"   # [NEW_OWNER], and the deployer is gone
+```
+
+The preflight runs before anything is signed and refuses, saying what to do:
+
+| Refusal | When |
+| --- | --- |
+| `CHAIN_ID mismatch` | `CHAIN_ID` and the RPC's `eth_chainId` disagree |
+| `SAFE_ADDRESS has no code` / `does not answer getThreshold()` / `getOwners()` | `SAFE_ADDRESS` is not a Safe |
+| `SAFE_ADDRESS has threshold N, not 1` | one key's signature cannot satisfy the threshold; use the Safe app |
+| `the deployer key cannot sign for this Safe; nothing to swap` | the deployer is not an owner: already swapped (so a re-run is harmless), or the wrong `PRIVATE_KEY` |
+| `NEW_OWNER is the zero address` / `is the deployer` / `is already an owner` | `NEW_OWNER` would not change who holds the Safe |
+| `the deployer is one of N owners, not the sole owner` | not a 1-of-1 Safe; change multi-owner Safes in the Safe app |
+| `the deployer is an owner of the NEW_OWNER Safe` / `an owner of the NEW_OWNER Safe is owned by the deployer` | `NEW_OWNER` is a Safe the hot key signs for, directly or through a nested Safe (the 1 October trap, re-entered one level down) |
+| `NEW_OWNER is a contract this script cannot inspect` | a contract that does not answer `getOwners()`; accepted only with `ALLOW_UNINSPECTED_OWNER=true` after a human has checked it |
+
+The ownership walk is the same code the handover runs (`script/SafeOwnershipGuard.sol`). Rehearse it all first:
+`bash script/safe-owner-swap-fork-check.sh` forks live mainnet, makes every refusal above fire on its own fixture,
+swaps the live Safe to a fresh stand-in EOA, proves the deployer's signature is then refused by the Safe (`GS026`) and
+the stand-in's accepted, and then, on the same fork, runs this step 7 in mode B with `NEW_ADMIN` set to the swapped
+Safe and asserts the end state with `hasRole`. It must print `REHEARSAL PASSED` and exit 0.
+
+**7b. Hand the roles over**, with `NEW_ADMIN` set to the Safe swapped in 7a. Simulate first; the broadcast reads every transition back and reverts on the first
 surprise. Then read the roles from the chain itself, and sweep what is left of the deployer's CELO.
 
 ```bash
