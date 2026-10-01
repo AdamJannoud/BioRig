@@ -428,3 +428,21 @@ def test_record_cli_refuses_a_simulation_and_the_wrong_chain(tmp_path):
     sim = _record_cli(tmp_path, "--chain-id", str(MAINNET), "--broadcast", str(artifact))
     assert sim.returncode == 1 and "has no receipt: this artifact is a simulation" in sim.stderr
     assert not (tmp_path / "deployment.json").exists()
+
+
+def test_env_example_network_block_is_the_registry_entry_for_its_chain():
+    """.env.example's network values must be exactly what `python3 -m dashboard.config env` prints for its CHAIN_ID,
+    so the template cannot drift from dashboard/chains.json."""
+    example = load_dotenv(REPO / ".env.example")
+    c = chain_config(int(example["CHAIN_ID"]))
+    assert (example["RPC_URL"], example["VERIFIER_URL"], example["EXPLORER_URL"]) == (
+        c.rpc_url, c.verifier_url, c.explorer_url)
+    out = subprocess.run([sys.executable, "-m", "dashboard.config", "env", "--chain-id", example["CHAIN_ID"]],
+                         capture_output=True, text=True, cwd=REPO, check=True).stdout
+    assert {k: v for k, v in load_dotenv_text(out).items()} == {
+        "CHAIN_ID": example["CHAIN_ID"], "RPC_URL": c.rpc_url, "VERIFIER": "blockscout",
+        "VERIFIER_URL": c.verifier_url, "EXPLORER_URL": c.explorer_url}
+
+
+def load_dotenv_text(text: str) -> dict[str, str]:
+    return dict(line.split("=", 1) for line in text.splitlines() if line and not line.startswith("#"))

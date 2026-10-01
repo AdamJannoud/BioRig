@@ -425,7 +425,8 @@ def load_settings(repo_root: Path = REPO_ROOT, env_file: Path | None = None,
 
 def main(argv: list[str] | None = None) -> int:
     """`get <field>`: print one setting of the selected chain (CHAIN_ID from the environment or .env, else the
-    repo default). `chains`: list the registry. For the shell scripts; never prints a secret."""
+    repo default). `env`: print that chain's network block for a .env file, straight from the registry.
+    `chains`: list the registry. For the shell scripts and the runbook; never prints a secret."""
     import argparse
 
     parser = argparse.ArgumentParser(prog="python3 -m dashboard.config", description=main.__doc__)
@@ -434,6 +435,8 @@ def main(argv: list[str] | None = None) -> int:
     get.add_argument("field", choices=("chain_id", *_CHAIN_FIELDS, "faucet_url", "proxy_address",
                                        "proxy_deploy_block"))
     get.add_argument("--chain-id", help="select this chain instead of CHAIN_ID / the repo default")
+    env_cmd = sub.add_parser("env", help="print CHAIN_ID, RPC_URL, VERIFIER_URL, EXPLORER_URL for a .env file")
+    env_cmd.add_argument("--chain-id", help="select this chain instead of CHAIN_ID / the repo default")
     sub.add_parser("chains", help="list every registered chain")
     args = parser.parse_args(argv)
 
@@ -447,6 +450,11 @@ def main(argv: list[str] | None = None) -> int:
         if args.chain_id:
             env["CHAIN_ID"] = args.chain_id
         chain = select_chain(env)
+        if args.cmd == "env":
+            print(f"# {chain.name}, from dashboard/{CHAINS_FILE.name}\nCHAIN_ID={chain.chain_id}\n"
+                  f"RPC_URL={chain.rpc_url}\nVERIFIER=blockscout\nVERIFIER_URL={chain.verifier_url}\n"
+                  f"EXPLORER_URL={chain.explorer_url}")
+            return 0
         if args.field in ("proxy_address", "proxy_deploy_block"):
             addr, block = _proxy_from_deployment(REPO_ROOT / STATIC_DEPLOYMENT_FILE, chain.chain_id)
             value = addr if args.field == "proxy_address" else block
