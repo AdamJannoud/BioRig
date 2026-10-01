@@ -5,7 +5,12 @@
 # custom properties, keyed on the background Streamlit actually painted, so pinning the surface colours
 # in this file would fight that and lose the dark theme.
 
-[theme]
+# Under [theme] alone, Streamlit treats the accent as a custom theme and always paints it light, whatever the
+# viewer's system setting. Setting it per mode keeps Streamlit following the system light/dark preference.
+[theme.light]
+primaryColor = "#2456d6"
+
+[theme.dark]
 primaryColor = "#2456d6"
 
 [server]
