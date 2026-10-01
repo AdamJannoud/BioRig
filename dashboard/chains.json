@@ -1,0 +1,27 @@
+{
+  "$comment": "Per-chain settings for every network BioRig targets; the one place a chain's RPC, explorer and verifier live. Read by dashboard/config.py (Python and, through `python3 -m dashboard.config`, the shell scripts) and by script/DeployCommon.sol. Which chain is the default, and what is deployed where, is dashboard/deployment.json's business, not this file's.",
+  "chains": {
+    "11142220": {
+      "name": "Celo Sepolia",
+      "testnet": true,
+      "native_currency": "CELO",
+      "rpc_url": "https://forno.celo-sepolia.celo-testnet.org",
+      "explorer_url": "https://celo-sepolia.blockscout.com",
+      "verifier_url": "https://celo-sepolia.blockscout.com/api/",
+      "faucet_url": "https://faucet.celo.org/celo-sepolia",
+      "erc6551_registry": "0x000000006551c19487814612e58FE06813775758",
+      "erc6551_registry_codehash": "0xda1d5b06e579f9e42e59b00fbc22939896ecb38dc8830d40de0a2508fecd6735"
+    },
+    "42220": {
+      "name": "Celo mainnet",
+      "testnet": false,
+      "native_currency": "CELO",
+      "rpc_url": "https://forno.celo.org",
+      "explorer_url": "https://celo.blockscout.com",
+      "verifier_url": "https://celo.blockscout.com/api/",
+      "faucet_url": null,
+      "erc6551_registry": "0x000000006551c19487814612e58FE06813775758",
+      "erc6551_registry_codehash": "0xda1d5b06e579f9e42e59b00fbc22939896ecb38dc8830d40de0a2508fecd6735"
+    }
+  }
+}

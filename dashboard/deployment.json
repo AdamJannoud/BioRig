@@ -1,5 +1,9 @@
 {
-  "chain_id": 11142220,
-  "proxy_address": "0x21ab8b36177f65ce69e04e281e4aff3db6b5f7e6",
-  "proxy_deploy_block": 37511856
+  "default_chain_id": 11142220,
+  "deployments": {
+    "11142220": {
+      "proxy_address": "0x21ab8b36177f65ce69e04e281e4aff3db6b5f7e6",
+      "proxy_deploy_block": 37511856
+    }
+  }
 }

@@ -8,8 +8,18 @@ Proxy address precedence (first hit wins):
 Anything else fails loudly with ProxyResolutionError, listing every candidate and why it was skipped.
 
 Candidates 1 and 2 need the broadcast artifacts and 3 needs a configured secret, so 4 is what keeps a
-hosted deployment rendering from a checkout that has neither. The chain id, RPC endpoint and explorer URL
-have module-level static defaults for the same reason.
+hosted deployment rendering from a checkout that has neither.
+
+Chain selection (first hit wins):
+  1. CHAIN_ID from .env, st.secrets or the process environment
+  2. default_chain_id in dashboard/deployment.json                  (the repo's default chain)
+Anything else fails loudly with ChainSelectionError, listing the chains dashboard/chains.json knows. That file
+is the per-chain registry (name, RPC, explorer, Blockscout verifier API, canonical ERC-6551 registry); RPC_URL
+and EXPLORER_URL override the selected chain's entries, nothing else does. EXPECTED_CHAIN_ID, DEFAULT_RPC_URL
+and DEFAULT_EXPLORER_URL are derived from the default chain's entry, never written here.
+
+Run as `python3 -m dashboard.config get <field>` from the repository root, the selected chain's settings are
+printed for the shell scripts, so they read the same registry instead of carrying their own copy.
 
 Secrets never leave this module in printable form: Settings.__repr__ masks the key.
 """
@@ -18,14 +28,13 @@ from __future__ import annotations
 import json
 import os
 import re
+import sys
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-EXPECTED_CHAIN_ID = 11142220
-DEFAULT_RPC_URL = "https://forno.celo-sepolia.celo-testnet.org"
-DEFAULT_EXPLORER_URL = "https://celo-sepolia.blockscout.com"
+CHAINS_FILE = Path(__file__).resolve().parent / "chains.json"
 BROADCAST_SCRIPTS = ("DeployAll.s.sol", "DeployBioRig.s.sol")
 
 _ADDRESS_RE = re.compile(r"^0x[0-9a-fA-F]{40}$")
@@ -38,6 +47,129 @@ STATIC_DEPLOYMENT_FILE = Path("dashboard") / "deployment.json"
 
 class ProxyResolutionError(RuntimeError):
     """No usable proxy address in any candidate source."""
+
+
+class ChainSelectionError(RuntimeError):
+    """No chain selected, or the selected chain is not in dashboard/chains.json."""
+
+
+@dataclass(frozen=True)
+class ChainConfig:
+    chain_id: int
+    name: str  # human name, shown in the UI and the diagram
+    testnet: bool
+    native_currency: str
+    rpc_url: str
+    explorer_url: str  # no trailing slash
+    verifier_url: str  # Blockscout API, as forge's --verifier-url wants it
+    erc6551_registry: str  # lowercase 0x-hex: the registry the deploy scripts wire into initialize
+    erc6551_registry_codehash: str  # keccak256 of its runtime code, so a fork run can tell the canonical one
+    faucet_url: str | None = None
+
+
+_CHAIN_FIELDS = ("name", "testnet", "native_currency", "rpc_url", "explorer_url", "verifier_url",
+                 "erc6551_registry", "erc6551_registry_codehash")
+
+
+def load_chains(path: Path = CHAINS_FILE) -> dict[int, ChainConfig]:
+    """Parse the chain registry. A malformed file is a broken checkout, so this raises rather than guessing."""
+    try:
+        data = json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError) as exc:
+        raise ChainSelectionError(f"{path.name}: unreadable chain registry ({exc.__class__.__name__}: {exc})") from exc
+    chains: dict[int, ChainConfig] = {}
+    for key, entry in (data.get("chains") or {}).items() if isinstance(data, dict) else ():
+        missing = [f for f in _CHAIN_FIELDS if not isinstance(entry, dict) or entry.get(f) in (None, "")]
+        if missing or not str(key).isdigit():
+            raise ChainSelectionError(f"{path.name}: chain {key!r} is missing {', '.join(missing) or 'a numeric id'}")
+        if not _ADDRESS_RE.match(str(entry["erc6551_registry"])):
+            raise ChainSelectionError(f"{path.name}: chain {key} erc6551_registry is not a 20-byte hex address")
+        chains[int(key)] = ChainConfig(
+            chain_id=int(key), name=entry["name"], testnet=bool(entry["testnet"]),
+            native_currency=entry["native_currency"], rpc_url=entry["rpc_url"],
+            explorer_url=entry["explorer_url"].rstrip("/"), verifier_url=entry["verifier_url"],
+            erc6551_registry=entry["erc6551_registry"].lower(),
+            erc6551_registry_codehash=entry["erc6551_registry_codehash"].lower(),
+            faucet_url=entry.get("faucet_url") or None)
+    if not chains:
+        raise ChainSelectionError(f"{path.name}: no chains defined")
+    return chains
+
+
+CHAINS = load_chains()
+
+
+def _known_chains() -> str:
+    return ", ".join(f"{cid} ({c.name})" for cid, c in sorted(CHAINS.items()))
+
+
+def chain_config(chain_id: int) -> ChainConfig:
+    """The registry entry for `chain_id`, or ChainSelectionError naming every chain that does have one."""
+    try:
+        return CHAINS[int(chain_id)]
+    except (KeyError, TypeError, ValueError):
+        raise ChainSelectionError(
+            f"chain {chain_id!r} is not in dashboard/{CHAINS_FILE.name}; known chains: {_known_chains()}") from None
+
+
+def _read_deployment_file(path: Path) -> dict:
+    if not path.is_file():
+        raise ValueError("file not found")
+    try:
+        data = json.loads(path.read_text())
+    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+        raise ValueError(f"malformed JSON ({exc.__class__.__name__})") from exc
+    if not isinstance(data, dict):
+        raise ValueError("not a JSON object")
+    return data
+
+
+def _int_field(data: dict, key: str) -> int | None:
+    try:
+        return None if data.get(key) is None else int(data[key])
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{key} is not an integer ({data.get(key)!r})") from exc
+
+
+def default_chain_id(repo_root: Path = REPO_ROOT) -> int:
+    """The repo's default chain: default_chain_id in deployment.json, or chain_id in the older flat record."""
+    path = repo_root / STATIC_DEPLOYMENT_FILE
+    try:
+        data = _read_deployment_file(path)
+        chain_id = _int_field(data, "default_chain_id" if "deployments" in data else "chain_id")
+    except ValueError as exc:
+        chain_id, why = None, str(exc)
+    else:
+        why = "names no default chain"
+    if chain_id is None:
+        raise ChainSelectionError(
+            f"No chain selected: CHAIN_ID is not set and {STATIC_DEPLOYMENT_FILE} {why}. "
+            f"Set CHAIN_ID to one of: {_known_chains()}")
+    return chain_id
+
+
+def select_chain(env: Mapping[str, str], repo_root: Path = REPO_ROOT) -> ChainConfig:
+    """Explicit CHAIN_ID wins, then the repo's default chain; either way it has to be a registered chain."""
+    raw = str(env.get("CHAIN_ID") or "").strip()
+    if not raw:
+        return chain_config(default_chain_id(repo_root))
+    if not raw.isdigit():
+        raise ChainSelectionError(f"CHAIN_ID {raw!r} is not an integer; known chains: {_known_chains()}")
+    return chain_config(int(raw))
+
+
+def _default_chain_or_none() -> ChainConfig | None:
+    try:
+        return chain_config(default_chain_id())
+    except ChainSelectionError:  # resolved again, loudly, by select_chain when a caller actually needs it
+        return None
+
+
+# Kept for callers that predate the registry; all three follow the default chain's entry.
+_DEFAULT_CHAIN = _default_chain_or_none()
+EXPECTED_CHAIN_ID = _DEFAULT_CHAIN.chain_id if _DEFAULT_CHAIN else None
+DEFAULT_RPC_URL = _DEFAULT_CHAIN.rpc_url if _DEFAULT_CHAIN else None
+DEFAULT_EXPLORER_URL = _DEFAULT_CHAIN.explorer_url if _DEFAULT_CHAIN else None
 
 
 @dataclass(frozen=True)
@@ -98,26 +230,63 @@ def _flag(value: str | None, default: bool) -> bool:
 
 
 def _proxy_from_deployment(path: Path, chain_id: int) -> tuple[str, int | None]:
-    """Return (proxy address, deploy block) from the committed static record, or raise ValueError why not."""
-    if not path.is_file():
-        raise ValueError("file not found")
-    try:
-        data = json.loads(path.read_text())
-    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
-        raise ValueError(f"malformed JSON ({exc.__class__.__name__})") from exc
-    if not isinstance(data, dict):
-        raise ValueError("not a JSON object")
-    try:
-        recorded_chain = None if data.get("chain_id") is None else int(data["chain_id"])
-    except (TypeError, ValueError) as exc:
-        raise ValueError(f"chain_id is not an integer ({data.get('chain_id')!r})") from exc
-    if recorded_chain is not None and recorded_chain != chain_id:
-        raise ValueError(f"records chain {recorded_chain}, not {chain_id}")
-    addr = str(data.get("proxy_address") or "")
+    """Return (proxy address, deploy block) from the committed static record, or raise ValueError why not.
+
+    The record is a per-chain map (`deployments`, keyed by chain id). The older flat shape, one deployment with
+    `chain_id` beside it, is still read, so a record written before the map existed keeps resolving.
+    """
+    data = _read_deployment_file(path)
+    if "deployments" in data:
+        deployments = data["deployments"]
+        if not isinstance(deployments, dict):
+            raise ValueError("deployments is not a JSON object")
+        entry = deployments.get(str(chain_id))
+        if not isinstance(entry, dict):
+            recorded = ", ".join(sorted(deployments)) or "none"
+            raise ValueError(f"no deployment recorded for chain {chain_id} (recorded: {recorded})")
+    else:
+        recorded_chain = _int_field(data, "chain_id")
+        if recorded_chain is not None and recorded_chain != chain_id:
+            raise ValueError(f"records chain {recorded_chain}, not {chain_id}")
+        entry = data
+    addr = str(entry.get("proxy_address") or "")
     if not _ADDRESS_RE.match(addr):
         raise ValueError(f"proxy_address is not a 20-byte hex address ({addr!r})")
-    block = data.get("proxy_deploy_block")
+    block = entry.get("proxy_deploy_block")
     return addr.lower(), int(block) if isinstance(block, int) else None
+
+
+def record_deployment(path: Path, chain_id: int, proxy_address: str, proxy_deploy_block: int,
+                      make_default: bool = False, replace: bool = False) -> dict:
+    """Add one chain's deployment to the static record and return the new contents (also written to `path`).
+
+    A flat record is migrated to the per-chain map first. An existing entry for the chain is only overwritten
+    with `replace`, so re-running this after a redeploy is a decision rather than an accident.
+    """
+    chain_config(chain_id)  # refuse a chain the rest of the repo cannot talk to
+    if not _ADDRESS_RE.match(proxy_address):
+        raise ValueError(f"proxy_address is not a 20-byte hex address ({proxy_address!r})")
+    data = _read_deployment_file(path) if path.exists() else {"deployments": {}}
+    if "deployments" not in data:
+        flat_chain = _int_field(data, "chain_id")
+        if flat_chain is None:
+            raise ValueError("flat record without chain_id; cannot tell which chain it belongs to")
+        data = {"default_chain_id": flat_chain, "deployments": {str(flat_chain): {
+            "proxy_address": str(data["proxy_address"]).lower(),
+            "proxy_deploy_block": data.get("proxy_deploy_block")}}}
+    deployments = data["deployments"]
+    existing = deployments.get(str(chain_id))
+    entry = {"proxy_address": proxy_address.lower(), "proxy_deploy_block": int(proxy_deploy_block)}
+    if existing and existing != entry and not replace:
+        raise ValueError(f"chain {chain_id} already records proxy {existing.get('proxy_address')}; "
+                         "pass replace=True (--replace) to overwrite it")
+    deployments[str(chain_id)] = entry
+    data["deployments"] = dict(sorted(deployments.items(), key=lambda kv: int(kv[0])))
+    if make_default or data.get("default_chain_id") is None:
+        data["default_chain_id"] = int(chain_id)
+    data = {"default_chain_id": data["default_chain_id"], "deployments": data["deployments"]}
+    path.write_text(json.dumps(data, indent=2) + "\n")
+    return data
 
 
 def _proxy_from_broadcast(path: Path) -> tuple[str, int | None]:
@@ -151,7 +320,9 @@ def _proxy_from_broadcast(path: Path) -> tuple[str, int | None]:
     return addr.lower(), block
 
 
-def resolve_proxy(repo_root: Path, env: dict[str, str], chain_id: int = EXPECTED_CHAIN_ID) -> Resolution:
+def resolve_proxy(repo_root: Path, env: dict[str, str], chain_id: int | None = None) -> Resolution:
+    if chain_id is None:
+        chain_id = select_chain(env, repo_root).chain_id
     skipped: list[str] = []
     for script in BROADCAST_SCRIPTS:
         path = repo_root / "broadcast" / script / str(chain_id) / "run-latest.json"
@@ -195,6 +366,11 @@ class Settings:
     proxy: Resolution
     private_key: str | None = field(default=None, repr=False)
     allow_mint: bool = True  # False on a public deployment: the simulation stays, the broadcast does not
+    chain: ChainConfig | None = None  # the registry entry chain_id selected
+
+    @property
+    def chain_name(self) -> str:
+        return self.chain.name if self.chain else f"chain {self.chain_id}"
 
     def __repr__(self) -> str:  # never render the key, even by accident in st.write / logs
         key = "set" if self.private_key else "unset"
@@ -205,24 +381,74 @@ class Settings:
     __str__ = __repr__
 
 
-def load_settings(repo_root: Path = REPO_ROOT, env_file: Path | None = None,
-                  secrets: Mapping[str, str] | None = None) -> Settings:
-    """Merge .env, hosted secrets and the process environment (last one wins), then resolve the proxy.
-
-    `secrets` defaults to what the platform handed the app (hosted_secrets()); pass a mapping to exercise a
-    hosted configuration without a secrets file on disk.
-    """
+def _merged_env(repo_root: Path, env_file: Path | None, secrets: Mapping[str, str] | None) -> dict[str, str]:
     env = load_dotenv(env_file or repo_root / ".env")
     env.update(hosted_secrets() if secrets is None else secrets)
     for key in CONFIG_KEYS:
         if os.environ.get(key):
             env[key] = os.environ[key]
-    chain_id = int(env.get("CHAIN_ID") or EXPECTED_CHAIN_ID)
+    return env
+
+
+def load_settings(repo_root: Path = REPO_ROOT, env_file: Path | None = None,
+                  secrets: Mapping[str, str] | None = None) -> Settings:
+    """Merge .env, hosted secrets and the process environment (last one wins), then select the chain and
+    resolve the proxy.
+
+    `secrets` defaults to what the platform handed the app (hosted_secrets()); pass a mapping to exercise a
+    hosted configuration without a secrets file on disk.
+    """
+    env = _merged_env(repo_root, env_file, secrets)
+    chain = select_chain(env, repo_root)
     return Settings(
-        rpc_url=env.get("RPC_URL") or DEFAULT_RPC_URL,
-        chain_id=chain_id,
-        explorer_url=(env.get("EXPLORER_URL") or DEFAULT_EXPLORER_URL).rstrip("/"),
-        proxy=resolve_proxy(repo_root, env, chain_id),
+        rpc_url=env.get("RPC_URL") or chain.rpc_url,
+        chain_id=chain.chain_id,
+        explorer_url=(env.get("EXPLORER_URL") or chain.explorer_url).rstrip("/"),
+        proxy=resolve_proxy(repo_root, env, chain.chain_id),
         private_key=env.get("PRIVATE_KEY") or None,
         allow_mint=_flag(env.get("ALLOW_MINT"), True),
+        chain=chain,
     )
+
+
+def main(argv: list[str] | None = None) -> int:
+    """`get <field>`: print one setting of the selected chain (CHAIN_ID from the environment or .env, else the
+    repo default). `chains`: list the registry. For the shell scripts; never prints a secret."""
+    import argparse
+
+    parser = argparse.ArgumentParser(prog="python3 -m dashboard.config", description=main.__doc__)
+    sub = parser.add_subparsers(dest="cmd", required=True)
+    get = sub.add_parser("get", help="print one field of the selected chain")
+    get.add_argument("field", choices=("chain_id", *_CHAIN_FIELDS, "faucet_url", "proxy_address",
+                                       "proxy_deploy_block"))
+    get.add_argument("--chain-id", help="select this chain instead of CHAIN_ID / the repo default")
+    sub.add_parser("chains", help="list every registered chain")
+    args = parser.parse_args(argv)
+
+    try:
+        if args.cmd == "chains":
+            default = _default_chain_or_none()
+            for cid, c in sorted(CHAINS.items()):
+                print(f"{cid}\t{c.name}\t{c.rpc_url}\t{c.explorer_url}{'  (default)' if c is default else ''}")
+            return 0
+        env = _merged_env(REPO_ROOT, None, {})
+        if args.chain_id:
+            env["CHAIN_ID"] = args.chain_id
+        chain = select_chain(env)
+        if args.field in ("proxy_address", "proxy_deploy_block"):
+            addr, block = _proxy_from_deployment(REPO_ROOT / STATIC_DEPLOYMENT_FILE, chain.chain_id)
+            value = addr if args.field == "proxy_address" else block
+        else:
+            value = getattr(chain, args.field)
+    except (ChainSelectionError, ValueError) as exc:
+        print(f"dashboard.config: {exc}", file=sys.stderr)
+        return 1
+    if value is None:
+        print(f"dashboard.config: {args.field} is not set for chain {chain.chain_id}", file=sys.stderr)
+        return 1
+    print(str(value).lower() if isinstance(value, bool) else value)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
