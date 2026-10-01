@@ -22,7 +22,7 @@ take their explorer links from it. Two chains are registered:
 | BioRig | **live** since 30 September 2026 (section 6) | **live** since 1 October 2026 (section 8) |
 
 Currency is CELO on both. `CHAIN_ID` picks the chain; unset, the tooling uses `default_chain_id` in
-`dashboard/deployment.json`, which is Celo Sepolia and where both live chains are recorded. Every deployment input comes
+`dashboard/deployment.json`, which is Celo mainnet and where both live chains are recorded. Every deployment input comes
 from the environment, so the same
 commands work on either chain once `.env` is switched; `python3 -m dashboard.config env --chain-id <id>` prints the
 network block for it. Celo Alfajores (`44787`) was shut down and replaced by Celo Sepolia. Its RPC no longer
@@ -257,7 +257,8 @@ from `dashboard/chains.json`; a `FORK_URL` argument instead reads the chain id f
 agree. With neither it forks the repo's default chain.
 
 ```bash
-script/fork-dry-run.sh                        # default chain (Celo Sepolia)
+script/fork-dry-run.sh                        # default chain (Celo mainnet)
+CHAIN_ID=11142220 script/fork-dry-run.sh      # Celo Sepolia
 CHAIN_ID=42220 script/fork-dry-run.sh         # Celo mainnet
 script/fork-dry-run.sh https://forno.celo.org # the same, chain id read from the RPC
 ```
@@ -665,13 +666,14 @@ keep it, and keep the `PRIVATE_KEY` line - deleting it would leave the live tree
 **8. Record the deployment** in `dashboard/deployment.json`, from the broadcast artifact. The tool refuses an artifact
 for another chain, a transaction without a successful receipt, a proxy without code, and an RPC that answers for a
 different chain, and it adds mainnet beside Celo Sepolia without touching it. Run for mainnet on 1 October 2026, which recorded it at block
-`78935900` and left the default alone. Celo Sepolia stays the default chain;
-pass `--make-default` only when the dashboard and the diagram are meant to switch to mainnet, and regenerate the
-diagram then (`.venv/bin/python tools/generate_architecture.py`; check its "all four contracts verified" line is true
-by then).
+`78935900` and left the default alone. Later that day it was re-run with `--make-default`, which made Celo mainnet
+the default chain, so the dashboard and the diagram switched to mainnet; the diagram was regenerated then
+(`.venv/bin/python tools/generate_architecture.py`, whose "all four contracts verified" line is true). Celo Sepolia
+stays recorded and selectable with `CHAIN_ID=11142220`.
 
 ```bash
 .venv/bin/python scripts/record_deployment.py --chain-id 42220
+.venv/bin/python scripts/record_deployment.py --chain-id 42220 --make-default   # the later switch of the default
 git add dashboard/deployment.json broadcast/DeployAll.s.sol/42220 broadcast/HardenMainnetAdmin.s.sol/42220
 git commit -m "Record the Celo mainnet deployment"
 ```
@@ -694,9 +696,10 @@ dashboard` **89 passed** on the default chain and **61 passed** with `--chain-id
 and `check-hosted-entrypoint.py` green on the default chain and again with `CHAIN_ID=42220`.
 
 `dashboard.smoke` and `scripts/check_dashboard_ui.py` read token #1 and simulate a mint from the configured
-`PRIVATE_KEY`, so on mainnet they belong after the first pilot mint, run with `CHAIN_ID=42220` and the verifier
-server's key: `CHAIN_ID=42220 .venv/bin/python -m dashboard.smoke`, and `check_dashboard_ui.py` against a dashboard
-started with the same `CHAIN_ID`.
+`PRIVATE_KEY`; the first pilot mint gave mainnet a token #1, so they run there: `CHAIN_ID=42220 .venv/bin/python -m
+dashboard.smoke`, and `check_dashboard_ui.py` against a dashboard started with the same `CHAIN_ID` (now the default,
+so a dashboard started with no `CHAIN_ID` and no `.env` renders it too). `check_dashboard_ui.py` pins mainnet token
+#1's token-bound account, `0x453e89520DB8f374CFCeA95625B99DF5d4F1256A`.
 
 The same steps serve Celo Sepolia: `--chain-id 11142220` in steps 3 and 8, a faucet instead of step 2, and a
 `DeployAll` that sends five transactions where the registry is absent. The Celo Sepolia deployment of section 6

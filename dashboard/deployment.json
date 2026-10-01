@@ -1,5 +1,5 @@
 {
-  "default_chain_id": 11142220,
+  "default_chain_id": 42220,
   "deployments": {
     "42220": {
       "proxy_address": "0x04db169ddf8abb80943161c01b2a71dc40384e64",

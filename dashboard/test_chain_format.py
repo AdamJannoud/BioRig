@@ -1,22 +1,30 @@
 """Pure helpers in dashboard.chain: stats formatting, revert decoding, and the TBA derivation checked per chain.
 
-Celo Sepolia's expectation is the real token #1, read from chain once and pinned. Celo mainnet has no deployment,
-so its expectation is counterfactual: the address the canonical registry on Celo mainnet returns from
-account(ACCOUNT_IMPL, salt, 42220, PROXY, 1) for token #1's salt, read once over https://forno.celo.org and pinned.
-Neither number comes from the derivation under test."""
+Each chain's expectation is its real token #1: the token-bound account getTreeStats(1) stores, which the canonical
+registry's account() returns for the same inputs, read from chain once and pinned (Celo Sepolia over
+https://forno.celo-sepolia.celo-testnet.org, Celo mainnet over https://forno.celo.org, 1 October 2026). The inputs
+are each deployment's own proxy, account implementation, planter and nullifier. Neither number comes from the
+derivation under test."""
 import pytest
 
 from dashboard.chain import (TreeStats, compute_tba_address, decode_revert, error_selectors, format_tree_stats,
                              load_abi, short_hex, tba_salt)
 from dashboard.config import chain_config
 
-PROXY = "0x21ab8B36177F65ce69e04e281E4aFf3Db6b5f7E6"
+PROXY = "0x21ab8B36177F65ce69e04E281E4aFf3Db6b5f7E6"
 ACCOUNT_IMPL = "0x3d8a53dB1bBcab6D47097B25080527e5560C5165"
 PLANTER = "0xb5aB2054b43040593805Cf662A938eFE924F2778"
 NULLIFIER_1 = bytes.fromhex("f8fa2658012341dda81dbb7d27a6bb0accd68b63e618001d8ccbed1375dbf667")
 TBA_1 = "0x61bd8BEcE5a38209Fc10d4DA3f837EE83a10124a"  # live token #1 on Celo Sepolia
-TBA_BY_CHAIN = {11142220: TBA_1, 42220: "0xF95397a38B1b92F28A6E2e80f3C75559551CAF7D"}
-
+# Token #1 per chain: (proxy, account implementation, planter, spatial nullifier, its token-bound account).
+TOKEN_1 = {
+    11142220: (PROXY, ACCOUNT_IMPL, PLANTER, NULLIFIER_1, TBA_1),
+    42220: ("0x04Db169dDF8AbB80943161C01B2a71DC40384E64", "0x65D18C960170ca2B4936c62945bA0e827e5cCd2B",
+            "0xD314e37FD8538fe66231EE670B74C9428d03feEa",
+            bytes.fromhex("b7a55a6b1b7e4fe0fba76f303772cba7fdf3715d4030e3fcd91ed297c756d741"),
+            "0x453e89520DB8f374CFCeA95625B99DF5d4F1256A"),  # live token #1 on Celo mainnet
+}
+TBA_BY_CHAIN = {chain: token[-1] for chain, token in TOKEN_1.items()}
 
 @pytest.fixture
 def registry(chain_id):
@@ -27,19 +35,24 @@ def registry(chain_id):
 
 
 def test_tba_derivation_matches_the_registry_on_each_chain(chain_id, registry):
-    salt = tba_salt(1, PLANTER, NULLIFIER_1)
+    proxy, impl, planter, nullifier, want = TOKEN_1[chain_id]
+    salt = tba_salt(1, planter, nullifier)
     assert registry == "0x000000006551c19487814612e58FE06813775758"
-    assert compute_tba_address(registry, ACCOUNT_IMPL, salt, chain_id, PROXY, 1) == TBA_BY_CHAIN[chain_id]
+    assert compute_tba_address(registry, impl, salt, chain_id, proxy, 1) == want
 
 
 def test_tba_depends_on_every_input(chain_id, registry):
-    want = TBA_BY_CHAIN[chain_id]
-    other_chain = next(c for c in TBA_BY_CHAIN if c != chain_id)
-    salt = tba_salt(1, PLANTER, NULLIFIER_1)
-    assert compute_tba_address(registry, ACCOUNT_IMPL, salt, chain_id, PROXY, 2) != want
-    assert compute_tba_address(registry, ACCOUNT_IMPL, salt, other_chain, PROXY, 1) == TBA_BY_CHAIN[other_chain]
-    assert compute_tba_address(registry, ACCOUNT_IMPL, tba_salt(2, PLANTER, NULLIFIER_1), chain_id, PROXY, 1) != want
-    assert compute_tba_address("0x" + "11" * 20, ACCOUNT_IMPL, salt, chain_id, PROXY, 1) != want
+    proxy, impl, planter, nullifier, want = TOKEN_1[chain_id]
+    other_chain = next(c for c in TOKEN_1 if c != chain_id)
+    salt = tba_salt(1, planter, nullifier)
+    assert compute_tba_address(registry, impl, salt, chain_id, proxy, 2) != want
+    assert compute_tba_address(registry, impl, salt, other_chain, proxy, 1) != want
+    assert compute_tba_address(registry, impl, tba_salt(2, planter, nullifier), chain_id, proxy, 1) != want
+    assert compute_tba_address(registry, impl, tba_salt(1, "0x" + "22" * 20, nullifier), chain_id, proxy, 1) != want
+    assert compute_tba_address(registry, impl, tba_salt(1, planter, b"\x01" * 32), chain_id, proxy, 1) != want
+    assert compute_tba_address(registry, "0x" + "33" * 20, salt, chain_id, proxy, 1) != want
+    assert compute_tba_address(registry, impl, salt, chain_id, "0x" + "44" * 20, 1) != want
+    assert compute_tba_address("0x" + "11" * 20, impl, salt, chain_id, proxy, 1) != want
 
 
 def test_format_tree_stats_rows():

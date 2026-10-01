@@ -1,7 +1,9 @@
 # BioRig demo: dashboard + 90-second explainer
 
-Two pieces for the Celo grant showcase, both against the live deployment on Celo Sepolia (chain 11142220):
-proxy `0x21ab8B36177F65ce69e04e281E4aFf3Db6b5f7E6`.
+Two pieces for the Celo grant showcase. The dashboard renders the repository's default chain, Celo mainnet (chain
+42220), proxy `0x04Db169dDF8AbB80943161C01B2a71DC40384E64`, and Celo Sepolia with `CHAIN_ID=11142220`. The video was
+rendered against the live deployment on Celo Sepolia (chain 11142220): proxy
+`0x21ab8B36177F65ce69e04e281E4aFf3Db6b5f7E6`.
 
 Adam Jannoud is the project lead, the author and the sole deployer: the dashboard, the video and every address they
 show are his work, on Celo Sepolia and on Celo mainnet.

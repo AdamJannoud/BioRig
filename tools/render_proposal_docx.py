@@ -686,6 +686,46 @@ def set_properties(document: Document, source: pathlib.Path) -> None:
         getter().set(qn("w:val"), "true")
 
 
+def scrub_app_properties(path: pathlib.Path) -> None:
+    """python-docx copies docProps/app.xml from its bundled template, which names "Microsoft Macintosh Word" 14.0
+    as the producing application. Name the project's own renderer instead and drop the borrowed version."""
+    import zipfile
+
+    with zipfile.ZipFile(path) as source:
+        entries = [(info, source.read(info.filename)) for info in source.infolist()]
+    stamped = path.with_suffix(".stamped.docx")
+    with zipfile.ZipFile(stamped, "w", zipfile.ZIP_DEFLATED) as target:
+        for info, data in entries:
+            if info.filename == "docProps/app.xml":
+                xml = data.decode("utf-8")
+                xml = re.sub(r"<Application>[^<]*</Application>",
+                             "<Application>tools/render_proposal_docx.py</Application>", xml)
+                xml = re.sub(r"\s*<AppVersion>[^<]*</AppVersion>", "", xml)
+                data = xml.encode("utf-8")
+            target.writestr(info, data)
+    stamped.replace(path)
+
+
+def attribution_problems(path: pathlib.Path) -> list[str]:
+    """Every authorship field in the saved package must name Adam Jannoud or this renderer, nobody else."""
+    import zipfile
+
+    problems = []
+    props = Document(path).core_properties
+    for field in ("author", "last_modified_by"):
+        if getattr(props, field) != "Adam Jannoud":
+            problems.append(f"core property {field} is {getattr(props, field)!r}, not 'Adam Jannoud'")
+    with zipfile.ZipFile(path) as package:
+        app = package.read("docProps/app.xml").decode("utf-8")
+        meta = app + package.read("docProps/core.xml").decode("utf-8")
+    if "<Application>tools/render_proposal_docx.py</Application>" not in app:
+        problems.append("docProps/app.xml does not name tools/render_proposal_docx.py as the application")
+    for foreign in ("python-docx", "Microsoft", "AppVersion"):
+        if foreign in meta:
+            problems.append(f"document metadata still carries {foreign!r}")
+    return problems
+
+
 # ----------------------------------------------------------------------- pipeline
 
 
@@ -710,6 +750,7 @@ def render(source: pathlib.Path, destination: pathlib.Path) -> dict[str, object]
 
     destination.parent.mkdir(parents=True, exist_ok=True)
     document.save(destination)
+    scrub_app_properties(destination)
 
     saved = Document(destination)
     body_text = "\n".join(
@@ -753,6 +794,7 @@ def main() -> int:
         problems.append(f"headings missing from the rendered text: {report['missing_headings']}")
     if report["unresolved_anchors"]:
         problems.append(f"internal links pointing at no heading: {report['unresolved_anchors']}")
+    problems += attribution_problems(pathlib.Path(report["path"]))
     if args.check:
         text = str(report["text"])
         # The live URL replaced the "not yet public" wording on 1 October 2026;

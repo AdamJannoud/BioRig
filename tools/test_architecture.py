@@ -296,7 +296,7 @@ def mainnet_record(tmp_path) -> tuple[Path, Path]:
     broadcast_dir = tmp_path / "broadcast"
     (broadcast_dir / str(MAINNET)).mkdir(parents=True)
     (broadcast_dir / str(MAINNET) / "run-latest.json").write_text(json.dumps(run))
-    _, entry = recorded_chain()
+    entry = json.loads(DEPLOYMENT_JSON.read_text())["deployments"][str(SEPOLIA)]  # the broadcast re-keyed above
     deployment = tmp_path / "deployment.json"
     deployment.write_text(json.dumps({"default_chain_id": MAINNET, "deployments": {str(MAINNET): entry}}))
     return deployment, broadcast_dir

@@ -17,7 +17,7 @@ REGISTRY = "0x000000006551c19487814612e58fe06813775758"
 REGISTRY_CODEHASH = "0xda1d5b06e579f9e42e59b00fbc22939896ecb38dc8830d40de0a2508fecd6735"
 
 # What each chain must resolve to, written out rather than read from chains.json, so the registry is under test.
-# The mainnet proxy is synthetic: nothing is deployed on 42220, and no fixture may pretend otherwise.
+# Each proxy is the chain's real deployment (dashboard/deployment.json); tmp_path fixtures write it into their own record.
 EXPECTED = {
     SEPOLIA: dict(name="Celo Sepolia", testnet=True, rpc_url="https://forno.celo-sepolia.celo-testnet.org",
                   explorer_url="https://celo-sepolia.blockscout.com",
@@ -25,7 +25,7 @@ EXPECTED = {
                   faucet_url="https://faucet.celo.org/celo-sepolia", proxy=LIVE_PROXY),
     MAINNET: dict(name="Celo mainnet", testnet=False, rpc_url="https://forno.celo.org",
                   explorer_url="https://celo.blockscout.com", verifier_url="https://celo.blockscout.com/api/",
-                  faucet_url=None, proxy="0x" + "a2" * 20),
+                  faucet_url=None, proxy="0x04db169ddf8abb80943161c01b2a71dc40384e64"),
 }
 
 
@@ -230,8 +230,8 @@ def test_real_repo_resolves_live_proxy():
 
 
 def test_real_repo_resolves_mainnet_only_from_a_real_broadcast():
-    """Until a Celo mainnet broadcast is committed, selecting mainnet must fail loudly rather than borrow Sepolia's
-    proxy; once one is, it must resolve to exactly that broadcast's proxy."""
+    """Selecting mainnet resolves to exactly the committed Celo mainnet broadcast's proxy (recorded 1 October 2026),
+    never Sepolia's; without that broadcast it must fail loudly rather than borrow Sepolia's proxy."""
     broadcast = REPO / "broadcast" / "DeployAll.s.sol" / str(MAINNET) / "run-latest.json"
     if not broadcast.is_file():
         with pytest.raises(ProxyResolutionError) as exc:
@@ -242,7 +242,7 @@ def test_real_repo_resolves_mainnet_only_from_a_real_broadcast():
     else:
         r = resolve_proxy(REPO, {}, MAINNET)
         assert r.source == "broadcast/DeployAll.s.sol/42220/run-latest.json"
-        assert r.address == config._proxy_from_broadcast(broadcast)[0]
+        assert r.address == config._proxy_from_broadcast(broadcast)[0] == EXPECTED[MAINNET]["proxy"]
 
 
 # --------------------------------------------------------------------------- hosted deployment

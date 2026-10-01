@@ -207,8 +207,10 @@ class Chain:
     def token_uri(self, token_id: int) -> str:
         return self.core.functions.tokenURI(token_id).call()
 
-    def find_mint(self, token_id: int, chunk: int = 50_000) -> MintRecord:
-        """Locate the TreeMinted event for token_id and read the planter from the mint's Transfer log."""
+    def find_mint(self, token_id: int, chunk: int = 5_000) -> MintRecord:
+        """Locate the TreeMinted event for token_id and read the planter from the mint's Transfer log.
+
+        Chunked at 5,000 blocks: Celo mainnet's forno rejects a wider eth_getLogs ("max block range 5000")."""
         start = self.settings.proxy.deploy_block or 0
         head = int(self.w3.eth.block_number)
         event = self.core.events.TreeMinted()

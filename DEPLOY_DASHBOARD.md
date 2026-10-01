@@ -1,9 +1,8 @@
 # Deploy the demo dashboard to an independent, public, free host
 
 The dashboard now runs publicly at `https://biorigdemo.streamlit.app` (Streamlit Community Cloud, deployed 1 October
-2026) as well as on the development machine that built it, whose private preview URL is reachable from the originating
-chat and stops when that machine sleeps. This file records how the public host was set up, and is the route to
-redeploying it or moving it to a free host with nothing to do with that runtime. Two hosts are covered:
+2026) as well as locally from any checkout (`streamlit run dashboard/app.py`). This file records how the public host
+was set up, and is the route to redeploying it or moving it to another free host. Two hosts are covered:
 
 - **Streamlit Community Cloud** (primary): free, public, permanent URL at `*.streamlit.app`, deploys straight
   from a GitHub repository.
@@ -18,7 +17,7 @@ Both run the same repository: the entrypoint at the root, `streamlit_app.py`, st
 | `requirements.txt` | the dashboard's runtime dependencies only: `streamlit`, `web3`, `eth-account`, `h3`, pinned. Read from the repository root (or from the entrypoint's directory) by both hosts. |
 | `.streamlit/config.toml` | Streamlit runtime config: accent colour, headless, no usage stats. |
 | `streamlit_app.py` | the entrypoint both hosts look for by default; it runs `dashboard/app.py` rather than a copy of it. |
-| `dashboard/deployment.json` | static per-chain record of real deployments, plus the default chain. It holds two: Celo Sepolia (chain id `11142220`, proxy `0x21ab…f7e6`, deploy block `37511856`) and Celo mainnet (chain id `42220`, proxy `0x04db…4e64`, deploy block `78935900`, recorded 1 October 2026). Celo Sepolia stays the default, so the host renders the demo tree with no broadcast artifacts and no secrets; `CHAIN_ID = 42220` renders mainnet instead. |
+| `dashboard/deployment.json` | static per-chain record of real deployments, plus the default chain. It holds two: Celo Sepolia (chain id `11142220`, proxy `0x21ab…f7e6`, deploy block `37511856`) and Celo mainnet (chain id `42220`, proxy `0x04db…4e64`, deploy block `78935900`, recorded 1 October 2026). Celo mainnet is the default, so the host renders the mainnet proxy and its live tree with no broadcast artifacts and no secrets; `CHAIN_ID = 11142220` renders Celo Sepolia instead. |
 | `dashboard/chains.json` | per-chain registry: name, RPC, explorer, Blockscout verifier, canonical ERC-6551 registry, for Celo Sepolia and Celo mainnet. |
 | `.env.example` | every setting the dashboard reads, with the hosted ones marked. |
 | `tools/requirements.txt` | local tooling only (video generator, pytest, playwright) and deliberately not the deployed list. |
@@ -69,19 +68,20 @@ This branch is `master` locally and was pushed to `main` remotely, so nothing on
 
 ```toml
 # Same keys as .env, never committed. Leave a key out and the default applies: the record's default chain,
-# and that chain's RPC from dashboard/chains.json. Celo mainnet is recorded (1 October 2026), so CHAIN_ID = 42220
-# renders it; keep 11142220 for the demo tree the video and the screenshots show.
-CHAIN_ID = 11142220
+# Celo mainnet (42220), and that chain's RPC from dashboard/chains.json. The public instance sets no CHAIN_ID;
+# uncomment the line below only to render Celo Sepolia, the demo tree the video and the screenshots show.
+# CHAIN_ID = 11142220
 PRIVATE_KEY = "0x..."              # account holding VERIFIER_ROLE; omit for a read-only page
 PROXY_ADDRESS = ""                 # empty is fine: dashboard/deployment.json is the fallback
 ALLOW_MINT = false                 # false = read-only; true = visitors can broadcast a real mintTree
 ```
 
 `ALLOW_MINT` is the one decision worth making deliberately. The app signs with the server-side verifier key,
-so with `true` **anyone who opens the URL can spend that key's testnet CELO by minting a tree**. That is the
-point of the demo and it is only Celo Sepolia, but set `false` if the URL will be passed around widely; the
-form and the `eth_call` simulation still work, only the broadcast button disappears. On Celo mainnet the key
-spends real CELO and mints real tokens: keep `ALLOW_MINT = false` on any public mainnet instance.
+so with `true` **anyone who opens the URL can spend that key's CELO by minting a tree**. The default chain is
+Celo mainnet, where the key spends real CELO and mints real tokens: keep `ALLOW_MINT = false` on any public
+mainnet instance, the public one included. On a Celo Sepolia instance (`CHAIN_ID = 11142220`) it is only testnet
+CELO, but set `false` there too if the URL will be passed around widely; the form and the `eth_call` simulation
+still work, only the broadcast button disappears.
 
 ## 3. Alternative: Hugging Face Spaces
 
@@ -112,12 +112,13 @@ pinned: false
 
 ## 4. Check the deployed instance
 
-- The page should show the status bar with the chain's name and id (Celo Sepolia, `11142220`, unless
+- The page should show the status bar with the chain's name and id (Celo mainnet, `42220`, unless
   `CHAIN_ID` says otherwise), the proxy address and the block number. If it shows a red "Could not resolve the
   BioRig proxy address" panel, the resolution failed everywhere, which on a hosted instance means
   `dashboard/deployment.json` is missing from the deployed commit or records no deployment for that chain.
   `CHAIN_ID=<id> .venv/bin/python scripts/check-hosted-entrypoint.py` runs the same checks locally.
-- `Live state · getTreeStats(1)` must show the real tree; that proves the RPC is reachable from the host.
+- `Live state · getTreeStats(1)` must show the real tree (on Celo mainnet: DBH 10, biomass 20, alive, token-bound
+  account `0x453e89520DB8f374CFCeA95625B99DF5d4F1256A`); that proves the RPC is reachable from the host.
 - With `ALLOW_MINT=false`, expect the blue read-only notice above the confirm box instead of an enabled
   **Mint tree** button.
 

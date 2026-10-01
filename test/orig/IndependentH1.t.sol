@@ -18,9 +18,9 @@ contract ZeroReturningRegistry {
     }
 }
 
-/// FORGE'S OWN FALSIFICATION TEST - written after the harness run, deliberately NOT part of the
+/// INDEPENDENT FALSIFICATION TEST - written after the main suite ran, deliberately NOT part of the
 /// delivered suite. It re-checks the headline finding against src/BioRigCoreV5.sol.orig, the
-/// verbatim original text, so the finding does not rest on the harness testing its own fix.
+/// verbatim original text, so the finding does not rest on the suite testing its own fix.
 /// It asserts the DEFECTIVE behaviour of the original, which is the point of the test.
 contract IndependentH1Test is Test {
     OriginalBioRigCoreV5 internal core;

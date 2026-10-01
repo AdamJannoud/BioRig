@@ -23,12 +23,13 @@ Administration and upgrade of the mainnet deployment were handed to the Celo Saf
 `0x3B36b3446fCB0729B0046520156933E56352D551` on 1 October 2026 (step 7 of `DEPLOY.md` section 8), leaving minting
 (`VERIFIER_ROLE`) with Adam Jannoud's deployer hot key `0x1DB0084Db70bF8D0E06c1785D693Fc6a95317890`, which also
 still holds `BUFFER_POOL`. The Safe's sole owner is the plain EOA
-`0xD314e37FD8538fe66231EE670B74C9428d03feEa`, an address the hot key cannot sign for. **Nothing is minted on
-mainnet yet**: `ownerOf(1)` still reverts. That section records the broadcast, the handover and what each produced,
-address by address.
+`0xD314e37FD8538fe66231EE670B74C9428d03feEa`, an address the hot key cannot sign for. **One tree is minted on
+mainnet**: token `1`, minted 1 October 2026 in block `78992489` to `0xD314…feEa`. That section records the broadcast,
+the handover, the mint and what each produced, address by address. Mainnet is the repository's default chain: the
+dashboard, the hosted page and the architecture diagram below render it unless `CHAIN_ID` picks another.
 
-**Celo Sepolia** (chain id `11142220`) is the testnet deployment the demo pieces render, live since 30 September 2026
-in block `37511856`, and still the tooling's default chain:
+**Celo Sepolia** (chain id `11142220`) is the testnet deployment the explainer video renders, live since 30 September
+2026 in block `37511856`, and still selectable with `CHAIN_ID=11142220`:
 
 | contract | address |
 | --- | --- |
@@ -37,8 +38,9 @@ in block `37511856`, and still the tooling's default chain:
 | ERC-6551 account implementation | `0x3d8a53dB1Bcab6D47097B25080527e5560C5165` |
 | ERC-6551 registry (canonical) | `0x000000006551c19487814612e58FE06813775758` |
 
-Its tree #1 is the one the dashboard and the explainer show. Both chains live in `dashboard/deployment.json`, and both
-networks are configured in one place, `dashboard/chains.json`.
+Its tree #1 is the one the explainer shows; the dashboard shows mainnet's tree #1 by default and this one with
+`CHAIN_ID=11142220`. Both chains live in `dashboard/deployment.json`, and both networks are configured in one place,
+`dashboard/chains.json`.
 
 **How the nullifier is derived.** The production derivation is `keccak256(uint64(h3Cell) ++ utf8(salt))` with the
 cell taken at H3 resolution 12, implemented in `dashboard/h3_nullifier.py`. The contract is looser than that:
@@ -57,15 +59,15 @@ verifier-signed `mintTree` carrying the nullifier, DBH and biomass; `mintTree` t
 boundary is `onlyRole(VERIFIER_ROLE)`, not cryptography. **On-chain execution** is the four contracts in the tables
 above, with the token-bound account created through the canonical ERC-6551 registry at
 `keccak256(tokenId ++ planter ++ nullifier)`. The **protocol tier** (carbon accrual, the 20% buffer pool,
-ReFi rails, demand side) is roadmap and badged as such on every box. The **demo dashboard** runs today, in the
-sandbox and on the free public host `biorigdemo.streamlit.app` (no sign-in required): the diagram pills that box
+ReFi rails, demand side) is roadmap and badged as such on every box. The **demo dashboard** runs today, locally
+and on the free public host `biorigdemo.streamlit.app` (no sign-in required): the diagram pills that box
 `[LIVE]` and prints the address.
 
 The PNG (4800 px wide) and its vector source `assets/BioRig_Architecture_v5.svg` are generated, not drawn:
 `tools/generate_architecture.py` reads every address from `dashboard/deployment.json` and the DeployAll
 broadcast, and `tools/test_architecture.py` fails if any address in the scene, the SVG or the PNG's pixels
-(read back with tesseract) drifts from that record. The diagram draws the record's default chain, Celo Sepolia, so the
-addresses printed on it are the Sepolia set; `--chain-id 42220` draws mainnet. After a redeploy:
+(read back with tesseract) drifts from that record. The diagram draws the record's default chain, Celo mainnet, so the
+addresses printed on it are the mainnet set; `--chain-id 11142220` draws Celo Sepolia. After a redeploy:
 
 ```bash
 .venv/bin/python tools/generate_architecture.py --check    # fail if the committed SVG or PNG drifted from a fresh render

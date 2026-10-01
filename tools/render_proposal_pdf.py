@@ -135,6 +135,8 @@ def set_metadata(path: pathlib.Path) -> None:
                 "BioRig, Celo, Prezenti, dMRV, agroforestry, ERC-721, ERC-6551, H3, proof-of-growth"
             ),
             "/Creator": "tools/render_proposal_pdf.py",
+            # pypdf stamps "/Producer: pypdf" unless told otherwise; name the project's own renderer instead.
+            "/Producer": "tools/render_proposal_pdf.py",
         }
     )
     stamped = path.with_suffix(".stamped.pdf")
@@ -159,7 +161,8 @@ def report(path: pathlib.Path) -> None:
             else:
                 internal += 1
     print(f"pages: {len(reader.pages)} | external links: {external} | internal links: {internal}")
-    print(f"title: {reader.metadata.get('/Title')} | author: {reader.metadata.get('/Author')}")
+    print(f"title: {reader.metadata.get('/Title')} | author: {reader.metadata.get('/Author')}"
+          f" | creator: {reader.metadata.get('/Creator')} | producer: {reader.metadata.get('/Producer')}")
 
 
 def render(source: pathlib.Path, output: pathlib.Path, css: pathlib.Path) -> pathlib.Path:

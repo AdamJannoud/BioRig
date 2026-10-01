@@ -18,7 +18,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from dashboard.config import load_settings  # noqa: E402
 
 # Token #1's TBA, read from chain once per real deployment and pinned, so the page is checked against a known value.
-KNOWN_TBA_1 = {11142220: "0x61bd8BEcE5a38209Fc10d4DA3f837EE83a10124a"}
+KNOWN_TBA_1 = {11142220: "0x61bd8BEcE5a38209Fc10d4DA3f837EE83a10124a",
+               42220: "0x453e89520DB8f374CFCeA95625B99DF5d4F1256A"}
 
 url = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8501"
 settings = load_settings()
