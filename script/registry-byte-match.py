@@ -98,7 +98,12 @@ def chain_settings() -> tuple[int, str, str]:
 
 
 def rpc_url() -> str:
-    return chain_settings()[1]
+    """The selected chain's RPC, refused if it answers for a different chain (an RPC_URL left over in .env)."""
+    chain_id, url, _ = chain_settings()
+    reported = subprocess.run(["cast", "chain-id", "--rpc-url", url], capture_output=True, text=True, check=True)
+    if int(reported.stdout.strip()) != chain_id:
+        sys.exit(f"RPC {url} reports chain {reported.stdout.strip()}, but chain {chain_id} is selected")
+    return url
 
 
 def on_chain_code() -> bytes:

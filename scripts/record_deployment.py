@@ -43,12 +43,20 @@ def confirmed_proxy(path: Path, chain_id: int) -> tuple[str, int]:
     return proxy, block
 
 
-def code_size(rpc_url: str, address: str) -> int:
-    body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "eth_getCode", "params": [address, "latest"]})
-    req = urllib.request.Request(rpc_url, body.encode(), {"Content-Type": "application/json"})
+def rpc(rpc_url: str, method: str, params: list) -> str:
+    body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": method, "params": params})
+    req = urllib.request.Request(rpc_url, body.encode(), {"Content-Type": "application/json",
+                                                          "User-Agent": "biorig-record-deployment"})  # forno 403s urllib
     with urllib.request.urlopen(req, timeout=20) as resp:
-        result = json.load(resp)["result"]
-    return (len(result) - 2) // 2
+        return json.load(resp)["result"]
+
+
+def code_size(rpc_url: str, address: str, chain_id: int) -> int:
+    """Bytes of code at `address`, refusing an RPC that answers for another chain (an RPC_URL left in .env)."""
+    reported = int(rpc(rpc_url, "eth_chainId", []), 16)
+    if reported != chain_id:
+        raise ValueError(f"{rpc_url} reports chain {reported}, not {chain_id}; fix RPC_URL")
+    return (len(rpc(rpc_url, "eth_getCode", [address, "latest"])) - 2) // 2
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -70,13 +78,13 @@ def main(argv: list[str] | None = None) -> int:
         proxy, block = confirmed_proxy(path, chain.chain_id)
         if not args.no_rpc:
             rpc = env.get("RPC_URL") or chain.rpc_url
-            size = code_size(rpc, proxy)
+            size = code_size(rpc, proxy, chain.chain_id)
             if size == 0:
                 raise ValueError(f"{proxy} has no code on {rpc}; refusing to record a deployment the chain lacks")
             print(f"{proxy} has {size} bytes of code on {rpc}")
         data = record_deployment(args.deployment_file, chain.chain_id, proxy, block,
                                  make_default=args.make_default, replace=args.replace)
-    except (ChainSelectionError, ValueError, OSError, json.JSONDecodeError) as exc:
+    except (ChainSelectionError, ValueError, OSError, KeyError, json.JSONDecodeError) as exc:
         print(f"record_deployment: {exc}", file=sys.stderr)
         return 1
     print(f"recorded {chain.name} ({chain.chain_id}): proxy {proxy} at block {block} -> {args.deployment_file}")
