@@ -16,8 +16,9 @@ headless callers need either a real browser or a self-serve API key from <https:
 
 ## One command, when the chain has neither prerequisite
 
-On a chain with no ERC-6551 registry and no account implementation (Celo Sepolia, at the time of writing),
-`script/DeployAll.s.sol` deploys **all three** in a single broadcast, in dependency order:
+On a chain with no ERC-6551 registry and no account implementation — the state Celo Sepolia was in before 30 September
+2026, where both now have code (section 6) — `script/DeployAll.s.sol` deploys **all three** in a single broadcast, in
+dependency order:
 
 ```bash
 cp .env.example .env          # PRIVATE_KEY, ADMIN, BUFFER_POOL (CHAIN_ID defaults to Celo Sepolia)
@@ -49,7 +50,7 @@ nobody can mint with.
 `mintTree` calls `erc6551Registry.createAccount(...)`, then validates the returned account. The account must have
 code, report ERC-165 support for `0x6faff5f1`, and return a matching `token()`. If the registry or the account
 implementation is wrong or has no code, **every mint reverts**, even though the deployment itself succeeds and every
-read-back looks fine. On Celo Sepolia, when this was written:
+read-back looks fine. On Celo Sepolia before the 30 September 2026 deployment:
 
 | Contract | Address | Celo Sepolia | Celo mainnet |
 | --- | --- | --- | --- |
@@ -57,9 +58,14 @@ read-back looks fine. On Celo Sepolia, when this was written:
 | Nick's CREATE2 factory | `0x4e59b44847b379578588920cA78FbF26c0B4956C` | code present | — |
 | Tokenbound AccountV3 / AccountV3Upgradable | `0x41C8…44eC` / `0x5526…6E7F` | **no code** | not checked |
 
+Both **no code** cells closed on 30 September 2026: `DeployAll` deployed the canonical registry and the ERC-6551 account
+implementation in the same broadcast as BioRig (section 6). The Tokenbound implementations in the third row were never
+used; that run deployed the EIP's reference example account instead.
+
 `DeployBioRig` therefore refuses to run unless `ERC6551_REGISTRY` and `ERC6551_IMPLEMENTATION` both have code on
 the target chain. It also refuses if a non-zero `URI_GENERATOR` has no code, and if `CHAIN_ID` differs from the RPC's
-`eth_chainId`. On Celo Sepolia you must first deploy the optional prerequisites below.
+`eth_chainId`. On Celo Sepolia they are already deployed; on a chain where they are not, deploy the optional
+prerequisites below first.
 
 ## 0. Setup
 
@@ -144,8 +150,9 @@ The explorer is **Blockscout, not CeloScan or Etherscan**. Use `--verifier block
 What was actually observed (`evidence/blockscout-verify-probe.log`): with no API key set, `forge verify-contract
 --verifier blockscout --verifier-url https://celo-sepolia.blockscout.com/api/` against Celo Sepolia was accepted,
 returned a GUID, and polled to a final status. This was a deliberate negative control, submitting a source that does
-not match the target, and it reported `Fail - Unable to verify` as expected. **No positive verification was observed,
-because nothing was deployed.** Unauthenticated status polling can hit Blockscout's rate limit (`Too many requests`).
+not match the target, and it reported `Fail - Unable to verify` as expected. **No positive verification was observed
+at that point, because nothing had been deployed yet.** That changed with the real deployment, and all four contracts
+are verified now (sections 6 and 7). Unauthenticated status polling can hit Blockscout's rate limit (`Too many requests`).
 If it does, the submission is not lost: re-check it later with `forge verify-check`, shown below.
 
 If `--verify` during the broadcast fails or is rate-limited, verify each contract manually:
@@ -171,7 +178,8 @@ forge verify-check <GUID> --chain-id "$CHAIN_ID" --verifier blockscout --verifie
 
 **The proxy may need its own handling.** Blockscout's own index shows many `ERC1967Proxy` instances on Celo Sepolia as
 verified, such as `0x1a21a117A9Ffb2a043C6Bcf704A2A5A120a2F4a8`. That suggests identical proxy bytecode often matches
-already. It was not observed for this deployment, though. If the proxy page does not show "Read/Write as Proxy"
+already. This deployment's proxy did need its own submission, which the explorer accepted and then completed
+asynchronously (section 7); it is verified now. If a proxy page does not show "Read/Write as Proxy"
 pointing at the implementation, verify the proxy as above, then use the proxy-detection button on its Blockscout page.
 
 ## 4. After deploying: make it usable, then prove it
@@ -198,7 +206,9 @@ such a delegation, and minting to them reverts.
 ## 5. Local fork dry run (evidence)
 
 `script/fork-dry-run.sh` starts anvil forked from Celo Sepolia, runs everything against real chain state, and stops
-anvil on exit. It sends nothing to Celo Sepolia. Its output is saved in `evidence/deploy-fork-dry-run.log`.
+anvil on exit. It sends nothing to Celo Sepolia. Its output is saved in `evidence/deploy-fork-dry-run.log`. That log
+predates the 30 September 2026 deployment, so its first step no longer trips on Celo Sepolia: the canonical registry
+has code there now (section 6), and a run today takes the "already deployed" path instead.
 
 ```bash
 script/fork-dry-run.sh > evidence/deploy-fork-dry-run.log 2>&1; echo "exit $?"
@@ -209,8 +219,8 @@ script/fork-dry-run.sh > evidence/deploy-fork-dry-run.log 2>&1; echo "exit $?"
 
 The script runs these steps:
 
-1. **Registry guard:** `DeployBioRig` runs with the canonical registry, which has no code on Celo Sepolia. It is
-   refused: `ERC6551_REGISTRY 0x0000…5758 has no code on chain 11142220. Refusing to deploy…`.
+1. **Registry guard:** `DeployBioRig` runs with the canonical registry, which had no code on Celo Sepolia when this
+   log was captured. It is refused: `ERC6551_REGISTRY 0x0000…5758 has no code on chain 11142220. Refusing to deploy…`.
 2. **Chain-id guard:** `CHAIN_ID=44787` is set against the Celo Sepolia RPC. It is refused: `CHAIN_ID mismatch`.
 3. `DeployERC6551Registry` dry run (no `--broadcast`), which simulates deployment to the canonical address.
 4. Local setup, on the anvil fork only: the registry and example account are broadcast to the fork.
