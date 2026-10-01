@@ -10,3 +10,9 @@ streamlit>=1.46
 pytest>=8
 # tools/test_architecture.py also reads the diagram's pixels back with the tesseract CLI
 # (apt-get install tesseract-ocr); that one test skips if it is missing.
+# Document renderers (tools/render_proposal_pdf.py, tools/render_proposal_docx.py) and the
+# Playwright/Chromium pass they share with scripts/check-hosted-entrypoint.py.
+markdown>=3.6
+python-docx>=1.1
+pypdf>=5
+playwright>=1.63
