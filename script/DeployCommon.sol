@@ -189,14 +189,14 @@ abstract contract DeployBase is Script {
 
     // ---------------------------------------------------------------------- reporting
 
-    /// @dev EXPLORER_URL if set, else this chain's explorer_url in dashboard/chains.json. Empty for a chain the file
-    /// does not list (a local anvil), which only costs the summary its links.
+    /// @dev This chain's explorer_url in dashboard/chains.json; EXPLORER_URL only for a chain the file does not list.
+    /// The registry wins because forge loads .env on its own, so an EXPLORER_URL written there for another chain would
+    /// otherwise label a mainnet run with testnet links. Empty when neither has one, which only costs the links.
     function _explorerUrl() internal view returns (string memory) {
-        string memory fromEnv = vm.envOr("EXPLORER_URL", string(""));
-        if (bytes(fromEnv).length != 0) return fromEnv;
         string memory chains = vm.readFile(CHAINS_PATH);
         string memory key = string.concat(".chains.", vm.toString(block.chainid), ".explorer_url");
-        return vm.keyExistsJson(chains, key) ? vm.parseJsonString(chains, key) : "";
+        if (vm.keyExistsJson(chains, key)) return vm.parseJsonString(chains, key);
+        return vm.envOr("EXPLORER_URL", string(""));
     }
 
     function _logAddress(string memory label, address value) internal view {
