@@ -156,6 +156,7 @@ def main() -> int:
                         help="submit the first exact match to Blockscout")
     args = parser.parse_args()
 
+    rpc_url()  # refuse a wrong-chain RPC before the previous run's log is discarded
     EVIDENCE.unlink(missing_ok=True)
     source = (REPO / SOURCE_REL).read_text()
     chain = on_chain_code()

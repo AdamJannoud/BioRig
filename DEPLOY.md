@@ -5,12 +5,25 @@ constructor runs `initialize(...)`. The proxy is therefore never live without be
 UUPS: upgrades are gated by `UPGRADER_ROLE` inside the implementation. That means no `TransparentUpgradeableProxy`
 and no `ProxyAdmin`.
 
-**Target network: Celo Sepolia** (chain id `11142220`, RPC `https://forno.celo-sepolia.celo-testnet.org`, currency
-CELO, explorer Blockscout at <https://celo-sepolia.blockscout.com>). Celo Alfajores (`44787`) was shut down and
-replaced by Celo Sepolia. Its RPC no longer resolves, so nothing here targets it. Every value comes from the
-environment, so the same commands work on another chain once `.env` is changed.
+**Networks.** Every chain BioRig targets has one entry in `dashboard/chains.json`: name, RPC, Blockscout explorer and
+verifier API, and the canonical ERC-6551 registry with its codehash. The dashboard, the diagram generator, the check
+scripts and the shell scripts all read it (`python3 -m dashboard.config chains` lists it), and the deploy scripts
+take their explorer links from it. Two chains are registered:
 
-Faucets: <https://faucet.celo.org/celo-sepolia> and the Google Cloud Web3 faucet (Celo Sepolia). The Celo faucet's
+| | Celo Sepolia | Celo mainnet |
+| --- | --- | --- |
+| chain id | `11142220` | `42220` |
+| RPC | `https://forno.celo-sepolia.celo-testnet.org` | `https://forno.celo.org` |
+| explorer / verifier | <https://celo-sepolia.blockscout.com>, `/api/` | <https://celo.blockscout.com>, `/api/` |
+| BioRig | **live** since 30 September 2026 (section 6) | approved as an Alpha v1 / pilot deployment, **not deployed yet** (section 8) |
+
+Currency is CELO on both. `CHAIN_ID` picks the chain; unset, the tooling uses `default_chain_id` in
+`dashboard/deployment.json`, which is Celo Sepolia. Every deployment input comes from the environment, so the same
+commands work on either chain once `.env` is switched; `python3 -m dashboard.config env --chain-id <id>` prints the
+network block for it. Celo Alfajores (`44787`) was shut down and replaced by Celo Sepolia. Its RPC no longer
+resolves, so nothing here targets it.
+
+Testnet faucets: <https://faucet.celo.org/celo-sepolia> and the Google Cloud Web3 faucet (Celo Sepolia). The Celo faucet's
 browser flow is gated on reCAPTCHA v3 and its unauthenticated API path rejects requests without a captcha token, so
 headless callers need either a real browser or a self-serve API key from <https://faucet.celo.org/keys>.
 
@@ -21,7 +34,7 @@ On a chain with no ERC-6551 registry and no account implementation — the state
 dependency order:
 
 ```bash
-cp .env.example .env          # PRIVATE_KEY, ADMIN, BUFFER_POOL (CHAIN_ID defaults to Celo Sepolia)
+cp .env.example .env          # PRIVATE_KEY, ADMIN, BUFFER_POOL (the network block ships as Celo Sepolia's)
 set -a; source .env; set +a
 
 # dry run: simulates against live chain state, sends nothing
@@ -55,12 +68,17 @@ read-back looks fine. On Celo Sepolia before the 30 September 2026 deployment:
 | Contract | Address | Celo Sepolia | Celo mainnet |
 | --- | --- | --- | --- |
 | Canonical ERC-6551 registry | `0x000000006551c19487814612e58FE06813775758` | **no code** | code present |
-| Nick's CREATE2 factory | `0x4e59b44847b379578588920cA78FbF26c0B4956C` | code present | — |
+| Nick's CREATE2 factory | `0x4e59b44847b379578588920cA78FbF26c0B4956C` | code present | code present |
 | Tokenbound AccountV3 / AccountV3Upgradable | `0x41C8…44eC` / `0x5526…6E7F` | **no code** | not checked |
 
 Both **no code** cells closed on 30 September 2026: `DeployAll` deployed the canonical registry and the ERC-6551 account
 implementation in the same broadcast as BioRig (section 6). The Tokenbound implementations in the third row were never
 used; that run deployed the EIP's reference example account instead.
+
+On Celo mainnet the registry's runtime code (571 bytes) has keccak
+`0xda1d5b06e579f9e42e59b00fbc22939896ecb38dc8830d40de0a2508fecd6735`, identical to Celo Sepolia's (checked 1 October
+2026; `dashboard/chains.json` records it, and `script/fork-dry-run.sh` re-checks it on every run). `DeployAll` therefore
+reuses it, and **a mainnet broadcast contains no CREATE2 transaction**: four transactions, not Celo Sepolia's five.
 
 `DeployBioRig` therefore refuses to run unless `ERC6551_REGISTRY` and `ERC6551_IMPLEMENTATION` both have code on
 the target chain. It also refuses if a non-zero `URI_GENERATOR` has no code, and if `CHAIN_ID` differs from the RPC's
@@ -72,13 +90,15 @@ prerequisites below first.
 ```bash
 cp .env.example .env          # then edit .env: PRIVATE_KEY, ADMIN, BUFFER_POOL, ERC6551_IMPLEMENTATION, ...
 set -a; source .env; set +a   # export every variable into this shell
-cast chain-id --rpc-url "$RPC_URL"                       # must print 11142220 (= $CHAIN_ID)
+cast chain-id --rpc-url "$RPC_URL"                       # must print $CHAIN_ID
 cast balance "$(cast wallet address --private-key "$PRIVATE_KEY")" --rpc-url "$RPC_URL" --ether
 ```
 
-`.env` is gitignored. Use a dedicated, low-value testnet deployer key. On a fork of Celo Sepolia, the full
-`DeployBioRig` run was estimated at about 4.33M gas (~0.33 CELO at the fork's 76.7 gwei max fee). The registry was
-estimated at about 259k gas.
+`.env` is gitignored. Use a dedicated deployer key that is used for nothing else: a low-value testnet key on Celo
+Sepolia, a fresh key on Celo mainnet (section 8). On a fork of Celo Sepolia, the full `DeployBioRig` run was estimated
+at about 4.33M gas (~0.33 CELO at the fork's 76.7 gwei max fee). The registry was estimated at about 259k gas. The real
+Celo Sepolia `DeployAll` used 4,192,380 gas (section 6); on Celo mainnet, without the registry's 177,170, that is about
+4.0M gas, roughly 0.81 CELO at the 202.5 gwei mainnet gas price of 1 October 2026.
 
 ## 1. Optional prerequisites: an ERC-6551 registry and account implementation
 
@@ -144,8 +164,12 @@ jq -r '.transactions[] | "\(.contractName) \(.contractAddress)"' broadcast/Deplo
 
 ## 3. Verification on Blockscout
 
-The explorer is **Blockscout, not CeloScan or Etherscan**. Use `--verifier blockscout` with
-`--verifier-url https://celo-sepolia.blockscout.com/api/`. No API key is needed.
+The explorer is **Blockscout, not CeloScan or Etherscan**, on both chains. Use `--verifier blockscout` with
+`--verifier-url "$VERIFIER_URL"`: `https://celo-sepolia.blockscout.com/api/` on Celo Sepolia,
+`https://celo.blockscout.com/api/` on Celo mainnet (`python3 -m dashboard.config get verifier_url` prints the selected
+chain's). No API key is needed. `script/verify-retry.sh status` reads `is_verified` for all four contracts of the
+selected chain's `DeployAll` broadcast, and `script/verify-retry.sh proxy|core|account|registry` makes one submission
+for one of them, with the proxy's constructor arguments taken from the broadcast itself.
 
 What was actually observed (`evidence/blockscout-verify-probe.log`): with no API key set, `forge verify-contract
 --verifier blockscout --verifier-url https://celo-sepolia.blockscout.com/api/` against Celo Sepolia was accepted,
@@ -184,7 +208,9 @@ pointing at the implementation, verify the proxy as above, then use the proxy-de
 
 ## 4. After deploying: make it usable, then prove it
 
-No `VERIFIER_ROLE` is granted at initialisation. The admin must grant it:
+`initialize` grants no `VERIFIER_ROLE`; the deploy scripts grant it to `ADMIN` (the deployer) in the same broadcast,
+which is how the Celo Sepolia deployment minted. On Celo mainnet, `script/HardenMainnetAdmin.s.sol` then moves it to
+the dedicated verifier key and strips the deployer (section 8). To grant it to another account by hand:
 
 ```bash
 cast send "$PROXY" "grantRole(bytes32,address)" "$(cast keccak VERIFIER_ROLE)" <verifier-address> \
@@ -216,28 +242,50 @@ such a delegation, and minting to them reverts.
 
 ## 5. Local fork dry run (evidence)
 
-`script/fork-dry-run.sh` starts anvil forked from Celo Sepolia, runs everything against real chain state, and stops
-anvil on exit. It sends nothing to Celo Sepolia. Its output is saved in `evidence/deploy-fork-dry-run.log`. That log
-predates the 30 September 2026 deployment, so its first step no longer trips on Celo Sepolia: the canonical registry
-has code there now (section 6), and a run today takes the "already deployed" path instead.
+`script/fork-dry-run.sh` starts anvil forked from the selected chain, rehearses the whole deployment and the role
+handover against real chain state, and stops anvil on exit. It sends nothing to the real chain, and it files forge's
+broadcast logs under `cache/fork-dry-run/`, never under `broadcast/`. `CHAIN_ID` selects the chain and its RPC comes
+from `dashboard/chains.json`; a `FORK_URL` argument instead reads the chain id from that RPC, and given both they must
+agree. With neither it forks the repo's default chain.
 
 ```bash
-script/fork-dry-run.sh > evidence/deploy-fork-dry-run.log 2>&1; echo "exit $?"
+script/fork-dry-run.sh                        # default chain (Celo Sepolia)
+CHAIN_ID=42220 script/fork-dry-run.sh         # Celo mainnet
+script/fork-dry-run.sh https://forno.celo.org # the same, chain id read from the RPC
 ```
 
-> **The `PRIVATE_KEY` in that script is anvil's public account #0 key.** It exists only for this local fork dry run.
-> Never use it for a broadcast to any real network. Funds sent to it are taken immediately.
+`evidence/deploy-fork-dry-run.log` is the Celo Sepolia run from before the 30 September 2026 deployment, kept as the
+record of that day; it shows the earlier, shorter script.
 
-The script runs these steps:
+> **Every `PRIVATE_KEY` in that script is one of anvil's public dev keys.** They exist only for this local fork dry
+> run. Never use one for a broadcast to any real network. Funds sent to them are taken immediately.
 
-1. **Registry guard:** `DeployBioRig` runs with the canonical registry, which had no code on Celo Sepolia when this
-   log was captured. It is refused: `ERC6551_REGISTRY 0x0000…5758 has no code on chain 11142220. Refusing to deploy…`.
-2. **Chain-id guard:** `CHAIN_ID=44787` is set against the Celo Sepolia RPC. It is refused: `CHAIN_ID mismatch`.
-3. `DeployERC6551Registry` dry run (no `--broadcast`), which simulates deployment to the canonical address.
-4. Local setup, on the anvil fork only: the registry and example account are broadcast to the fork.
-5. **`DeployBioRig` dry run (no `--broadcast`):** the proxy is deployed and every read-back passes.
-6. Fork smoke test: BioRig is broadcast to the fork, `VERIFIER_ROLE` is granted, and one tree is minted. This proves
-   the registry and account path works, not just the deployment.
+The script runs these steps, and checks each step's output as well as its exit status, so a step that passes for the
+wrong reason still fails the run:
+
+1. **Registry, either way round.** Where the canonical registry has no code, `DeployBioRig` must be refused by the
+   registry guard (`ERC6551_REGISTRY has no code on this chain`). Where it has code (Celo mainnet, and Celo Sepolia
+   since 30 September 2026), its codehash must equal the one in `dashboard/chains.json` and the guard must pass.
+   `FORK_WIPE_REGISTRY=1` clears the code on the fork first, to rehearse the refusing branch.
+2. **Chain-id guard:** `CHAIN_ID=44787` against the fork's RPC must be refused with `CHAIN_ID mismatch`.
+3. `DeployERC6551Registry` dry run, which reuses an existing registry instead of redeploying it.
+4. Local setup, on the anvil fork only: the registry (if absent) and the example account are broadcast to the fork.
+5. `DeployBioRig` dry run: the proxy is deployed and every read-back passes.
+6. Fork smoke test: `DeployBioRig` is broadcast to the fork and one tree is minted.
+7. **`DeployAll`, the command a real deployment runs**, simulated and broadcast to the fork. The broadcast must
+   contain no CREATE2 when the registry already had code, and exactly one when it did not.
+   `scripts/record_deployment.py` must accept the artifact (into `cache/`, not `dashboard/deployment.json`).
+8. A 1-of-1 Safe (v1.4.1, through the canonical `SafeProxyFactory`) is created on the fork to stand in for the admin
+   Safe.
+9. **Handover guards:** `HardenMainnetAdmin` must refuse a wrong `CHAIN_ID`, a `VERIFIER_ADDRESS` equal to
+   `NEW_ADMIN`, a `NEW_ADMIN` with no code, a contract that is not a Safe, a Safe the deployer owns, and a
+   `PROXY_ADDRESS` that is not a BioRig proxy.
+10. **Handover:** `HardenMainnetAdmin` is simulated and broadcast to the fork, then every role is read back from the
+    fork with `cast`: the deployer holds nothing, the Safe holds admin and upgrader only, the verifier holds
+    `VERIFIER_ROLE` only.
+11. **After the handover:** the deployer can no longer mint or pause, the verifier key mints a tree whose TBA is bound
+    to the fork's chain id, and the Safe pauses the proxy through `execTransaction`.
+12. A second `HardenMainnetAdmin` run must be refused: the deployer has nothing left to hand over.
 
 ## 6. Executed deployment: Celo Sepolia, 30 September 2026
 
@@ -347,3 +395,166 @@ exact or full match would require the submitted source to reproduce the deployed
 no available copy of the file does. Note also that the UI/`v2` verify route is not rate-limited the way
 the `v1` `module=contract` API is (180 requests per window here), so the 429s earlier were specific to
 the `v1`-based `forge verify-contract` path, not to verification on this explorer generally.
+
+
+## 8. Celo mainnet (chain 42220): Alpha v1 / pilot broadcast runbook
+
+Nothing is deployed on Celo mainnet yet. This section is the ordered path to it, as approved on 1 October 2026:
+
+- **Alpha v1 / pilot.** The external audit is a later grant milestone, not a gate on this deployment.
+- **Admin.** Deploy from a fresh deployer hot key with `ADMIN` equal to it, which is what `_preflightBase` requires,
+  then hand admin to a Celo Safe straight after the broadcast with `script/HardenMainnetAdmin.s.sol`. That is a
+  separate run, step 7.
+- **Verifier.** `VERIFIER_ROLE` goes to a dedicated server-side key, never the admin. The handover refuses a
+  `VERIFIER_ADDRESS` equal to the deployer or the Safe.
+- **Explainer.** The video stays as rendered against Celo Sepolia (`DEMO.md`); it is not re-rendered.
+
+What the code expects of mainnet: the canonical ERC-6551 registry is already there with the canonical bytecode
+(section "Deployment is not proof"), so `DeployAll` sends **four** transactions (account implementation, BioRig
+implementation, proxy, `grantRole`) and **no CREATE2**. At the 202.5 gwei of 1 October 2026 that is about 0.81 CELO;
+the handover adds six small transactions.
+
+Before starting, have three things ready: the Celo Safe that becomes admin (deployed through app.safe.global, with
+its owners and threshold decided, and the new deployer key not among them), the verifier server's address (its key
+stays on that server), and the address `BUFFER_POOL` should hold (it must be non-zero; on Celo Sepolia it was the
+deployer, and `DEFAULT_ADMIN_ROLE` can change it later with `setBufferPool`). Work from a fresh shell at the reviewed
+commit, so nothing exported from the Celo Sepolia `.env` lingers.
+
+**0. Rehearse on a fork of mainnet.** Sends nothing; every step in section 5 has to report `AS EXPECTED`.
+
+```bash
+forge test && .venv/bin/python -m pytest dashboard tools -q
+CHAIN_ID=42220 script/fork-dry-run.sh > cache/fork-mainnet.log 2>&1; echo "exit $?"   # must print exit 0
+grep -E '^>>> UNEXPECTED|SUMMARY' -A1 cache/fork-mainnet.log
+```
+
+**1. Generate the deployer key.** It sends the deployment and the handover, and holds nothing afterwards.
+
+```bash
+mkdir -p .deploy && chmod 700 .deploy                         # .deploy/ is gitignored
+cast wallet new --json > .deploy/mainnet-deployer.json && chmod 600 .deploy/mainnet-deployer.json
+DEPLOYER=$(jq -r '(.data // .)[0].address' .deploy/mainnet-deployer.json); echo "$DEPLOYER"
+```
+
+**2. Fund it with about 5 CELO** from a wallet the team controls. That is several times the estimate, as headroom
+for a gas spike; what is left is swept back in step 7.
+
+```bash
+cast balance "$DEPLOYER" --rpc-url https://forno.celo.org --ether            # expect >= 5
+```
+
+**3. Set the environment.** The network block comes from `dashboard/chains.json`; replace the three `<...>`
+placeholders in `.env.mainnet` before sourcing it.
+
+```bash
+python3 -m dashboard.config env --chain-id 42220 > .env.mainnet               # CHAIN_ID, RPC_URL, VERIFIER_URL, ...
+cat >> .env.mainnet <<ENV
+PRIVATE_KEY=$(jq -r '(.data // .)[0].private_key' .deploy/mainnet-deployer.json)
+ADMIN=$DEPLOYER
+BUFFER_POOL=<buffer pool address>
+URI_GENERATOR=0x0000000000000000000000000000000000000000
+NEW_ADMIN=<Celo Safe address>
+VERIFIER_ADDRESS=<verifier server address>
+ENV
+chmod 600 .env.mainnet                                                        # gitignored by the .env.* rule
+# edit the three placeholders, then:
+unset PROXY_ADDRESS PROXY_DEPLOY_BLOCK
+set -a; source .env.mainnet; set +a
+cast chain-id --rpc-url "$RPC_URL"                                            # 42220
+cast call "$NEW_ADMIN" "getThreshold()(uint256)" --rpc-url "$RPC_URL"         # the Safe's threshold
+cast call "$NEW_ADMIN" "getOwners()(address[])" --rpc-url "$RPC_URL"          # must not contain $ADMIN
+```
+
+**4. Simulate against live mainnet state.** No `--broadcast`, so nothing is sent. The log must say `Canonical ERC-6551
+registry already deployed on this chain; reusing it.`, and the simulated transactions must be exactly these four:
+
+```bash
+forge script script/DeployAll.s.sol:DeployAll --rpc-url "$RPC_URL"
+jq -r '.transactions[] | .transactionType + " " + (.contractName // "-")' \
+  broadcast/DeployAll.s.sol/42220/dry-run/run-latest.json
+# CREATE ERC6551Account / CREATE BioRigCoreV5 / CREATE ERC1967Proxy / CALL ERC1967Proxy
+```
+
+**5. Broadcast**, verifying on <https://celo.blockscout.com> in the same run. If the run is cut off, repeat the same
+command with `--resume` rather than starting over.
+
+```bash
+forge script script/DeployAll.s.sol:DeployAll --rpc-url "$RPC_URL" --broadcast --slow \
+  --verify --verifier blockscout --verifier-url "$VERIFIER_URL"
+export PROXY_ADDRESS=$(jq -r '[.transactions[] | select(.transactionType == "CREATE" and .contractName ==
+  "ERC1967Proxy")] | last | .contractAddress' broadcast/DeployAll.s.sol/42220/run-latest.json)
+echo "$PROXY_ADDRESS"                                     # the summary's PROXY_ADDRESS= line prints the same
+```
+
+**6. Verify on Blockscout.** Read the explorer's own status, not `--verify`'s exit code (section 7). For any
+contract still `false`, submit it once; each attempt can cost four of the ten requests per window, so space them out.
+
+```bash
+script/verify-retry.sh status                 # CHAIN_ID=42220 is exported, so this reads mainnet
+script/verify-retry.sh core                   # only for a contract still unverified
+script/verify-retry.sh account
+script/verify-retry.sh proxy
+```
+
+The canonical registry is third-party code that predates this deployment. On 1 October 2026
+`celo.blockscout.com` showed it unverified (`is_verified: false`); its behaviour is pinned by its codehash, and
+`script/verify-retry.sh registry` submits it the way the Celo Sepolia partial match was reached, if a verified badge is
+wanted.
+
+**7. Hand the roles over.** Simulate first; the broadcast reads every transition back and reverts on the first
+surprise. Then read the roles from the chain itself, and sweep what is left of the deployer's CELO.
+
+```bash
+forge script script/HardenMainnetAdmin.s.sol:HardenMainnetAdmin --rpc-url "$RPC_URL"
+forge script script/HardenMainnetAdmin.s.sol:HardenMainnetAdmin --rpc-url "$RPC_URL" --broadcast --slow
+
+for who in "$ADMIN" "$NEW_ADMIN" "$VERIFIER_ADDRESS"; do   # deployer, Safe, verifier
+  printf '%s admin=%s upgrader=%s verifier=%s\n' "$who" \
+    "$(cast call "$PROXY_ADDRESS" 'hasRole(bytes32,address)(bool)' 0x00 "$who" --rpc-url "$RPC_URL")" \
+    "$(cast call "$PROXY_ADDRESS" 'hasRole(bytes32,address)(bool)' "$(cast keccak UPGRADER_ROLE)" "$who" --rpc-url "$RPC_URL")" \
+    "$(cast call "$PROXY_ADDRESS" 'hasRole(bytes32,address)(bool)' "$(cast keccak VERIFIER_ROLE)" "$who" --rpc-url "$RPC_URL")"
+done
+# deployer: false false false     Safe: true true false     verifier: false false true
+
+RETURN_TO=0x...                               # the address the CELO came from
+LEFT=$(cast balance "$ADMIN" --rpc-url "$RPC_URL"); FEE=$((21000 * $(cast gas-price --rpc-url "$RPC_URL") * 2))
+cast send "$RETURN_TO" --value $((LEFT - FEE)) --private-key "$PRIVATE_KEY" --rpc-url "$RPC_URL"
+```
+
+Once the explorer shows the handover and the sweep, the deployer key has no further use: delete
+`.deploy/mainnet-deployer.json` and the `PRIVATE_KEY` line of `.env.mainnet`.
+
+**8. Record the deployment** in `dashboard/deployment.json`, from the broadcast artifact. The tool refuses an artifact
+for another chain, a transaction without a successful receipt, a proxy without code, and an RPC that answers for a
+different chain, and it adds mainnet beside Celo Sepolia without touching it. Celo Sepolia stays the default chain;
+pass `--make-default` only when the dashboard and the diagram are meant to switch to mainnet, and regenerate the
+diagram then (`.venv/bin/python tools/generate_architecture.py`; check its "all four contracts verified" line is true
+by then).
+
+```bash
+.venv/bin/python scripts/record_deployment.py --chain-id 42220
+git add dashboard/deployment.json broadcast/DeployAll.s.sol/42220 broadcast/HardenMainnetAdmin.s.sol/42220
+git commit -m "Record the Celo mainnet deployment"
+```
+
+`broadcast/**/dry-run/` is gitignored, so only the real broadcasts are added.
+
+**9. Re-run the suites against the mainnet record.** The dashboard tests check that a chain is recorded exactly when
+its broadcast is committed, and with that broadcast's proxy and block, so they now cover the real mainnet entry.
+
+```bash
+forge test
+.venv/bin/python -m pytest dashboard -q
+.venv/bin/python -m pytest dashboard -q --chain-id 42220
+.venv/bin/python -m pytest tools -q
+CHAIN_ID=42220 .venv/bin/python scripts/check-hosted-entrypoint.py
+```
+
+`dashboard.smoke` and `scripts/check_dashboard_ui.py` read token #1 and simulate a mint from the configured
+`PRIVATE_KEY`, so on mainnet they belong after the first pilot mint, run with `CHAIN_ID=42220` and the verifier
+server's key: `CHAIN_ID=42220 .venv/bin/python -m dashboard.smoke`, and `check_dashboard_ui.py` against a dashboard
+started with the same `CHAIN_ID`.
+
+The same steps serve Celo Sepolia: `--chain-id 11142220` in steps 3 and 8, a faucet instead of step 2, and a
+`DeployAll` that sends five transactions where the registry is absent. The Celo Sepolia deployment of section 6
+predates `HardenMainnetAdmin` and still has its deployer as admin.
