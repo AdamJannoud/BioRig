@@ -15,13 +15,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import urllib.request
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from dashboard.config import (REPO_ROOT, STATIC_DEPLOYMENT_FILE, ChainSelectionError, _merged_env,  # noqa: E402
-                              _proxy_from_broadcast, record_deployment, select_chain)
+from dashboard.config import (REPO_ROOT, STATIC_DEPLOYMENT_FILE, ChainSelectionError,  # noqa: E402
+                              _proxy_from_broadcast, network_settings, record_deployment)
 
 
 def confirmed_proxy(path: Path, chain_id: int) -> tuple[str, int]:
@@ -69,15 +70,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--no-rpc", action="store_true", help="skip the eth_getCode check (offline use only)")
     args = parser.parse_args(argv)
 
-    env = _merged_env(REPO_ROOT, None, {})
     if args.chain_id:
-        env["CHAIN_ID"] = args.chain_id
+        os.environ["CHAIN_ID"] = args.chain_id  # the explicit choice outranks .env, as an exported CHAIN_ID would
     try:
-        chain = select_chain(env)
+        chain, rpc, _, _ = network_settings(REPO_ROOT, None, {})
         path = args.broadcast or REPO_ROOT / "broadcast" / "DeployAll.s.sol" / str(chain.chain_id) / "run-latest.json"
         proxy, block = confirmed_proxy(path, chain.chain_id)
         if not args.no_rpc:
-            rpc = env.get("RPC_URL") or chain.rpc_url
             size = code_size(rpc, proxy, chain.chain_id)
             if size == 0:
                 raise ValueError(f"{proxy} has no code on {rpc}; refusing to record a deployment the chain lacks")

@@ -346,6 +346,28 @@ def test_secrets_beat_the_env_file_but_not_the_process_environment(chain_id, tmp
     assert (s.rpc_url, s.chain_id) == ("https://from-process", _other(chain_id))
 
 
+def test_chain_chosen_above_env_file_drops_that_files_rpc_and_explorer(chain_id, tmp_path, monkeypatch):
+    """.env written for the other chain, CHAIN_ID exported over it: the result is this chain's settings, not a mix."""
+    other = EXPECTED[_other(chain_id)]
+    (tmp_path / ".env").write_text(f"CHAIN_ID={_other(chain_id)}\nRPC_URL={other['rpc_url']}\n"
+                                   f"EXPLORER_URL={other['explorer_url']}\nPROXY_ADDRESS={EXPECTED[chain_id]['proxy']}\n")
+    monkeypatch.setenv("CHAIN_ID", str(chain_id))
+    s = load_settings(tmp_path, secrets={})
+    assert (s.chain_id, s.rpc_url, s.explorer_url) == (
+        chain_id, EXPECTED[chain_id]["rpc_url"], EXPECTED[chain_id]["explorer_url"])
+    monkeypatch.setenv("EXPLORER_URL", "https://explorer.example")  # set at the chain's layer: honoured
+    assert load_settings(tmp_path, secrets={}).explorer_url == "https://explorer.example"
+
+
+def test_env_file_overrides_apply_to_the_env_files_own_chain(chain_id, tmp_path):
+    (tmp_path / ".env").write_text(f"CHAIN_ID={chain_id}\nRPC_URL=https://private-rpc.example\n"
+                                   f"PROXY_ADDRESS={EXPECTED[chain_id]['proxy']}\n")
+    s = load_settings(tmp_path, secrets={})
+    assert (s.rpc_url, s.explorer_url) == ("https://private-rpc.example", EXPECTED[chain_id]["explorer_url"])
+    s = load_settings(tmp_path, secrets={"EXPLORER_URL": "https://from-secrets/"})  # higher layer, same chain
+    assert s.explorer_url == "https://from-secrets"
+
+
 def test_allow_mint_defaults_to_on_and_parses_off(chain_id, tmp_path):
     (tmp_path / ".env").write_text(f"PROXY_ADDRESS={EXPECTED[chain_id]['proxy']}\nCHAIN_ID={chain_id}\n")
     assert load_settings(tmp_path).allow_mint is True

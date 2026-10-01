@@ -33,7 +33,7 @@ import urllib.request
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO))
-from dashboard.config import ChainSelectionError, _merged_env, select_chain  # noqa: E402
+from dashboard.config import ChainSelectionError, network_settings  # noqa: E402
 
 REGISTRY = "0x000000006551c19487814612e58FE06813775758"
 SOURCE_REL = "src/vendor/ERC6551Registry.sol"
@@ -89,12 +89,11 @@ def solc_path(version: str) -> pathlib.Path:
 
 def chain_settings() -> tuple[int, str, str]:
     """(chain id, RPC URL, Blockscout verifier URL) for the selected chain."""
-    env = _merged_env(REPO, None, {})
     try:
-        chain = select_chain(env, REPO)
+        chain, rpc, _, _ = network_settings(REPO, None, {})
     except ChainSelectionError as exc:
         sys.exit(str(exc))
-    return chain.chain_id, env.get("RPC_URL") or chain.rpc_url, chain.verifier_url
+    return chain.chain_id, rpc, chain.verifier_url
 
 
 def rpc_url() -> str:

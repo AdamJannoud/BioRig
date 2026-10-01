@@ -12,7 +12,7 @@ pinned where a deployment's real value is known; on any other chain it is read f
 import sys
 from pathlib import Path
 
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import TimeoutError as PlaywrightTimeout, sync_playwright
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from dashboard.config import load_settings  # noqa: E402
@@ -47,8 +47,13 @@ with sync_playwright() as p:
             errors = []
             page.on("console", lambda m: errors.append(m.text) if m.type == "error" else None)
             page.goto(url)
-            page.wait_for_function("document.body.innerText.includes('match ✓') && "
-                                   "document.body.innerText.includes('would succeed')", timeout=120_000)
+            # The panels fill in independently (getTreeStats can land after the TBA check on a slow RPC), so wait for
+            # every expected string; whatever is still absent at the timeout is reported as missing below.
+            try:
+                page.wait_for_function("want => want.every(e => document.body.innerText.includes(e))", arg=expect,
+                                       timeout=120_000)
+            except PlaywrightTimeout:
+                pass
             body = page.evaluate("document.body.innerText")
             html = page.content().lower()
             mode = page.evaluate("document.documentElement.getAttribute('data-app-mode')")

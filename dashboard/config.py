@@ -15,7 +15,9 @@ Chain selection (first hit wins):
   2. default_chain_id in dashboard/deployment.json                  (the repo's default chain)
 Anything else fails loudly with ChainSelectionError, listing the chains dashboard/chains.json knows. That file
 is the per-chain registry (name, RPC, explorer, Blockscout verifier API, canonical ERC-6551 registry); RPC_URL
-and EXPLORER_URL override the selected chain's entries, nothing else does. EXPECTED_CHAIN_ID, DEFAULT_RPC_URL
+and EXPLORER_URL override the selected chain's entries, nothing else does, and only when set in the same layer as
+CHAIN_ID or a later one: a CHAIN_ID exported over a .env written for another chain drops that file's RPC_URL and
+EXPLORER_URL instead of mixing two chains. EXPECTED_CHAIN_ID, DEFAULT_RPC_URL
 and DEFAULT_EXPLORER_URL are derived from the default chain's entry, never written here.
 
 Run as `python3 -m dashboard.config get <field>` from the repository root, the selected chain's settings are
@@ -393,13 +395,43 @@ class Settings:
     __str__ = __repr__
 
 
-def _merged_env(repo_root: Path, env_file: Path | None, secrets: Mapping[str, str] | None) -> dict[str, str]:
+def _merged_env_layers(repo_root: Path, env_file: Path | None,
+                       secrets: Mapping[str, str] | None) -> tuple[dict[str, str], dict[str, int]]:
+    """The merged settings, and for each key the layer it came from: 0 .env, 1 secrets, 2 process environment."""
     env = load_dotenv(env_file or repo_root / ".env")
-    env.update(hosted_secrets() if secrets is None else secrets)
+    layers = dict.fromkeys(env, 0)
+    for key, value in (hosted_secrets() if secrets is None else secrets).items():
+        env[key], layers[key] = value, 1
     for key in CONFIG_KEYS:
         if os.environ.get(key):
-            env[key] = os.environ[key]
-    return env
+            env[key], layers[key] = os.environ[key], 2
+    return env, layers
+
+
+def _merged_env(repo_root: Path, env_file: Path | None, secrets: Mapping[str, str] | None) -> dict[str, str]:
+    return _merged_env_layers(repo_root, env_file, secrets)[0]
+
+
+def _chain_override(env: Mapping[str, str], layers: Mapping[str, int], key: str) -> str | None:
+    """`key` (RPC_URL, EXPLORER_URL) if it was set alongside the chain choice or above it, else None.
+
+    An RPC_URL in .env was written for .env's CHAIN_ID; once a higher layer picks another chain it no longer applies.
+    """
+    value = (env.get(key) or "").strip()
+    if not value:
+        return None
+    chain_layer = layers.get("CHAIN_ID", -1) if str(env.get("CHAIN_ID") or "").strip() else -1
+    return value if layers.get(key, -1) >= chain_layer else None
+
+
+def network_settings(repo_root: Path = REPO_ROOT, env_file: Path | None = None,
+                     secrets: Mapping[str, str] | None = None) -> tuple[ChainConfig, str, str, dict[str, str]]:
+    """(selected chain, RPC URL, explorer URL, merged env), applying the overrides that belong to that chain."""
+    env, layers = _merged_env_layers(repo_root, env_file, secrets)
+    chain = select_chain(env, repo_root)
+    rpc_url = _chain_override(env, layers, "RPC_URL") or chain.rpc_url
+    explorer_url = (_chain_override(env, layers, "EXPLORER_URL") or chain.explorer_url).rstrip("/")
+    return chain, rpc_url, explorer_url, env
 
 
 def load_settings(repo_root: Path = REPO_ROOT, env_file: Path | None = None,
@@ -410,12 +442,11 @@ def load_settings(repo_root: Path = REPO_ROOT, env_file: Path | None = None,
     `secrets` defaults to what the platform handed the app (hosted_secrets()); pass a mapping to exercise a
     hosted configuration without a secrets file on disk.
     """
-    env = _merged_env(repo_root, env_file, secrets)
-    chain = select_chain(env, repo_root)
+    chain, rpc_url, explorer_url, env = network_settings(repo_root, env_file, secrets)
     return Settings(
-        rpc_url=env.get("RPC_URL") or chain.rpc_url,
+        rpc_url=rpc_url,
         chain_id=chain.chain_id,
-        explorer_url=(env.get("EXPLORER_URL") or chain.explorer_url).rstrip("/"),
+        explorer_url=explorer_url,
         proxy=resolve_proxy(repo_root, env, chain.chain_id),
         private_key=env.get("PRIVATE_KEY") or None,
         allow_mint=_flag(env.get("ALLOW_MINT"), True),
