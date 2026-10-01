@@ -12,7 +12,7 @@ import {ERC6551Registry} from "../src/vendor/ERC6551Registry.sol";
 /// DeployBioRig (contract only) and DeployAll (registry + account + contract in one command) both inherit this, so
 /// the two entry points cannot drift apart.
 abstract contract DeployBase is Script {
-    /// Nick's CREATE2 factory, present on most chains including Celo Sepolia.
+    /// Nick's CREATE2 factory, present on most chains including both Celo networks.
     address internal constant NICKS_FACTORY = 0x4e59b44847b379578588920cA78FbF26c0B4956C;
     /// The address EIP-6551's registry occupies wherever the canonical deployment has been replayed.
     address internal constant CANONICAL_REGISTRY = 0x000000006551c19487814612e58FE06813775758;
@@ -21,6 +21,8 @@ abstract contract DeployBase is Script {
     /// identical to src/vendor/ERC6551Registry.sol compiled with solc 0.8.17 / optimizer 200; only the CBOR metadata
     /// hash differs. Held as a file so both scripts hash exactly the same bytes.
     string internal constant CANONICAL_INIT_CODE_PATH = "script/data/ERC6551Registry.canonical.bin";
+    /// The per-chain registry the dashboard and the shell scripts read too; only the explorer URL is taken from it.
+    string internal constant CHAINS_PATH = "dashboard/chains.json";
 
     struct Config {
         uint256 deployerKey;
@@ -187,13 +189,20 @@ abstract contract DeployBase is Script {
 
     // ---------------------------------------------------------------------- reporting
 
+    /// @dev EXPLORER_URL if set, else this chain's explorer_url in dashboard/chains.json. Empty for a chain the file
+    /// does not list (a local anvil), which only costs the summary its links.
     function _explorerUrl() internal view returns (string memory) {
-        return vm.envOr("EXPLORER_URL", string("https://celo-sepolia.blockscout.com"));
+        string memory fromEnv = vm.envOr("EXPLORER_URL", string(""));
+        if (bytes(fromEnv).length != 0) return fromEnv;
+        string memory chains = vm.readFile(CHAINS_PATH);
+        string memory key = string.concat(".chains.", vm.toString(block.chainid), ".explorer_url");
+        return vm.keyExistsJson(chains, key) ? vm.parseJsonString(chains, key) : "";
     }
 
     function _logAddress(string memory label, address value) internal view {
         console.log(label, value);
-        console.log(string.concat("   ", _explorerUrl(), "/address/", vm.toString(value)));
+        string memory explorer = _explorerUrl();
+        if (bytes(explorer).length != 0) console.log(string.concat("   ", explorer, "/address/", vm.toString(value)));
     }
 
     /// @notice The summary table: every address this deployment is reachable at, with its explorer link.
@@ -216,5 +225,7 @@ abstract contract DeployBase is Script {
         console.log("Set these in .env for later runs:");
         console.log(string.concat("ERC6551_REGISTRY=", vm.toString(registry)));
         console.log(string.concat("ERC6551_IMPLEMENTATION=", vm.toString(accountImplementation)));
+        console.log(string.concat("PROXY_ADDRESS=", vm.toString(address(core))));
+        console.log("The deployer still holds every role. Hand them over with script/HardenMainnetAdmin.s.sol.");
     }
 }
