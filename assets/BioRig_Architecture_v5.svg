@@ -140,10 +140,10 @@
 <text x="74" y="987" font-family="'DejaVu Sans',Verdana,Arial,sans-serif" font-size="14" font-weight="bold" fill="#14181f">Streamlit demo dashboard — read-only by default</text>
 <text x="74" y="1009" font-family="'DejaVu Sans',Verdana,Arial,sans-serif" font-size="12" fill="#3d4753">live telemetry read from the proxy · H3 res-12 cell simulation</text>
 <text x="74" y="1027" font-family="'DejaVu Sans',Verdana,Arial,sans-serif" font-size="12" fill="#3d4753">offline TBA derivation · server-side signing, no key in the browser</text>
-<rect x="1015.02" y="975" width="110.98" height="17" rx="8.5" fill="#fdf4e3" stroke="#9a6400" stroke-width="1.1" stroke-dasharray="3 2"/>
-<text x="1022.02" y="987" font-family="'DejaVu Sans',Verdana,Arial,sans-serif" font-size="10.5" font-weight="bold" letter-spacing="0.6" fill="#9a6400">[IN PROGRESS]</text>
-<text x="1126" y="1009" font-family="'DejaVu Sans',Verdana,Arial,sans-serif" font-size="11" text-anchor="end" fill="#5b6674">public host: deploy in progress</text>
-<text x="1126" y="1027" font-family="'DejaVu Sans',Verdana,Arial,sans-serif" font-size="11" text-anchor="end" fill="#5b6674">no public URL yet</text>
+<rect x="1072.91" y="975" width="53.09" height="17" rx="8.5" fill="#fdf4e3" stroke="#9a6400" stroke-width="1.1" stroke-dasharray="3 2"/>
+<text x="1079.91" y="987" font-family="'DejaVu Sans',Verdana,Arial,sans-serif" font-size="10.5" font-weight="bold" letter-spacing="0.6" fill="#9a6400">[LIVE]</text>
+<text x="1126" y="1009" font-family="'DejaVu Sans',Verdana,Arial,sans-serif" font-size="11" text-anchor="end" fill="#5b6674">biorigdemo.streamlit.app</text>
+<text x="1126" y="1027" font-family="'DejaVu Sans',Verdana,Arial,sans-serif" font-size="11" text-anchor="end" fill="#5b6674">public, no sign-in required</text>
 <path d="M1144 1000 L1162 1000 L1162 480 L1151.5 480" fill="none" stroke="#5b6674" stroke-width="1.4" stroke-linejoin="round"/>
 <polygon points="1144,480 1153,475.8 1153,484.2" fill="#5b6674"/>
 </svg>

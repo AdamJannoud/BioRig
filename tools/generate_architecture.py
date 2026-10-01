@@ -53,6 +53,7 @@ SUPERSAMPLE = 2  # the PNG is painted at PNG_SCALE * SUPERSAMPLE and downsampled
 # Result of the last full `forge test` run over test/ (16 suites). Not derivable from the deployment record,
 # so it is the one number kept by hand: update it when the suite changes.
 CONTRACT_TESTS = 175
+DASHBOARD_URL = "biorigdemo.streamlit.app"
 
 ADDRESS_RE = re.compile(r"0x[0-9a-fA-F]{40}")
 
@@ -519,7 +520,7 @@ def build_scene(f: Facts) -> Scene:
     _label(sc, 610, 322, "verifier-signed tx · nullifier + DBH + biomass")
 
     # ---- band 2: on-chain execution
-    _band(sc, 332, 358, "#f4fbf6", "#bfe0cb", None, "ON-CHAIN EXECUTION — CELO SEPOLIA",
+    _band(sc, 332, 358, "#f4fbf6", "#bfe0cb", None, f"ON-CHAIN EXECUTION — {f.chain_name.upper()}",
           f"chain id {f.chain_id} · UUPS upgradeable · {CONTRACT_TESTS} contract tests green")
     _edge(sc, ("M", 600, yb), ("L", 600, y2))  # after the band, so the band's fill does not cover it
     _box(sc, "access", A, y2, W, ROW_H, "live", "Access control", [
@@ -600,11 +601,10 @@ def build_scene(f: Facts) -> Scene:
         ("b", "live telemetry read from the proxy · H3 res-12 cell simulation"),
         ("b", "offline TBA derivation · server-side signing, no key in the browser"),
     ])
-    # The public host is not up yet (the deploy waits on a GitHub sign-in), so no URL is printed: a pending
-    # marker instead of an address that would 404.
-    _pill(sc, "dashboard", A + 1088 - 18, y5 + 25, "[IN PROGRESS]", anchor="end")
-    sc.items.append(Text(A + 1088 - 18, y5 + 47, "public host: deploy in progress", "lbl", "end", box="dashboard"))
-    sc.items.append(Text(A + 1088 - 18, y5 + 65, "no public URL yet", "lbl", "end", box="dashboard"))
+    # The public host is live, so the card carries the address a reviewer can actually open.
+    _pill(sc, "dashboard", A + 1088 - 18, y5 + 25, "[LIVE]", anchor="end")
+    sc.items.append(Text(A + 1088 - 18, y5 + 47, DASHBOARD_URL, "lbl", "end", box="dashboard"))
+    sc.items.append(Text(A + 1088 - 18, y5 + 65, "public, no sign-in required", "lbl", "end", box="dashboard"))
     _edge(sc, ("M", A + 1088, y5 + 38), ("L", 1162, y5 + 38), ("L", 1162, y2 + 90), ("L", C + W, y2 + 90))
     return sc
 

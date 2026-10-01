@@ -144,14 +144,15 @@ def test_roadmap_boxes_are_badged(scene):
     assert "address stored, no routing" in [t.text for t in scene.texts() if t.box == "buffer"]
 
 
-def test_dashboard_is_marked_pending_and_prints_no_url(scene):
+def test_dashboard_is_marked_live_and_prints_its_public_url(scene):
     dash = [t.text for t in scene.texts() if t.box == "dashboard"]
-    assert "[IN PROGRESS]" in dash
+    assert "[LIVE]" in dash and G.DASHBOARD_URL in dash
+    # The bare host is printed, never a scheme-qualified URL: the diagram is a schematic, not a link list.
     everything = " ".join(t.text for t in scene.texts())
-    for banned in ("streamlit.app", "http", "://", "www.", "hf.space"):
+    for banned in ("http://", "https://", "://", "www."):
         assert banned not in everything
     svg_text = " ".join(re.findall(r"<text[^>]*>([^<]*)</text>", G.SVG_OUT.read_text()))
-    assert "streamlit.app" not in svg_text and "://" not in svg_text
+    assert G.DASHBOARD_URL in svg_text and "://" not in svg_text
 
 
 def test_no_v4_name_survives(scene):
@@ -221,7 +222,8 @@ def test_chain_without_create2_takes_the_registry_from_chain_config(mainnet_reco
     assert address_mismatches(scene.addresses(), expected) == []
     texts = [t.text for t in scene.texts()]
     assert any(t.startswith("Celo mainnet · chain id 42220 · deployed") for t in texts)
-    assert "Celo Sepolia" not in " ".join(texts) and "11142220" not in " ".join(texts)
+    joined = " ".join(texts).upper()
+    assert "SEPOLIA" not in joined and "11142220" not in joined
     assert "deployment on Celo mainnet" in G.title(facts)
 
 
