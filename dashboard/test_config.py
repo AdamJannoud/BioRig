@@ -109,9 +109,9 @@ def test_unknown_or_malformed_chain_id_fails_loudly(tmp_path):
 
 def test_derived_module_defaults_follow_the_committed_default_chain():
     default = json.loads((REPO / "dashboard" / "deployment.json").read_text())["default_chain_id"]
-    assert config.EXPECTED_CHAIN_ID == default == SEPOLIA
-    assert config.DEFAULT_RPC_URL == EXPECTED[SEPOLIA]["rpc_url"]
-    assert config.DEFAULT_EXPLORER_URL == EXPECTED[SEPOLIA]["explorer_url"]
+    assert config.EXPECTED_CHAIN_ID == default
+    assert config.DEFAULT_RPC_URL == EXPECTED[default]["rpc_url"]
+    assert config.DEFAULT_EXPLORER_URL == EXPECTED[default]["explorer_url"]
 
 
 def test_malformed_registry_fails_loudly(tmp_path):
@@ -229,13 +229,20 @@ def test_real_repo_resolves_live_proxy():
     assert "DeployAll.s.sol" in r.source
 
 
-def test_real_repo_has_no_mainnet_deployment_and_says_so():
-    """Nothing is deployed on Celo mainnet yet, so selecting it must fail loudly, not borrow Sepolia's proxy."""
-    with pytest.raises(ProxyResolutionError) as exc:
-        resolve_proxy(REPO, {}, MAINNET)
-    msg = str(exc.value)
-    assert "broadcast/DeployAll.s.sol/42220/run-latest.json: file not found" in msg
-    assert "dashboard/deployment.json: no deployment recorded for chain 42220 (recorded: 11142220)" in msg
+def test_real_repo_resolves_mainnet_only_from_a_real_broadcast():
+    """Until a Celo mainnet broadcast is committed, selecting mainnet must fail loudly rather than borrow Sepolia's
+    proxy; once one is, it must resolve to exactly that broadcast's proxy."""
+    broadcast = REPO / "broadcast" / "DeployAll.s.sol" / str(MAINNET) / "run-latest.json"
+    if not broadcast.is_file():
+        with pytest.raises(ProxyResolutionError) as exc:
+            resolve_proxy(REPO, {}, MAINNET)
+        msg = str(exc.value)
+        assert "broadcast/DeployAll.s.sol/42220/run-latest.json: file not found" in msg
+        assert "dashboard/deployment.json: no deployment recorded for chain 42220 (recorded: 11142220)" in msg
+    else:
+        r = resolve_proxy(REPO, {}, MAINNET)
+        assert r.source == "broadcast/DeployAll.s.sol/42220/run-latest.json"
+        assert r.address == config._proxy_from_broadcast(broadcast)[0]
 
 
 # --------------------------------------------------------------------------- hosted deployment
@@ -303,13 +310,18 @@ def test_committed_deployment_json_matches_the_live_broadcast():
     assert proxy_tx["contractAddress"].lower() == addr
 
 
-def test_committed_deployment_json_records_only_chains_with_a_broadcast():
-    """Every recorded chain has the broadcast that produced it, so no entry can be typed in by hand."""
+def test_committed_deployment_json_records_a_chain_exactly_when_its_broadcast_exists(chain_id):
+    """No entry can be typed in by hand: a chain is recorded if and only if its DeployAll broadcast is committed, and
+    then with that broadcast's proxy and block (scripts/record_deployment.py writes it from there)."""
+    from dashboard.config import _proxy_from_broadcast, _proxy_from_deployment
+
     record = json.loads((REPO / "dashboard" / "deployment.json").read_text())
-    assert record["default_chain_id"] in config.CHAINS
-    for chain in record["deployments"]:
-        assert (REPO / "broadcast" / "DeployAll.s.sol" / chain / "run-latest.json").is_file(), chain
-    assert str(MAINNET) not in record["deployments"]
+    assert record["default_chain_id"] in config.CHAINS and str(record["default_chain_id"]) in record["deployments"]
+    broadcast = REPO / "broadcast" / "DeployAll.s.sol" / str(chain_id) / "run-latest.json"
+    assert (str(chain_id) in record["deployments"]) == broadcast.is_file()
+    if broadcast.is_file():
+        path = REPO / "dashboard" / "deployment.json"
+        assert _proxy_from_deployment(path, chain_id) == _proxy_from_broadcast(broadcast)
 
 
 def test_hosted_secrets_reach_the_settings(chain_id, tmp_path):
