@@ -42,10 +42,9 @@ commit that added the regenerated architecture diagram and its README section. `
 touch documentation, including the one that wrote this sentence, keep moving the tip. `git ls-remote
 origin refs/heads/main` gives the live tip, and what a deploy needs is the entrypoint, which is on `main`.
 
-The repository is private. Streamlit's free tier deploys one private repository, so this works as it stands;
-if the picker will not list it, either grant the Streamlit GitHub app access to `BioRig` or make the
-repository public. Either way the running app is public — reviewers need only the `*.streamlit.app` URL,
-not the source.
+The repository is public, so Streamlit's picker lists it without any extra GitHub-app grant, and a
+reviewer following the repository link opens it directly rather than getting a 404. The running app is
+public too — reviewers need only the `*.streamlit.app` URL, not the source.
 
 This branch is `master` locally and was pushed to `main` remotely, so nothing on GitHub is named `master`.
 
@@ -57,7 +56,7 @@ This branch is `master` locally and was pushed to `main` remotely, so nothing on
    - **Repository**: `AdamJannoud/BioRig`
    - **Branch**: `main`
    - **Main file path**: `streamlit_app.py`
-4. Optionally set the **App URL** subdomain, e.g. `biorig-demo`, giving `https://biorig-demo.streamlit.app`.
+4. Optionally set the **App URL** subdomain — the deployed app uses `biorigdemo`, giving `https://biorigdemo.streamlit.app`.
 5. Open **Advanced settings**:
    - **Python version**: `3.12` (the platform default; the pins work there).
    - **Secrets**: paste the block in the next section.

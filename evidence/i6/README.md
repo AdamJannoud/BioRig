@@ -1,6 +1,8 @@
 # I-6 evidence: settable base URI for the tokenURI fallback
 
-All commands run from the repo root. Nothing here was committed (deliberate: `git diff` shows the change).
+All commands run from the repo root. The stubbed and pre-change variants below are copies kept out of
+`src/` and `test/`, so the change under test is the only difference in the contract sources; it has
+since been committed on `main`.
 
 | File | Command |
 | --- | --- |

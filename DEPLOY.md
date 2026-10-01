@@ -576,7 +576,7 @@ CHAIN_ID=42220 .venv/bin/python scripts/check-hosted-entrypoint.py
 ```
 
 Run on 1 October 2026 against the recorded mainnet entry: `forge test` **175 passed, 0 failed** (16 suites); `pytest
-dashboard` **89 passed** on the default chain and **61 passed** with `--chain-id 42220`; `pytest tools` **40 passed**;
+dashboard` **89 passed** on the default chain and **61 passed** with `--chain-id 42220`; `pytest tools` **66 passed**;
 and `check-hosted-entrypoint.py` green on the default chain and again with `CHAIN_ID=42220`.
 
 `dashboard.smoke` and `scripts/check_dashboard_ui.py` read token #1 and simulate a mint from the configured

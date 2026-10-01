@@ -91,8 +91,8 @@ All four contracts return `is_verified = true` on Blockscout, with `verified_at`
 | Storage layout | V5 occupies slots 0-8; slot 9 is reserved and free for a V6 append |
 | Upgrade safety | Proven, not asserted: the upgrade test snapshots all nine V5 slots with `vm.load`, performs the upgrade, and asserts every slot is byte-identical, that slot 9 reads the V6 marker, and that neither side collides |
 | Live bytecode vs. local source | Proxy 163 bytes and account implementation 2,651 bytes byte-for-byte identical to the compiled artifacts; core implementation 13,243 bytes identical apart from the single UUPS `__self` immutable, which holds the implementation's own address and agrees with the proxy's ERC1967 slot |
-| Dashboard and tooling tests | **129 passing**, and the same suite is green under both `CHAIN_ID=42220` (Celo mainnet) and `CHAIN_ID=11142220` (Celo Sepolia) |
-| Architecture address tests | 16 passing, resolving the registry address from the chain configuration rather than a chain-specific broadcast artifact |
+| Dashboard and tooling tests | **155 passing**, and the same suite is green under both `CHAIN_ID=42220` (Celo mainnet) and `CHAIN_ID=11142220` (Celo Sepolia) |
+| Architecture address tests | 25 passing, resolving the registry address from the chain configuration rather than a chain-specific broadcast artifact |
 | Hosted entrypoint check | exit 0 in all three modes, with no secrets and no `.env` on disk |
 | Read-only telemetry | Loads with `.env` removed and every secret unset; chain ID, proxy, live tree and nullifier all resolve |
 
@@ -122,15 +122,13 @@ The Token-Bound Account derivation agrees three independent ways: offline CREATE
 
 | Item | Value |
 |---|---|
-| Repository | `AdamJannoud/BioRig` — **private** |
+| Repository | `AdamJannoud/BioRig` — **public** (<https://github.com/AdamJannoud/BioRig>), opens without a sign-in |
 | Branch | `main` |
-| Head commit | `b4f34df` on `main`, verified against the GitHub API on 1 October 2026 before this document was committed |
+| Head commit | Not pinned here: the head moves with every commit, including the commit that lands this document — read it with the command in the next row. The repository was inspected on 1 October 2026. |
 | Reading the live tip | `git ls-remote origin refs/heads/main` — the head moves whenever a commit lands, so read it rather than trusting any hash printed here |
 | Live demo | **<https://biorigdemo.streamlit.app>** — public, opens without a sign-in; verified anonymously on 1 October 2026 |
 
-**One thing a reviewer cannot currently open, fixable before submission:**
-
-1. **The repository is private.** A reviewer following the repository link will get a 404. It must either be made public before submission or reviewer access granted.
+**Nothing a reviewer needs is closed.** `AdamJannoud/BioRig` is public, so the repository link opens directly rather than returning a 404, and <https://biorigdemo.streamlit.app> opens without a sign-in; both were checked on 1 October 2026.
 
 **The hosted dashboard is now live.** <https://biorigdemo.streamlit.app> opens without a sign-in and renders read-only telemetry against the live Celo Sepolia proxy: the chain ID, the proxy and implementation addresses, the current block, and `getTreeStats(1)` for the one tree on chain, with minting disabled by default. It was verified anonymously on 1 October 2026 — a browser session carrying no cookies and no stored credentials loaded the page and read the tree state from the chain. The page resolves its deployment from `dashboard/deployment.json`, so it renders against chain `11142220` (Celo Sepolia), where the demo tree lives; the Celo mainnet deployment is recorded in the same file.
 
@@ -257,7 +255,7 @@ The mint transaction `0x486bc529…4b9d5f9e` at block 37512380 is visible in ful
 
 **4. Repository**
 
-`AdamJannoud/BioRig`, branch `main`, head `b4f34df` as verified on 1 October 2026. This document was committed on `main` after that verification, so read the live tip with `git ls-remote origin refs/heads/main` rather than treating the hash in this sentence as current. Run `forge test` for the 175-test suite and `forge inspect src/BioRigCoreV5.sol:BioRigCoreV5 storageLayout` for the storage layout the upgrade test asserts. `FINDINGS.md` at the repository root records the audit: per-hypothesis verdicts, the defect that was found and fixed, the residual trust deliberately left open, and an honest list of what was not verified.
+`AdamJannoud/BioRig`, branch `main` — public, so the link opens without a sign-in (checked 1 October 2026). This document is committed on `main`, so the head moves with every commit and no hash printed here can still be current: read the live tip with `git ls-remote origin refs/heads/main`. Run `forge test` for the 175-test suite and `forge inspect src/BioRigCoreV5.sol:BioRigCoreV5 storageLayout` for the storage layout the upgrade test asserts. `FINDINGS.md` at the repository root records the audit: per-hypothesis verdicts, the defect that was found and fixed, the residual trust deliberately left open, and an honest list of what was not verified.
 
 **5. Hosted dashboard**
 
@@ -294,7 +292,7 @@ The most defensible route is therefore to mint a small number of real trees on t
 
 | # | Item | Why it matters | Owner |
 |---|---|---|---|
-| 1 | Make the repository public, or grant reviewer access | `AdamJannoud/BioRig` is private, so a reviewer following the link gets a 404 | Adam |
+| 1 | ~~Make the repository public, or grant reviewer access~~ — **done**: `AdamJannoud/BioRig` is public and opens without a sign-in (checked 1 October 2026) | — | — |
 | 2 | Confirm or replace the budget figure and allocation | Section 4.2 is a recommendation, not a settled ask | Adam |
 | 3 | Supply team members, roles and links | Section 5.1 has a named applicant and nothing else | Adam |
 | 4 | ~~Deploy to Celo mainnet~~ — **done 1 October 2026**: four contracts live on chain `42220` for 0.803044 CELO, as an Alpha v1 / pilot, with the external audit deferred to a later milestone. Still open: minting the first mainnet trees, the deployer role handover, and which pool to apply to, and when | Section 6.2 shows the eligibility position; mainnet deployment is no longer the gap — traction is | Adam |
@@ -313,6 +311,6 @@ The most defensible route is therefore to mint a small number of real trees on t
 | Code sizes and bytecode match | Live `cast code` reads on the four Sepolia addresses and the mainnet proxy, implementation and account implementation, compared against local artifacts, 1 October 2026 |
 | Partial verification on all four, on both chains | Blockscout v2 API for Celo Sepolia and Celo mainnet, re-read 1 October 2026 |
 | Mint details and nullifier | The mint transaction, the token-bound account derivation, and the dashboard's own derivation |
-| Repository head `b4f34df` | GitHub API, 1 October 2026, verified before this document was committed |
-| 129 dashboard and tooling tests, 16 architecture address tests, entrypoint check | Project test runs under the repository's own environment |
+| Repository visibility, and the head read live | Anonymous fetch of the repository, and `git ls-remote origin refs/heads/main`, both on 1 October 2026 |
+| 155 dashboard and tooling tests, 25 architecture address tests, entrypoint check | Project test runs under the repository's own environment |
 | Prezenti pool criteria, bands, exclusions and payment split | `prezenti.xyz/grants`, read 1 October 2026 |

@@ -65,9 +65,14 @@ broadcast, and `tools/test_architecture.py` fails if any address in the scene, t
 addresses printed on it are the Sepolia set; `--chain-id 42220` draws mainnet. After a redeploy:
 
 ```bash
-.venv/bin/python tools/generate_architecture.py            # rewrite the SVG and PNG, byte-identical on rerun
+.venv/bin/python tools/generate_architecture.py --check    # fail if the committed SVG or PNG drifted from a fresh render
+.venv/bin/python tools/generate_architecture.py            # or rewrite both after a redeploy
 .venv/bin/python -m pytest -q tools/test_architecture.py
 ```
+
+The SVG re-renders byte-identical on any machine; the PNG does not, because rasterisers disagree on
+glyph edges. The committed PNG is therefore bound to its vector source by a `tEXt` provenance chunk
+carrying the SVG's SHA-256, and `--check` compares that rather than pixels.
 
 ## Layout
 
