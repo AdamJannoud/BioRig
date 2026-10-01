@@ -256,6 +256,18 @@ def _proxy_from_deployment(path: Path, chain_id: int) -> tuple[str, int | None]:
     return addr.lower(), int(block) if isinstance(block, int) else None
 
 
+def recorded_deployment(path: Path, chain_id: int | None = None) -> tuple[int, str, int | None]:
+    """(chain id, proxy, deploy block) the static record holds for `chain_id`, or for its default chain when
+    `chain_id` is None. ValueError, with the reason, when the record has no such deployment."""
+    if chain_id is None:
+        data = _read_deployment_file(path)
+        chain_id = _int_field(data, "default_chain_id" if "deployments" in data else "chain_id")
+        if chain_id is None:
+            raise ValueError("names no default chain")
+    proxy, block = _proxy_from_deployment(path, chain_id)
+    return chain_id, proxy, block
+
+
 def record_deployment(path: Path, chain_id: int, proxy_address: str, proxy_deploy_block: int,
                       make_default: bool = False, replace: bool = False) -> dict:
     """Add one chain's deployment to the static record and return the new contents (also written to `path`).

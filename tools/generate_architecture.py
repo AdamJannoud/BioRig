@@ -9,7 +9,8 @@ Outputs:
 
 Every address, the chain id, the proxy block and the deploy date are read from dashboard/deployment.json and
 the DeployAll broadcast under broadcast/, never typed in here; the two records are cross-checked and the
-generator refuses to draw if they disagree.
+generator refuses to draw if they disagree. The chain drawn is the record's default chain (--chain-id picks
+another recorded one); its name and canonical ERC-6551 registry come from dashboard/chains.json.
 
 Rasterisation route: the diagram is one list of primitives (rect, text, path) in a 1200-unit design grid.
 The SVG writer and the Pillow painter both consume that list, so the PNG is rendered from the same source as
@@ -35,6 +36,9 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+from dashboard.config import ChainSelectionError, chain_config, recorded_deployment  # noqa: E402
+
 DEPLOYMENT_JSON = ROOT / "dashboard" / "deployment.json"
 BROADCAST_DIR = ROOT / "broadcast" / "DeployAll.s.sol"
 SVG_OUT = ROOT / "assets" / "BioRig_Architecture_v5.svg"
@@ -68,6 +72,7 @@ class Facts:
     registry: str
     account_implementation: str
     deployed_on: dt.date
+    chain_name: str
 
     def addresses(self) -> dict[str, str]:
         return {
@@ -82,9 +87,13 @@ def _word(calldata: bytes, i: int) -> bytes:
     return calldata[4 + 32 * i: 4 + 32 * (i + 1)]
 
 
-def load_facts(deployment_path: Path = DEPLOYMENT_JSON, broadcast_dir: Path = BROADCAST_DIR) -> Facts:
-    deployment = json.loads(deployment_path.read_text())
-    chain_id = int(deployment["chain_id"])
+def load_facts(deployment_path: Path = DEPLOYMENT_JSON, broadcast_dir: Path = BROADCAST_DIR,
+               chain_id: int | None = None) -> Facts:
+    try:
+        chain_id, recorded_proxy, recorded_block = recorded_deployment(deployment_path, chain_id)
+        chain = chain_config(chain_id)
+    except (ValueError, ChainSelectionError) as exc:
+        raise DeploymentMismatch(f"{deployment_path.name}: {exc}") from exc
     run = json.loads((broadcast_dir / str(chain_id) / "run-latest.json").read_text())
     if int(run["chain"]) != chain_id:
         raise DeploymentMismatch(f"broadcast chain {run['chain']} != deployment.json chain_id {chain_id}")
@@ -100,11 +109,11 @@ def load_facts(deployment_path: Path = DEPLOYMENT_JSON, broadcast_dir: Path = BR
               for r in run["receipts"] if r.get("contractAddress")}
 
     proxy, proxy_tx = created["ERC1967Proxy"]
-    if proxy != deployment["proxy_address"].lower():
-        raise DeploymentMismatch(f"broadcast proxy {proxy} != deployment.json proxy {deployment['proxy_address']}")
-    if blocks.get(proxy) != int(deployment["proxy_deploy_block"]):
+    if proxy != recorded_proxy:
+        raise DeploymentMismatch(f"broadcast proxy {proxy} != deployment.json proxy {recorded_proxy}")
+    if blocks.get(proxy) != recorded_block:
         raise DeploymentMismatch(f"broadcast proxy block {blocks.get(proxy)} != deployment.json "
-                                 f"proxy_deploy_block {deployment['proxy_deploy_block']}")
+                                 f"proxy_deploy_block {recorded_block}")
 
     # The proxy's constructor args are (implementation, initialize calldata). Reading the registry and account
     # implementation out of initialize(admin, registry, implementation, chainId, bufferPool, uriGenerator)
@@ -121,6 +130,11 @@ def load_facts(deployment_path: Path = DEPLOYMENT_JSON, broadcast_dir: Path = BR
     if account_impl != created["ERC6551Account"][0]:
         raise DeploymentMismatch(f"proxy initialised with account impl {account_impl}, "
                                  f"broadcast ERC6551Account is {created['ERC6551Account'][0]}")
+    # Where the canonical registry already had code (Celo mainnet) the broadcast holds no CREATE2 at all, so the
+    # chain config is what the wiring is checked against; a CREATE2, where there is one, must agree as well.
+    if registry != chain.erc6551_registry:
+        raise DeploymentMismatch(f"proxy initialised with registry {registry}, chains.json has "
+                                 f"{chain.erc6551_registry} for chain {chain_id}")
     if "CREATE2" in created and created["CREATE2"][0] != registry:
         raise DeploymentMismatch(f"proxy initialised with registry {registry}, "
                                  f"broadcast CREATE2 deployed {created['CREATE2'][0]}")
@@ -128,7 +142,7 @@ def load_facts(deployment_path: Path = DEPLOYMENT_JSON, broadcast_dir: Path = BR
         raise DeploymentMismatch(f"proxy initialised with chain id {init_chain}, expected {chain_id}")
 
     deployed_on = dt.datetime.fromtimestamp(int(run["timestamp"]) / 1000, dt.timezone.utc).date()
-    return Facts(chain_id, proxy, int(deployment["proxy_deploy_block"]), core, registry, account_impl, deployed_on)
+    return Facts(chain_id, proxy, recorded_block, core, registry, account_impl, deployed_on, chain.name)
 
 
 # --------------------------------------------------------------------------- primitives
@@ -459,12 +473,12 @@ def build_scene(f: Facts) -> Scene:
 
     # ---- title + legend
     sc.items.append(Text(28, 38, "BioRig — end-to-end system architecture", "title"))
-    _label(sc, 28, 60, f"Celo Sepolia · chain id {f.chain_id} · deployed {f.deployed_on.day} "
+    _label(sc, 28, 60, f"{f.chain_name} · chain id {f.chain_id} · deployed {f.deployed_on.day} "
                        f"{f.deployed_on:%b %Y} · all four contracts verified on Blockscout")
     sc.boxes["legend"] = Rect(862, 12, 310, 66, "#f5f7fa", "#d8dde5", 1.0, 8)
     sc.items.append(sc.boxes["legend"])
     sc.items.append(Rect(876, 22, 16, 11, LIVE_BG, LIVE, 1.4, 3))
-    sc.items.append(Text(900, 32, "deployed & verified on Celo Sepolia", "lbl", box="legend"))
+    sc.items.append(Text(900, 32, f"deployed & verified on {f.chain_name}", "lbl", box="legend"))
     sc.items.append(Rect(876, 40, 16, 11, ROAD_BG, ROAD, 1.2, 3, (3, 2)))
     sc.items.append(Text(900, 50, "roadmap — not implemented", "lbl", box="legend"))
     sc.items.append(Rect(876, 58, 16, 11, "#ffffff", BOX_STROKE, 1.2, 3))
@@ -595,23 +609,26 @@ def build_scene(f: Facts) -> Scene:
     return sc
 
 
-TITLE = ("BioRig end-to-end system architecture: off-chain mobile dMRV capture, the on-chain BioRigCoreV5 "
-         "deployment on Celo Sepolia with its addresses, the roadmap protocol tier, and the demo dashboard.")
+def title(f: Facts) -> str:
+    return ("BioRig end-to-end system architecture: off-chain mobile dMRV capture, the on-chain BioRigCoreV5 "
+            f"deployment on {f.chain_name} with its addresses, the roadmap protocol tier, and the demo dashboard.")
 
 
 def render_all(facts: Facts | None = None) -> tuple[str, bytes]:
-    scene = build_scene(facts or load_facts())
+    facts = facts or load_facts()
+    scene = build_scene(facts)
     bad = overflows(scene)
     if bad:
         raise ValueError("layout overflow:\n  " + "\n  ".join(bad))
-    return render_svg(scene, title=TITLE), render_png(scene)
+    return render_svg(scene, title=title(facts)), render_png(scene)
 
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--check", action="store_true", help="exit 1 if an output on disk differs from a fresh render")
+    ap.add_argument("--chain-id", type=int, help="draw this recorded chain instead of deployment.json's default")
     args = ap.parse_args(argv)
-    svg, png = render_all()
+    svg, png = render_all(load_facts(chain_id=args.chain_id))
     if args.check:
         stale = [str(p.relative_to(ROOT)) for p, data in ((SVG_OUT, svg.encode()), (PNG_OUT, png))
                  if not p.exists() or p.read_bytes() != data]

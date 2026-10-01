@@ -18,9 +18,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from dashboard import h3_nullifier  # noqa: E402
 from dashboard.chain import Chain, format_tree_stats, short_hex  # noqa: E402
-from dashboard.config import ProxyResolutionError, load_settings  # noqa: E402
+from dashboard.config import ChainSelectionError, ProxyResolutionError, load_settings  # noqa: E402
 
-st.set_page_config(page_title="BioRig · Celo Sepolia demo", page_icon="🌳", layout="wide")
+st.set_page_config(page_title="BioRig demo", page_icon="🌳", layout="wide")
 
 # --------------------------------------------------------------------------- theme tokens
 # Colours come only from --app-* custom properties, keyed on <html data-app-mode>. The small script below
@@ -96,7 +96,7 @@ def pill(ok: bool, yes: str, no: str) -> str:
 
 # --------------------------------------------------------------------------- connection
 
-@st.cache_resource(show_spinner="Connecting to Celo Sepolia…")
+@st.cache_resource(show_spinner="Connecting to the chain…")
 def get_chain() -> Chain:
     return Chain(load_settings())
 
@@ -114,7 +114,7 @@ try:
     rpc_chain = chain.assert_chain()
     overview = chain.overview()
     is_verifier = chain.signer_is_verifier()
-except ProxyResolutionError as exc:
+except (ChainSelectionError, ProxyResolutionError) as exc:
     st.error(str(exc))
     st.stop()
 except Exception as exc:  # RPC down, wrong chain: show it rather than a blank page
@@ -122,9 +122,10 @@ except Exception as exc:  # RPC down, wrong chain: show it rather than a blank p
     st.stop()
 
 explorer = settings.explorer_url
+st.set_page_config(page_title=f"BioRig · {settings.chain_name} demo")
 signer = chain.signer
 st.markdown(
-    f'<div class="br-bar"><span class="br-dot"></span><b>Celo Sepolia</b>'
+    f'<div class="br-bar"><span class="br-dot"></span><b>{html.escape(settings.chain_name)}</b>'
     f'<span>chain <span class="mono">{rpc_chain}</span></span>'
     f'<span>proxy <span class="mono">{chain.proxy}</span></span>'
     f'<span>signer <span class="mono">{short_hex(signer, 4, 4) if signer else "none"}</span></span>'
