@@ -1,8 +1,9 @@
 # Deploy the demo dashboard to an independent, public, free host
 
-The dashboard currently runs only on the development machine that built it, at a private preview URL reachable from the
-originating chat and nowhere else, and it stops when that machine sleeps. This file is the route to a public URL on a
-free host that has nothing to do with that runtime, suitable for Celo reviewers. Two hosts are covered:
+The dashboard now runs publicly at `https://biorigdemo.streamlit.app` (Streamlit Community Cloud, deployed 1 October
+2026) as well as on the development machine that built it, whose private preview URL is reachable from the originating
+chat and stops when that machine sleeps. This file records how the public host was set up, and is the route to
+redeploying it or moving it to a free host with nothing to do with that runtime. Two hosts are covered:
 
 - **Streamlit Community Cloud** (primary): free, public, permanent URL at `*.streamlit.app`, deploys straight
   from a GitHub repository.

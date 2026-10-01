@@ -54,8 +54,9 @@ verifier-signed `mintTree` carrying the nullifier, DBH and biomass; `mintTree` t
 boundary is `onlyRole(VERIFIER_ROLE)`, not cryptography. **On-chain execution** is the four contracts in the tables
 above, with the token-bound account created through the canonical ERC-6551 registry at
 `keccak256(tokenId ++ planter ++ nullifier)`. The **protocol tier** (carbon accrual, the 20% buffer pool,
-ReFi rails, demand side) is roadmap and badged as such on every box. The **demo dashboard** runs today; its
-public host is still being deployed, so the diagram marks it in progress and prints no URL.
+ReFi rails, demand side) is roadmap and badged as such on every box. The **demo dashboard** runs today, in the
+sandbox and on the free public host `biorigdemo.streamlit.app` (no sign-in required): the diagram pills that box
+`[LIVE]` and prints the address.
 
 The PNG (4800 px wide) and its vector source `assets/BioRig_Architecture_v5.svg` are generated, not drawn:
 `tools/generate_architecture.py` reads every address from `dashboard/deployment.json` and the DeployAll
@@ -76,7 +77,7 @@ addresses printed on it are the Sepolia set; `--chain-id 42220` draws mainnet. A
 | `test/` | Foundry test suite (`forge test`) |
 | `script/` | deployment scripts, including `DeployAll.s.sol`, which deployed the live addresses |
 | `dashboard/` | Streamlit + web3.py demo dashboard over the live proxy |
-| `tools/` | the 90-second explainer video generator, and the architecture diagram generator |
+| `tools/` | the diagram, video and grant-document generators, and the pytest gates that verify what they read and produce |
 | `broadcast/` | the recorded deployment run the dashboard reads its proxy address from |
 | `scripts/verify-demo.sh` | one command that checks all of the above and exits non-zero on any failure |
 
