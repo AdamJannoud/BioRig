@@ -28,3 +28,6 @@ assets/media/.voiceover/
 
 # Hosted Streamlit secrets: paste them into the platform's Secrets UI, never commit them
 .streamlit/secrets.toml
+
+# gh CLI state written into the sandbox workspace
+.local/
