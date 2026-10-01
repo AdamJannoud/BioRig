@@ -21,7 +21,8 @@ import subprocess
 from pathlib import Path
 
 import pytest
-from PIL import Image
+from PIL import Image, ImageDraw
+from PIL.PngImagePlugin import PngInfo
 
 from dashboard.config import chain_config
 from tools import generate_architecture as G
@@ -132,6 +133,14 @@ def test_committed_outputs_are_a_fresh_render():
     assert G.SVG_SHA_OUT.read_text().split() == [hashlib.sha256(G.SVG_OUT.read_bytes()).hexdigest(), G.SVG_OUT.name]
 
 
+def test_committed_png_carries_the_svg_provenance_chunk():
+    with Image.open(G.PNG_OUT) as im:
+        im.load()
+        text = dict(im.text)
+    assert text[G.PNG_SVG_SHA_KEY] == hashlib.sha256(G.SVG_OUT.read_bytes()).hexdigest()
+    assert text[G.PNG_GENERATOR_KEY] == "tools/generate_architecture.py"
+
+
 def test_svg_render_is_deterministic(scene):
     facts = G.load_facts()
     assert G.render_svg(scene, title=G.title(facts)) == G.render_svg(G.build_scene(facts), title=G.title(facts))
@@ -217,6 +226,42 @@ def test_check_catches_a_png_of_the_wrong_size(outputs_copy):
 def test_check_catches_a_png_that_does_not_decode(outputs_copy):
     _, _, png = outputs_copy
     png.write_bytes(png.read_bytes()[:1000])
+    assert G.main(["--check"]) == 1
+
+
+def _resave_png(png: Path, **text: str) -> None:
+    """Re-save the PNG at the same size with a red rectangle painted on, carrying only the given tEXt chunks."""
+    with Image.open(png) as im:
+        im = im.convert("RGB")
+    ImageDraw.Draw(im).rectangle((100, 100, 600, 400), fill="red")
+    info = PngInfo()
+    for key, value in text.items():
+        info.add_text(key, value)
+    im.save(png, pnginfo=info if text else None)
+    assert G.png_problem(png) is None  # still a decodable raster of the right size
+
+
+def test_check_catches_a_doctored_png_of_the_right_size(outputs_copy):
+    _, _, png = outputs_copy
+    _resave_png(png)
+    with Image.open(png) as im:
+        im.load()
+        assert G.PNG_SVG_SHA_KEY not in im.text  # the re-save dropped the provenance chunk
+    assert G.main(["--check"]) == 1
+
+
+def test_check_catches_a_provenance_chunk_with_a_wrong_hash(outputs_copy):
+    svg, _, png = outputs_copy
+    digest = hashlib.sha256(svg.read_bytes()).hexdigest()
+    _resave_png(png, **{G.PNG_SVG_SHA_KEY: digest[:-1] + ("0" if digest[-1] != "0" else "1"),
+                        G.PNG_GENERATOR_KEY: G.GENERATOR})
+    assert G.main(["--check"]) == 1
+
+
+def test_check_catches_a_provenance_chunk_naming_another_generator(outputs_copy):
+    svg, _, png = outputs_copy
+    _resave_png(png, **{G.PNG_SVG_SHA_KEY: hashlib.sha256(svg.read_bytes()).hexdigest(),
+                        G.PNG_GENERATOR_KEY: "tools/some_other_tool.py"})
     assert G.main(["--check"]) == 1
 
 

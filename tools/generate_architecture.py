@@ -6,7 +6,9 @@
 Outputs:
   assets/BioRig_Architecture_v5.svg   vector source, 2400 px wide
   assets/BioRig_Architecture_v5.svg.sha256  provenance: sha256sum line for the SVG the PNG was rendered with
-  BioRig_Architecture_Pro.png         raster, 4800 px wide (4x the design grid), RGB
+  BioRig_Architecture_Pro.png         raster, 4800 px wide (4x the design grid), RGB, carrying two PNG tEXt chunks:
+    bio-rig-source-svg-sha256         lowercase-hex sha256 of the SVG bytes this raster was rendered with
+    bio-rig-generator                 tools/generate_architecture.py
 
 Every address, the chain id, the proxy block and the deploy date are read from dashboard/deployment.json and
 the DeployAll broadcast under broadcast/, never typed in here; the two records are cross-checked and the
@@ -36,6 +38,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
+from PIL.PngImagePlugin import PngInfo
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
@@ -47,6 +50,10 @@ SVG_OUT = ROOT / "assets" / "BioRig_Architecture_v5.svg"
 SVG_SHA_OUT = SVG_OUT.with_name(SVG_OUT.name + ".sha256")
 PNG_OUT = ROOT / "BioRig_Architecture_Pro.png"
 FONT_DIR = ROOT / "assets" / "fonts"
+# PNG tEXt keys recording which SVG the raster was rendered with; --check requires them to name the fresh SVG.
+PNG_SVG_SHA_KEY = "bio-rig-source-svg-sha256"
+PNG_GENERATOR_KEY = "bio-rig-generator"
+GENERATOR = "tools/generate_architecture.py"
 
 GRID_W, GRID_H = 1200, 1062  # design grid; the SVG is 2x, the PNG 4x
 SVG_SCALE = 2
@@ -387,7 +394,8 @@ def _stroke(dr: ImageDraw.ImageDraw, pts, color: str, sw: float, dash, k: float)
         dr.line(run, fill=color, width=width, joint="curve")
 
 
-def render_png(scene: Scene, scale: int = PNG_SCALE, supersample: int = SUPERSAMPLE) -> bytes:
+def render_png(scene: Scene, scale: int = PNG_SCALE, supersample: int = SUPERSAMPLE,
+               source_svg_sha256: str | None = None) -> bytes:
     k = scale * supersample
     im = Image.new("RGB", (round(scene.w * k), round(scene.h * k)), "#ffffff")
     dr = ImageDraw.Draw(im)
@@ -418,8 +426,13 @@ def render_png(scene: Scene, scale: int = PNG_SCALE, supersample: int = SUPERSAM
                 dr.text((x, it.y * k), ch, font=font, fill=color, anchor="ls")
                 x += font.getlength(ch) + ls * k
     im = im.resize((round(scene.w * scale), round(scene.h * scale)), Image.LANCZOS)
+    info = None
+    if source_svg_sha256 is not None:
+        info = PngInfo()
+        info.add_text(PNG_SVG_SHA_KEY, source_svg_sha256)
+        info.add_text(PNG_GENERATOR_KEY, GENERATOR)
     buf = io.BytesIO()
-    im.save(buf, format="PNG", optimize=False, compress_level=9)
+    im.save(buf, format="PNG", optimize=False, compress_level=9, pnginfo=info)
     return buf.getvalue()
 
 
@@ -623,7 +636,8 @@ def render_all(facts: Facts | None = None) -> tuple[str, bytes]:
     bad = overflows(scene)
     if bad:
         raise ValueError("layout overflow:\n  " + "\n  ".join(bad))
-    return render_svg(scene, title=title(facts)), render_png(scene)
+    svg = render_svg(scene, title=title(facts))
+    return svg, render_png(scene, source_svg_sha256=hashlib.sha256(svg.encode()).hexdigest())
 
 
 def svg_provenance(svg: bytes) -> str:
@@ -649,9 +663,18 @@ def png_problem(path: Path) -> str | None:
     return None if size == want else f"is {size[0]}x{size[1]} px, expected {want[0]}x{want[1]}"
 
 
+def png_provenance_matches(path: Path, svg: bytes) -> bool:
+    """The decodable PNG on disk carries tEXt chunks naming this generator and the sha256 of these SVG bytes."""
+    with Image.open(path) as im:
+        im.load()
+        text = getattr(im, "text", {})
+    return (text.get(PNG_SVG_SHA_KEY) == hashlib.sha256(svg).hexdigest()
+            and text.get(PNG_GENERATOR_KEY) == GENERATOR)
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--check", action="store_true", help="exit 1 if the SVG or its sha256 sidecar differs from a fresh render, or the PNG is unusable")
+    ap.add_argument("--check", action="store_true", help="exit 1 if the SVG or its sha256 sidecar differs from a fresh render, or the PNG is unusable or lacks matching provenance")
     ap.add_argument("--chain-id", type=int, help="draw this recorded chain instead of deployment.json's default")
     args = ap.parse_args(argv)
     svg, png = render_all(load_facts(chain_id=args.chain_id))
@@ -659,7 +682,9 @@ def main(argv: list[str] | None = None) -> int:
         # The PNG is not byte-compared: a rebuilt environment (same vendored fonts, different Pillow/FreeType
         # build) was measured to move 1,284 of 20,394,000 pixels (max channel delta 78), all on glyph edges, with
         # the SVG still byte-identical. Provenance replaces byte equality: the SVG must be a fresh render and the
-        # sidecar must name it; the raster's content stays anchored by the OCR read-back in test_architecture.py.
+        # sidecar must name it, and the PNG's tEXt chunks must carry that SVG's sha256 (a raster re-saved by
+        # anything but this generator loses them); the raster's content stays anchored by the OCR read-back in
+        # test_architecture.py.
         problems = []
         if not SVG_OUT.exists() or SVG_OUT.read_bytes() != svg.encode():
             problems.append(f"stale: {_rel(SVG_OUT)}")
@@ -668,6 +693,8 @@ def main(argv: list[str] | None = None) -> int:
         bad_png = png_problem(PNG_OUT)
         if bad_png:
             problems.append(f"bad: {_rel(PNG_OUT)} {bad_png}")
+        elif not png_provenance_matches(PNG_OUT, svg.encode()):
+            problems.append(f"stale: {_rel(PNG_OUT)} provenance chunk missing or does not match the current SVG")
         for p in problems:
             print(p, file=sys.stderr)
         return 1 if problems else 0
