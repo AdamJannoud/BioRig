@@ -5,6 +5,8 @@ out/
 .env
 .env.*
 !.env.example
+# The committed Celo mainnet template: .env.mainnet itself stays ignored, only its .example travels
+!.env.mainnet.example
 # forge script simulation logs (fork-dry-run.sh writes its broadcast logs under cache/)
 broadcast/**/dry-run/
 

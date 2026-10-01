@@ -443,24 +443,19 @@ for a gas spike; what is left is swept back in step 7.
 cast balance "$DEPLOYER" --rpc-url https://forno.celo.org --ether            # expect >= 5
 ```
 
-**3. Set the environment.** The network block comes from `dashboard/chains.json`; replace the three `<...>`
-placeholders in `.env.mainnet` before sourcing it.
+**3. Set the environment.** Copy the committed template and fill in its empty values. The network block in the
+template is the one `dashboard/chains.json` holds for chain 42220, and `tools/test_env_template.py` fails if the two
+disagree or if a variable a deploy script requires is missing — so do not hand-edit that block.
 
 ```bash
-python3 -m dashboard.config env --chain-id 42220 > .env.mainnet               # CHAIN_ID, RPC_URL, VERIFIER_URL, ...
-cat >> .env.mainnet <<ENV
-PRIVATE_KEY=$(jq -r '(.data // .)[0].private_key' .deploy/mainnet-deployer.json)
-ADMIN=$DEPLOYER
-BUFFER_POOL=<buffer pool address>
-URI_GENERATOR=0x0000000000000000000000000000000000000000
-NEW_ADMIN=<Celo Safe address>
-VERIFIER_ADDRESS=<verifier server address>
-ENV
-chmod 600 .env.mainnet                                                        # gitignored by the .env.* rule
-# edit the three placeholders, then:
+cp .env.mainnet.example .env.mainnet && chmod 600 .env.mainnet                 # .env.mainnet is gitignored by .env.*
+# PRIVATE_KEY through this sed rather than retyping it; ADMIN, BUFFER_POOL, NEW_ADMIN, VERIFIER_ADDRESS by hand
+sed -i "s|^PRIVATE_KEY=.*|PRIVATE_KEY=$(jq -r '(.data // .)[0].private_key' .deploy/mainnet-deployer.json)|" .env.mainnet
+sed -i "s|^ADMIN=.*|ADMIN=$DEPLOYER|" .env.mainnet
 unset PROXY_ADDRESS PROXY_DEPLOY_BLOCK
 set -a; source .env.mainnet; set +a
 cast chain-id --rpc-url "$RPC_URL"                                            # 42220
+cast wallet address --private-key "$PRIVATE_KEY"                              # must equal $ADMIN
 cast call "$NEW_ADMIN" "getThreshold()(uint256)" --rpc-url "$RPC_URL"         # the Safe's threshold
 cast call "$NEW_ADMIN" "getOwners()(address[])" --rpc-url "$RPC_URL"          # must not contain $ADMIN
 ```
