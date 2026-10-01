@@ -1,6 +1,7 @@
 # BioRig demo dashboard
 
-Streamlit + web3.py against BioRigCoreV5 behind the ERC1967Proxy on Celo Sepolia (chain 11142220).
+Streamlit + web3.py against BioRigCoreV5 behind the ERC1967Proxy on whichever chain `CHAIN_ID` selects; unset,
+the default chain in `deployment.json`, which is Celo Sepolia, the one live deployment.
 The verifier key stays on the machine running Streamlit; the browser never sees it.
 
 ```bash
@@ -16,8 +17,9 @@ removing the button that broadcasts a real mint. Deploying to a public host: see
 
 | file | role |
 | --- | --- |
-| `config.py` | proxy resolution: `broadcast/DeployAll.s.sol/<chain>/run-latest.json`, then `broadcast/DeployBioRig.s.sol/...`, then `PROXY_ADDRESS` from `.env` / `st.secrets` / the process env, then `deployment.json`; otherwise a loud error listing what was tried |
-| `deployment.json` | committed static record of the live deployment (chain id, proxy, deploy block), so a hosted checkout with no broadcast artifacts and no secrets still renders |
+| `config.py` | chain selection (`CHAIN_ID`, else the record's default chain, else a loud error listing the registered chains) and proxy resolution: `broadcast/DeployAll.s.sol/<chain>/run-latest.json`, then `broadcast/DeployBioRig.s.sol/...`, then `PROXY_ADDRESS` from `.env` / `st.secrets` / the process env, then `deployment.json`; otherwise a loud error listing what was tried. `python3 -m dashboard.config get <field>` / `env` / `chains` prints the registry for the shell scripts |
+| `chains.json` | the per-chain registry (name, RPC, explorer, Blockscout verifier, canonical ERC-6551 registry and its codehash) for Celo Sepolia and Celo mainnet; also read by `script/DeployCommon.sol` |
+| `deployment.json` | committed per-chain record of real deployments (`default_chain_id`, then proxy and deploy block per chain id), so a hosted checkout with no broadcast artifacts and no secrets still renders. Written by `scripts/record_deployment.py` from a broadcast, never by hand; the older flat shape is still read |
 | `h3_nullifier.py` | lat/lng → H3 cell (res 12) → `keccak256(uint64(cell) ++ utf8(salt))`, asserted to be a non-zero 32-byte value |
 | `chain.py` | reads (`getTreeStats`, `isNullifierActive`, `tokenURI`), TBA derivation, `eth_call` simulation, signed `mintTree` |
 | `app.py` | the screen: form + simulation + confirm-then-mint on the left, live state + TBA on the right |
@@ -34,4 +36,5 @@ planter, spatialNullifier))`, then the canonical registry's CREATE2 address for
 later transfer of the NFT does not change the answer. The screen shows the offline derivation, the registry's own
 `account()` and the `tbaAddress` stored in `getTreeStats` side by side, plus the account's `token()` binding.
 
-Tests: `.venv/bin/python -m pytest -q dashboard`.
+Tests: `.venv/bin/python -m pytest -q dashboard` runs the chain-dependent tests once per registered chain;
+`--chain-id 42220` narrows them to one.

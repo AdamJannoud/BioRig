@@ -17,16 +17,17 @@ Both run the same repository: the entrypoint at the root, `streamlit_app.py`, st
 | `requirements.txt` | the dashboard's runtime dependencies only: `streamlit`, `web3`, `eth-account`, `h3`, pinned. Read from the repository root (or from the entrypoint's directory) by both hosts. |
 | `.streamlit/config.toml` | Streamlit runtime config: accent colour, headless, no usage stats. |
 | `streamlit_app.py` | the entrypoint both hosts look for by default; it runs `dashboard/app.py` rather than a copy of it. |
-| `dashboard/deployment.json` | static record of the live deployment (chain id `11142220`, proxy `0x21ab…f7e6`, deploy block `37511856`), so the page renders with no broadcast artifacts and no secrets. |
+| `dashboard/deployment.json` | static per-chain record of real deployments, plus the default chain. Today it holds one: Celo Sepolia (chain id `11142220`, proxy `0x21ab…f7e6`, deploy block `37511856`), so the page renders with no broadcast artifacts and no secrets. |
+| `dashboard/chains.json` | per-chain registry: name, RPC, explorer, Blockscout verifier, canonical ERC-6551 registry, for Celo Sepolia and Celo mainnet. |
 | `.env.example` | every setting the dashboard reads, with the hosted ones marked. |
 | `tools/requirements.txt` | local tooling only (video generator, pytest, playwright) and deliberately not the deployed list. |
 
 The proxy address resolves in this order, first hit wins: `broadcast/DeployAll.s.sol/<chain>/run-latest.json`,
 `broadcast/DeployBioRig.s.sol/<chain>/run-latest.json`, `PROXY_ADDRESS` from `.env` / `st.secrets` / the
-process environment, then `dashboard/deployment.json`. The chain id, RPC endpoint
-(`https://forno.celo-sepolia.celo-testnet.org`) and explorer URL have static defaults in `dashboard/config.py`.
-So a hosted instance needs no configuration at all to render; secrets only add the signing account and
-change from read-only to interactive.
+process environment, then `dashboard/deployment.json`. The chain is `CHAIN_ID` if set, else the record's
+`default_chain_id`; its RPC endpoint and explorer URL come from `dashboard/chains.json` unless `RPC_URL` /
+`EXPLORER_URL` override them. So a hosted instance needs no configuration at all to render the default chain;
+secrets only pick another chain, add the signing account and change from read-only to interactive.
 
 ## 1. Repository state (done — pushed 2026-09-30)
 
@@ -67,8 +68,8 @@ This branch is `master` locally and was pushed to `main` remotely, so nothing on
 ### Secrets to paste (Advanced settings → Secrets)
 
 ```toml
-# Same keys as .env, never committed. Leave a key out and its static default applies.
-RPC_URL = "https://forno.celo-sepolia.celo-testnet.org"
+# Same keys as .env, never committed. Leave a key out and the default applies: the record's default chain,
+# and that chain's RPC from dashboard/chains.json. For Celo mainnet, once it is recorded: CHAIN_ID = 42220.
 CHAIN_ID = 11142220
 PRIVATE_KEY = "0x..."              # account holding VERIFIER_ROLE; omit for a read-only page
 PROXY_ADDRESS = ""                 # empty is fine: dashboard/deployment.json is the fallback
@@ -78,7 +79,8 @@ ALLOW_MINT = false                 # false = read-only; true = visitors can broa
 `ALLOW_MINT` is the one decision worth making deliberately. The app signs with the server-side verifier key,
 so with `true` **anyone who opens the URL can spend that key's testnet CELO by minting a tree**. That is the
 point of the demo and it is only Celo Sepolia, but set `false` if the URL will be passed around widely; the
-form and the `eth_call` simulation still work, only the broadcast button disappears.
+form and the `eth_call` simulation still work, only the broadcast button disappears. On Celo mainnet the key
+spends real CELO and mints real tokens: keep `ALLOW_MINT = false` on any public mainnet instance.
 
 ## 3. Alternative: Hugging Face Spaces
 
@@ -104,14 +106,16 @@ pinned: false
    front matter above goes at the top of the repository's `README.md`, above the existing text (it is inert
    for Streamlit Cloud and for GitHub).
 4. **Settings → Variables and secrets → New secret**: add the same keys as the TOML block above, one per
-   entry (`RPC_URL`, `CHAIN_ID`, `PRIVATE_KEY`, `ALLOW_MINT`).
+   entry (`CHAIN_ID`, `PRIVATE_KEY`, `ALLOW_MINT`).
 5. The Space builds on push; the URL is `https://huggingface.co/spaces/<user>/<space>`.
 
 ## 4. Check the deployed instance
 
-- The page should show the status bar with chain `11142220`, the proxy address and the block number. If it
-  shows a red "Could not resolve the BioRig proxy address" panel, the resolution failed everywhere, which on
-  a hosted instance means `dashboard/deployment.json` is missing from the deployed commit.
+- The page should show the status bar with the chain's name and id (Celo Sepolia, `11142220`, unless
+  `CHAIN_ID` says otherwise), the proxy address and the block number. If it shows a red "Could not resolve the
+  BioRig proxy address" panel, the resolution failed everywhere, which on a hosted instance means
+  `dashboard/deployment.json` is missing from the deployed commit or records no deployment for that chain.
+  `CHAIN_ID=<id> .venv/bin/python scripts/check-hosted-entrypoint.py` runs the same checks locally.
 - `Live state · getTreeStats(1)` must show the real tree; that proves the RPC is reachable from the host.
 - With `ALLOW_MINT=false`, expect the blue read-only notice above the confirm box instead of an enabled
   **Mint tree** button.
@@ -122,4 +126,5 @@ pinned: false
   are covered by the static record and the Secrets field.
 - It does not run the video generator or the browser-based checks in `scripts/verify-demo.sh`. Those stay
   local (`pip install -r tools/requirements.txt`).
-- The verifier key lives in the host's secret store. It is still a real key: fund it with testnet CELO only.
+- The verifier key lives in the host's secret store. It is still a real key: on Celo Sepolia fund it with
+  testnet CELO only; on Celo mainnet it is the dedicated verifier key, and nothing else, that holds `VERIFIER_ROLE`.

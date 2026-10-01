@@ -15,6 +15,10 @@ Live on **Celo Sepolia** (chain id `11142220`), all four contracts verified on B
 
 Proxy deployed in block `37511856`; that address also lives in `dashboard/deployment.json`.
 
+**Celo mainnet** (chain id `42220`) is approved as an Alpha v1 / pilot deployment and is **not deployed yet**. The
+ordered runbook, with the post-broadcast handover of admin to a Safe and of `VERIFIER_ROLE` to a dedicated key, is
+`DEPLOY.md` section 8. Both chains are configured in one place, `dashboard/chains.json`.
+
 **How the nullifier is derived.** The production derivation is `keccak256(uint64(h3Cell) ++ utf8(salt))` with the
 cell taken at H3 resolution 12, implemented in `dashboard/h3_nullifier.py`. The contract is looser than that:
 `mintTree` stores the 32-byte value the verifier passes and rejects only `bytes32(0)`, so the H3 derivation is

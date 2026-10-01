@@ -508,9 +508,10 @@ surprise. Then read the roles from the chain itself, and sweep what is left of t
 forge script script/HardenMainnetAdmin.s.sol:HardenMainnetAdmin --rpc-url "$RPC_URL"
 forge script script/HardenMainnetAdmin.s.sol:HardenMainnetAdmin --rpc-url "$RPC_URL" --broadcast --slow
 
+ADMIN_ROLE=0x0000000000000000000000000000000000000000000000000000000000000000   # DEFAULT_ADMIN_ROLE
 for who in "$ADMIN" "$NEW_ADMIN" "$VERIFIER_ADDRESS"; do   # deployer, Safe, verifier
   printf '%s admin=%s upgrader=%s verifier=%s\n' "$who" \
-    "$(cast call "$PROXY_ADDRESS" 'hasRole(bytes32,address)(bool)' 0x00 "$who" --rpc-url "$RPC_URL")" \
+    "$(cast call "$PROXY_ADDRESS" 'hasRole(bytes32,address)(bool)' "$ADMIN_ROLE" "$who" --rpc-url "$RPC_URL")" \
     "$(cast call "$PROXY_ADDRESS" 'hasRole(bytes32,address)(bool)' "$(cast keccak UPGRADER_ROLE)" "$who" --rpc-url "$RPC_URL")" \
     "$(cast call "$PROXY_ADDRESS" 'hasRole(bytes32,address)(bool)' "$(cast keccak VERIFIER_ROLE)" "$who" --rpc-url "$RPC_URL")"
 done
