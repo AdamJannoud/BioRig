@@ -6,7 +6,7 @@
 **Current round open until:** 29 December 2026
 **Proposal status:** Draft for applicant review before submission
 **Prepared:** 1 October 2026
-**Last revised:** 1 October 2026 — Celo mainnet deployment executed; four contracts live on chain 42220 for 0.803044 CELO (see [Section 2.1](#21-network), [Section 2.2](#22-deployed-contracts), [Section 6.2](#62-the-honest-summary)), and Milestone 4 restated as the pilot and the first live trees, the deployment itself now being done. The reviewer verification note (Section 5.2) now carries the four Celo mainnet deployment transaction hashes with explorer links. The reviewer-facing dashboard is now live and public at <https://biorigdemo.streamlit.app>, verified anonymously; Section 2.6, Section 5 and the open-items table record it.
+**Last revised:** 1 October 2026 — Celo mainnet deployment executed; four contracts live on chain 42220 for 0.803044 CELO (see [Section 2.1](#21-network), [Section 2.2](#22-deployed-contracts), [Section 6.2](#62-the-honest-summary)), and Milestone 4 restated as the pilot and the first live trees, the deployment itself now being done. The reviewer verification note (Section 5.2) now carries the four Celo mainnet deployment transaction hashes with explorer links. The reviewer-facing dashboard is now live and public at [https://biorigdemo.streamlit.app](https://biorigdemo.streamlit.app), verified anonymously; Section 2.6, Section 5 and the open-items table record it.
 
 > **Read this first.** This draft is grounded in the live state of the project on 1 October 2026, re-verified the same day. Three things commonly assumed about BioRig in draft applications do not currently hold, and they are stated plainly below rather than smoothed over, because a Prezenti reviewer will check them: the explorer records are *partially* verified rather than fully verified, the one tree on chain was minted with a bare-salt nullifier rather than the documented H3 derivation, and the live **Celo mainnet** deployment carries no minted trees yet, so the on-chain activity a reviewer can point at is still the Celo Sepolia one. See [Section 6](#6-eligibility-position-against-prezentis-published-criteria) and [Section 7](#7-open-items-to-close-before-submission).
 
@@ -126,11 +126,11 @@ The Token-Bound Account derivation agrees three independent ways: offline CREATE
 | Branch | `main` |
 | Head commit | Not pinned here: the head moves with every commit, including the commit that lands this document — read it with the command in the next row. The repository was inspected on 1 October 2026. |
 | Reading the live tip | `git ls-remote origin refs/heads/main` — the head moves whenever a commit lands, so read it rather than trusting any hash printed here |
-| Live demo | **<https://biorigdemo.streamlit.app>** — public, opens without a sign-in; verified anonymously on 1 October 2026 |
+| Live demo | **[https://biorigdemo.streamlit.app](https://biorigdemo.streamlit.app)** — live hyperlink to the running dashboard; public, opens without a sign-in |
 
-**Nothing a reviewer needs is closed.** `AdamJannoud/BioRig` is public, so the repository link opens directly rather than returning a 404, and <https://biorigdemo.streamlit.app> opens without a sign-in; both were checked on 1 October 2026.
+**Nothing a reviewer needs is closed.** `AdamJannoud/BioRig` is public, so the repository link opens directly rather than returning a 404, and the live demo at [https://biorigdemo.streamlit.app](https://biorigdemo.streamlit.app) opens without a sign-in; both were checked on 1 October 2026.
 
-**The hosted dashboard is now live.** <https://biorigdemo.streamlit.app> opens without a sign-in and renders read-only telemetry against the live Celo Sepolia proxy: the chain ID, the proxy and implementation addresses, the current block, and `getTreeStats(1)` for the one tree on chain, with minting disabled by default. It was verified anonymously on 1 October 2026 — a browser session carrying no cookies and no stored credentials loaded the page and read the tree state from the chain. The page resolves its deployment from `dashboard/deployment.json`, so it renders against chain `11142220` (Celo Sepolia), where the demo tree lives; the Celo mainnet deployment is recorded in the same file.
+**The hosted dashboard is now live.** The running dashboard at [https://biorigdemo.streamlit.app](https://biorigdemo.streamlit.app) opens without a sign-in and renders read-only telemetry against the live Celo Sepolia proxy: the chain ID, the proxy and implementation addresses, the current block, and `getTreeStats(1)` for the one tree on chain, with minting disabled by default. It was verified anonymously on 1 October 2026 — a browser session carrying no cookies and no stored credentials loaded the page and read the tree state from the chain. The page resolves its deployment from `dashboard/deployment.json`, so it renders against chain `11142220` (Celo Sepolia), where the demo tree lives; the Celo mainnet deployment is recorded in the same file.
 
 ### 2.7 Security posture
 
@@ -259,7 +259,7 @@ The mint transaction `0x486bc529…4b9d5f9e` at block 37512380 is visible in ful
 
 **5. Hosted dashboard**
 
-Live at <https://biorigdemo.streamlit.app> — public, no sign-in required, verified anonymously on 1 October 2026. The page exposes read-only telemetry against the live Celo Sepolia proxy (chain ID, proxy and implementation addresses, current block, and `getTreeStats(1)` for the one tree on chain) with minting disabled by default. It resolves its deployment from `dashboard/deployment.json` and therefore renders against chain `11142220`, where the demo tree lives; the Celo mainnet deployment is recorded in the same file.
+Live at **[https://biorigdemo.streamlit.app](https://biorigdemo.streamlit.app)** — public, no sign-in required, verified anonymously on 1 October 2026. The page exposes read-only telemetry against the live Celo Sepolia proxy (chain ID, proxy and implementation addresses, current block, and `getTreeStats(1)` for the one tree on chain) with minting disabled by default. It resolves its deployment from `dashboard/deployment.json` and therefore renders against chain `11142220`, where the demo tree lives; the Celo mainnet deployment is recorded in the same file.
 
 ---
 
@@ -292,7 +292,7 @@ The most defensible route is therefore to mint a small number of real trees on t
 
 | # | Item | Why it matters | Owner |
 |---|---|---|---|
-| 1 | ~~Make the repository public, or grant reviewer access~~ — **done**: `AdamJannoud/BioRig` is public and opens without a sign-in (checked 1 October 2026) | — | — |
+| 1 | ~~Make the repository public, or grant reviewer access~~ — **done**: `AdamJannoud/BioRig` is public and opens without a sign-in, and the live demo at **[https://biorigdemo.streamlit.app](https://biorigdemo.streamlit.app)** opens without a sign-in too (both checked 1 October 2026) | — | — |
 | 2 | Confirm or replace the budget figure and allocation | Section 4.2 is a recommendation, not a settled ask | Adam |
 | 3 | Supply team members, roles and links | Section 5.1 has a named applicant and nothing else | Adam |
 | 4 | ~~Deploy to Celo mainnet~~ — **done 1 October 2026**: four contracts live on chain `42220` for 0.803044 CELO, as an Alpha v1 / pilot, with the external audit deferred to a later milestone. Still open: minting the first mainnet trees, the deployer role handover, and which pool to apply to, and when | Section 6.2 shows the eligibility position; mainnet deployment is no longer the gap — traction is | Adam |
