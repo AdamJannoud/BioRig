@@ -231,6 +231,8 @@ same "$(role $ADMIN_ROLE "$ADMIN")$(role "$UPGRADER_ROLE" "$ADMIN")$(role "$VERI
 same "$(role $ADMIN_ROLE "$SAFE")$(role "$UPGRADER_ROLE" "$SAFE")$(role "$VERIFIER_ROLE" "$SAFE")" truetruefalse "Safe holds admin + upgrader only"
 same "$(role $ADMIN_ROLE "$VERIFIER_ADDRESS")$(role "$UPGRADER_ROLE" "$VERIFIER_ADDRESS")$(role "$VERIFIER_ROLE" "$VERIFIER_ADDRESS")" falsefalsetrue "verifier holds VERIFIER_ROLE only"
 
+# This gate exercises mode A: a dedicated VERIFIER_ADDRESS, so the deployer really is stripped. The mainnet run is
+# mode B (the deployer key keeps VERIFIER_ROLE); script/handover-fork-check.sh rehearses that.
 step "11. AFTER THE HANDOVER: the deployer is powerless, the verifier mints, the Safe administers"
 cast send "$PROXY" "mintTree(address,bytes32,uint96,uint96)" "$PLANTER" "$(cast keccak plot-2)" 10 20 \
     --private-key "$PRIVATE_KEY" --rpc-url "$LOCAL" >/dev/null 2>&1

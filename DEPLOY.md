@@ -215,7 +215,10 @@ pointing at the implementation, verify the proxy as above, then use the proxy-de
 
 `initialize` grants no `VERIFIER_ROLE`; the deploy scripts grant it to `ADMIN` (the deployer) in the same broadcast,
 which is how the Celo Sepolia deployment minted. On Celo mainnet, `script/HardenMainnetAdmin.s.sol` then moves it to
-the dedicated verifier key and strips the deployer (section 8). To grant it to another account by hand:
+`DEFAULT_ADMIN_ROLE` and `UPGRADER_ROLE` to a Safe and leaves `VERIFIER_ROLE` wherever
+`VERIFIER_ADDRESS` points: a dedicated server-side key, or the deployer itself when there is no separate
+signing key yet (section 8). In the second case the deployer keeps minting and loses only pause, upgrade and
+role administration. To grant it to another account by hand:
 
 ```bash
 cast send "$PROXY" "grantRole(bytes32,address)" "$(cast keccak VERIFIER_ROLE)" <verifier-address> \
@@ -283,13 +286,16 @@ wrong reason still fails the run:
 8. A 1-of-1 Safe (v1.4.1, through the canonical `SafeProxyFactory`) is created on the fork to stand in for the admin
    Safe.
 9. **Handover guards:** `HardenMainnetAdmin` must refuse a wrong `CHAIN_ID`, a `VERIFIER_ADDRESS` equal to
-   `NEW_ADMIN`, a `NEW_ADMIN` with no code, a contract that is not a Safe, a Safe the deployer owns, and a
-   `PROXY_ADDRESS` that is not a BioRig proxy.
+   `NEW_ADMIN`, a `NEW_ADMIN` with no code, a contract that is not a Safe, a Safe the deployer owns, a
+   `PROXY_ADDRESS` that is not a BioRig proxy, and - when `VERIFIER_ADDRESS` is the deployer - a deployer that
+   does not already hold `VERIFIER_ROLE` (which would leave nobody able to mint).
 10. **Handover:** `HardenMainnetAdmin` is simulated and broadcast to the fork, then every role is read back from the
-    fork with `cast`: the deployer holds nothing, the Safe holds admin and upgrader only, the verifier holds
-    `VERIFIER_ROLE` only.
-11. **After the handover:** the deployer can no longer mint or pause, the verifier key mints a tree whose TBA is bound
-    to the fork's chain id, and the Safe pauses the proxy through `execTransaction`.
+    fork with `cast`: the deployer holds no admin and no upgrade, the Safe holds admin and upgrader only, and
+    `VERIFIER_ROLE` sits with the verifier - the dedicated key, or the deployer itself when that is what
+    `VERIFIER_ADDRESS` names.
+11. **After the handover:** the deployer can no longer pause, the verifier mints a tree whose TBA is bound to the
+    fork's chain id, and the Safe pauses the proxy through `execTransaction`. With a dedicated verifier key, the
+    deployer cannot mint either.
 12. A second `HardenMainnetAdmin` run must be refused: the deployer has nothing left to hand over.
 
 ## 6. Executed deployment: Celo Sepolia, 30 September 2026
@@ -408,7 +414,9 @@ the `v1`-based `forge verify-contract` path, not to verification on this explore
 below ran; step 7, the role handover, has not.** Read back
 from the chain, `DEFAULT_ADMIN_ROLE`, `UPGRADER_ROLE`, `VERIFIER_ROLE` and `bufferPool` all still sit with the deployer
 hot key `0x1DB0084Db70bF8D0E06c1785D693Fc6a95317890`, and no tree is minted: `ownerOf(1)` reverts
-`ERC721NonexistentToken(1)`.
+`ERC721NonexistentToken(1)`. Step 7 is to run in **mode B**: the Safe takes `DEFAULT_ADMIN_ROLE` and
+`UPGRADER_ROLE` and the deployer key keeps `VERIFIER_ROLE` (minting), the choice recorded on 1 October 2026.
+`script/handover-fork-check.sh` rehearses exactly that against live mainnet state on a fork.
 
 One broadcast, four transactions, 4,015,198 gas, **0.803044 CELO** at 200.0011 gwei, all in block `78935900`, every
 receipt status `0x1`. The canonical registry was reused rather than deployed, so `DeployAll` sent four transactions and
@@ -433,8 +441,13 @@ The rest of this section is the ordered runbook as approved, with each step's st
 - **Admin.** Deploy from a fresh deployer hot key with `ADMIN` equal to it, which is what `_preflightBase` requires,
   then hand admin to a Celo Safe with `script/HardenMainnetAdmin.s.sol`. That is a separate run, step 7, and it has
   **not run**: the deployer still holds admin.
-- **Verifier.** `VERIFIER_ROLE` goes to a dedicated server-side key, never the admin. The handover refuses a
-  `VERIFIER_ADDRESS` equal to the deployer or the Safe. **Pending**, step 7: the deployer holds it today.
+- **Verifier.** `VERIFIER_ROLE` goes to whatever address `VERIFIER_ADDRESS` names. A dedicated server-side key
+  is the better end state and is what the script prefers, but the approved choice here is that there is no such
+  key yet, so the deployer keeps the role and keeps mint/update/reportMortality; it loses pause, upgrade and
+  role administration. The Safe holds `DEFAULT_ADMIN_ROLE` after the handover, so it can grant `VERIFIER_ROLE`
+  to a dedicated key and revoke it from the deployer at any time, without another handover. The handover
+  refuses a `VERIFIER_ADDRESS` equal to the Safe, and a Safe whose owners include the deployer. **Pending**,
+  step 7: the deployer holds it today.
 - **Explainer.** The video stays as rendered against Celo Sepolia (`DEMO.md`); it is not re-rendered.
 
 What the code expects of mainnet: the canonical ERC-6551 registry is already there with the canonical bytecode
@@ -456,7 +469,8 @@ CHAIN_ID=42220 script/fork-dry-run.sh > cache/fork-mainnet.log 2>&1; echo "exit 
 grep -E '^>>> UNEXPECTED|SUMMARY' -A1 cache/fork-mainnet.log
 ```
 
-**1. Generate the deployer key.** It sends the deployment and the handover, and holds nothing afterwards.
+**1. Generate the deployer key.** It sends the deployment and the handover. What it holds afterwards depends on
+`VERIFIER_ADDRESS` in step 7: nothing but `VERIFIER_ROLE` in mode B, and nothing at all with a dedicated key.
 
 ```bash
 mkdir -p .deploy && chmod 700 .deploy                         # .deploy/ is gitignored
@@ -539,14 +553,17 @@ for who in "$ADMIN" "$NEW_ADMIN" "$VERIFIER_ADDRESS"; do   # deployer, Safe, ver
     "$(cast call "$PROXY_ADDRESS" 'hasRole(bytes32,address)(bool)' "$(cast keccak VERIFIER_ROLE)" "$who" --rpc-url "$RPC_URL")"
 done
 # deployer: false false false     Safe: true true false     verifier: false false true
+# mode B (VERIFIER_ADDRESS is the deployer): deployer: false false true    Safe: true true false
 
 RETURN_TO=0x...                               # the address the CELO came from
 LEFT=$(cast balance "$ADMIN" --rpc-url "$RPC_URL"); FEE=$((21000 * $(cast gas-price --rpc-url "$RPC_URL") * 2))
 cast send "$RETURN_TO" --value $((LEFT - FEE)) --private-key "$PRIVATE_KEY" --rpc-url "$RPC_URL"
 ```
 
-Once the explorer shows the handover and the sweep, the deployer key has no further use: delete
-`.deploy/mainnet-deployer.json` and the `PRIVATE_KEY` line of `.env.mainnet`.
+Once the explorer shows the handover and the sweep, what becomes of the deployer key depends on the mode.
+With a dedicated `VERIFIER_ADDRESS` it has no further use: delete `.deploy/mainnet-deployer.json` and the
+`PRIVATE_KEY` line of `.env.mainnet`. In mode B it still holds `VERIFIER_ROLE`, so it still signs every mint:
+keep it, and keep the `PRIVATE_KEY` line - deleting it would leave the live tree with no way to mint.
 
 **8. Record the deployment** in `dashboard/deployment.json`, from the broadcast artifact. The tool refuses an artifact
 for another chain, a transaction without a successful receipt, a proxy without code, and an RPC that answers for a

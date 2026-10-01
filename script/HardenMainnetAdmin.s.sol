@@ -13,18 +13,25 @@ interface ISafeOwners {
 
 /// @notice The role handover run after DeployAll's broadcast. DeployAll has to deploy with ADMIN == deployer, which
 /// leaves a hot key holding DEFAULT_ADMIN_ROLE, UPGRADER_ROLE and VERIFIER_ROLE. This moves admin and upgrade powers
-/// to a Safe and minting to a dedicated verifier key, then strips the deployer of all three:
+/// to a Safe, and leaves VERIFIER_ROLE (minting) wherever VERIFIER_ADDRESS points. Two modes, chosen by that value:
 ///
+///   A. a dedicated verifier key - VERIFIER_ADDRESS is an address other than the deployer:
 ///   1. UPGRADER_ROLE, then DEFAULT_ADMIN_ROLE, granted to NEW_ADMIN (the Safe);
-///   2. VERIFIER_ROLE granted to VERIFIER_ADDRESS, a server-side key that is neither the deployer nor the Safe;
+///   2. VERIFIER_ROLE granted to VERIFIER_ADDRESS, a key that is neither the deployer nor the Safe;
 ///   3. the deployer renounces VERIFIER_ROLE, then UPGRADER_ROLE, then DEFAULT_ADMIN_ROLE last, so until the final
 ///      transaction the deployer can still repair a mistake in steps 1 and 2.
 ///
-/// Every transition is read back with hasRole before the next one, and the end state is asserted in full: the
-/// deployer holds nothing, the Safe holds admin and upgrade only, the verifier holds VERIFIER_ROLE only.
+///   B. minting stays on the deployer - VERIFIER_ADDRESS is the deployer itself. VERIFIER_ROLE is left where it is
+///      and the deployer renounces only UPGRADER_ROLE and then DEFAULT_ADMIN_ROLE, so it keeps mint, update and
+///      reportMortality and loses pause, upgrade and role administration. The Safe can rotate the verifier later.
 ///
-/// Env: PRIVATE_KEY (the deployer), CHAIN_ID, PROXY_ADDRESS, NEW_ADMIN, VERIFIER_ADDRESS. The chain is refused unless
-/// CHAIN_ID, the RPC's eth_chainId and the chain id the proxy was initialised with all agree.
+/// Every transition is read back with hasRole before the next one, and the end state is asserted in full for the mode
+/// that ran: the deployer holds no admin and no upgrade, the Safe holds admin and upgrade only, and the verifier
+/// address holds VERIFIER_ROLE only.
+///
+/// Env: PRIVATE_KEY (the deployer), CHAIN_ID, PROXY_ADDRESS, NEW_ADMIN, VERIFIER_ADDRESS (which may be the deployer,
+/// mode B). The chain is refused unless CHAIN_ID, the RPC's eth_chainId and the chain id the proxy was initialised
+/// with all agree.
 contract HardenMainnetAdmin is DeployBase {
     struct Handover {
         uint256 deployerKey;
@@ -43,13 +50,20 @@ contract HardenMainnetAdmin is DeployBase {
         bytes32 upgraderRole = h.core.UPGRADER_ROLE();
         bytes32 verifierRole = h.core.VERIFIER_ROLE();
 
+        bool mintingStaysOnDeployer = _mintingStaysOnDeployer(h);
+
         vm.startBroadcast(h.deployerKey);
 
         _grant(h.core, upgraderRole, "UPGRADER_ROLE", h.newAdmin, "NEW_ADMIN");
         _grant(h.core, adminRole, "DEFAULT_ADMIN_ROLE", h.newAdmin, "NEW_ADMIN");
-        _grant(h.core, verifierRole, "VERIFIER_ROLE", h.verifier, "VERIFIER_ADDRESS");
 
-        _renounce(h.core, verifierRole, "VERIFIER_ROLE", h.deployer);
+        // Mode A moves minting to a dedicated key and strips the deployer of it; mode B leaves both alone. The Safe
+        // holds DEFAULT_ADMIN_ROLE before either renounce below, so the proxy is never left without an administrator.
+        if (!mintingStaysOnDeployer) {
+            _grant(h.core, verifierRole, "VERIFIER_ROLE", h.verifier, "VERIFIER_ADDRESS");
+            _renounce(h.core, verifierRole, "VERIFIER_ROLE", h.deployer);
+        }
+
         _renounce(h.core, upgraderRole, "UPGRADER_ROLE", h.deployer);
         _renounce(h.core, adminRole, "DEFAULT_ADMIN_ROLE", h.deployer);
 
@@ -71,6 +85,11 @@ contract HardenMainnetAdmin is DeployBase {
     }
 
     // -------------------------------------------------------------------- preflight
+
+    /// @dev Mode B: VERIFIER_ADDRESS names the deployer, so minting deliberately stays on the hot key.
+    function _mintingStaysOnDeployer(Handover memory h) internal pure returns (bool) {
+        return h.verifier == h.deployer;
+    }
 
     /// @dev Reverts before anything is broadcast if any assumption the handover rests on is false.
     function _preflightHandover(Handover memory h) internal view {
@@ -100,12 +119,24 @@ contract HardenMainnetAdmin is DeployBase {
         _requireSafe(h);
 
         require(h.verifier != address(0), "VERIFIER_ADDRESS is the zero address");
-        require(h.verifier != h.deployer, "VERIFIER_ADDRESS is the deployer; the verifier must be its own key");
         require(h.verifier != h.newAdmin, "VERIFIER_ADDRESS is NEW_ADMIN; the verifier key must not be the admin");
-        require(
-            !h.core.hasRole(h.core.DEFAULT_ADMIN_ROLE(), h.verifier) && !h.core.hasRole(h.core.UPGRADER_ROLE(), h.verifier),
-            "VERIFIER_ADDRESS already holds DEFAULT_ADMIN_ROLE or UPGRADER_ROLE; revoke that first"
-        );
+        if (_mintingStaysOnDeployer(h)) {
+            // Mode B. The deployer is the verifier, so nothing grants it and nothing revokes it: if the role were
+            // missing here the handover would finish with nobody able to mint. The deployer does hold admin and
+            // upgrade at this point - the handover strips those below - so the check that a *separate* verifier key
+            // must not already be privileged does not apply to it, and is deliberately not run in this mode.
+            require(
+                h.core.hasRole(h.core.VERIFIER_ROLE(), h.deployer),
+                "VERIFIER_ADDRESS is the deployer, but the deployer does not hold VERIFIER_ROLE; grant it first"
+            );
+            console.log("VERIFIER_ADDRESS is the deployer: minting stays on the deployer key (mode B)");
+        } else {
+            require(
+                !h.core.hasRole(h.core.DEFAULT_ADMIN_ROLE(), h.verifier)
+                    && !h.core.hasRole(h.core.UPGRADER_ROLE(), h.verifier),
+                "VERIFIER_ADDRESS already holds DEFAULT_ADMIN_ROLE or UPGRADER_ROLE; revoke that first"
+            );
+        }
 
         console.log("Chain id:              ", block.chainid);
         console.log("Deployer (hands over): ", h.deployer);
@@ -165,7 +196,11 @@ contract HardenMainnetAdmin is DeployBase {
 
         require(!core.hasRole(adminRole, h.deployer), "end state: deployer holds DEFAULT_ADMIN_ROLE");
         require(!core.hasRole(upgraderRole, h.deployer), "end state: deployer holds UPGRADER_ROLE");
-        require(!core.hasRole(verifierRole, h.deployer), "end state: deployer holds VERIFIER_ROLE");
+        if (_mintingStaysOnDeployer(h)) {
+            require(core.hasRole(verifierRole, h.deployer), "end state: deployer lost VERIFIER_ROLE; nobody can mint");
+        } else {
+            require(!core.hasRole(verifierRole, h.deployer), "end state: deployer holds VERIFIER_ROLE");
+        }
 
         require(core.hasRole(adminRole, h.newAdmin), "end state: NEW_ADMIN lacks DEFAULT_ADMIN_ROLE");
         require(core.hasRole(upgraderRole, h.newAdmin), "end state: NEW_ADMIN lacks UPGRADER_ROLE");
@@ -198,6 +233,10 @@ contract HardenMainnetAdmin is DeployBase {
         console.log("  DEFAULT_ADMIN_ROLE:", core.hasRole(core.DEFAULT_ADMIN_ROLE(), h.verifier));
         console.log("  UPGRADER_ROLE:     ", core.hasRole(core.UPGRADER_ROLE(), h.verifier));
         console.log("  VERIFIER_ROLE:     ", core.hasRole(core.VERIFIER_ROLE(), h.verifier));
-        console.log("The deployer key now controls nothing on this proxy.");
+        console.log(
+            _mintingStaysOnDeployer(h)
+                ? "The deployer key holds VERIFIER_ROLE only: it can mint, update and report mortality, and cannot pause, upgrade or change roles."
+                : "The deployer key now controls nothing on this proxy."
+        );
     }
 }

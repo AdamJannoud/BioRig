@@ -21,7 +21,8 @@ registry was already on the chain, so it was reused rather than deployed. All fo
 
 Admin, `UPGRADER_ROLE` and `BUFFER_POOL` still sit with Adam Jannoud's deployer hot key
 `0x1DB0084Db70bF8D0E06c1785D693Fc6a95317890`, and **nothing is minted on mainnet yet**:
-the handover to a Celo Safe and a dedicated verifier key is step 7 of `DEPLOY.md` section 8 and has not run. That
+step 7 of `DEPLOY.md` section 8, the role handover, has not run. It hands admin and upgrade to a Celo Safe and
+leaves minting (`VERIFIER_ROLE`) with the deployer key. That
 section records the broadcast and what it produced, address by address.
 
 **Celo Sepolia** (chain id `11142220`) is the testnet deployment the demo pieces render, live since 30 September 2026
