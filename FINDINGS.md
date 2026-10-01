@@ -7,9 +7,14 @@ Every test deploys the contract behind a real `ERC1967Proxy` and initializes it 
 The bare implementation is only called directly in tests that are about the implementation
 (`test_implementation_*` and `test_upgrade_calledOnImplementationDirectly_reverts`).
 
-Result: **160 tests, 160 passed, 0 failed, 0 skipped** (15 suites: 155 unit tests, 4 fuzz tests at 256 runs each,
-and 1 invariant suite with 4 invariants at 128 runs × depth 100 = 12,800 handler calls, 0 reverts).
-The full output is at the end of this file and in `evidence/forge-test.txt`.
+Result at the hardening round: **160 tests, 160 passed, 0 failed, 0 skipped** (15 suites: 155 unit tests, 4 fuzz tests
+at 256 runs each, and 1 invariant suite with 4 invariants at 128 runs × depth 100 = 12,800 handler calls, 0 reverts).
+That run's output is in `evidence/forge-test.txt` and at the end of this file.
+
+The I-6 round landed after it (`_baseURI()` override, commit `5c0e8d8`). The suite at the tip is **175 tests, 175
+passed, 0 failed, 0 skipped across 16 suites**, re-run on 2026-10-01; that output is in
+`evidence/i6/forge-test.after.txt`. Where this file calls storage unchanged, it means unchanged by the hardening
+round — the I-6 round appended one variable (see R4).
 
 The first round (F-1 and everything under "Defects"/"Informational" below) was an audit with one minimal fix.
 The **hardening round** implements four requirements (R1–R4) on top of it. The complete cumulative change against the
@@ -26,7 +31,7 @@ original is in `HARDENING.diff` (`diff -u src/BioRigCoreV5.sol.orig src/BioRigCo
 | R1 | `tokenURI` reads `uriGenerator` once. If it is non-zero **and has runtime code**, `generateURI` is called inside `try/catch`. If the call reverts or runs out of gas, execution falls through to `super.tokenURI(tokenId)`. A codeless generator skips the call entirely. | `tokenURI` |
 | R2 | After `createAccount` (and after the existing F-1 `address(0)` → `InvalidAddress()` check, which comes first and is unchanged), `_validateTba(treeWallet, tokenId)` requires: (a) `code.length != 0`; (b) a `staticcall` to `supportsInterface(0x6faff5f1)` that succeeds and returns exactly the word `1`; (c) a `staticcall` to `token()` that succeeds, returns ≥ 96 bytes, and decodes to `(chainId, address(this), tokenId)`, compared against the **stored** `chainId`. Any failure → `InvalidTba()`. The whole mint reverts, so nothing persists. | `mintTree`, new `_validateTba` |
 | R3 | `mintTree` rejects `spatialNullifier == bytes32(0)` with `InvalidNullifier()` (checked before the nullifier lookup, so no token id is consumed). `setURIGenerator` rejects a non-zero address with no code (`InvalidAddress()`). `address(0)` stays legal and still means "use the base path". | `mintTree`, `setURIGenerator` |
-| R4 | Storage untouched. The only additions are two custom errors, one `private constant`, one interface declaration and one `private view` function. None of these occupy storage. | — |
+| R4 | Storage untouched **by this round**. The only additions are two custom errors, one `private constant`, one interface declaration and one `private view` function. None of these occupy storage. (The later I-6 round appends one variable, `_baseTokenURI`, at slot 8.) | — |
 
 Why each design choice:
 
@@ -53,6 +58,10 @@ Why each design choice:
 at initialization (or by an upgrade). R1 guards exactly that state (see `test_R1_zeroCodeGenerator_fallsBack`).
 
 ### R4 — storage layout, proven
+
+Scope: this section compares the **pre-round** contract with the **hardened** one, and `evidence/storageLayout.*` are
+those two captures. The contract at the tip has since gained one more variable (the I-6 round's `_baseTokenURI` at slot
+8), so "identical to the original" describes what this round did, not the tip.
 
 1. **Compiler layout, before vs after, byte-identical.**
    `forge inspect src/BioRigCoreV5.sol:BioRigCoreV5 storageLayout` was captured before any edit
@@ -175,7 +184,7 @@ documents a residual, and the second is not a behaviour-change test.)
 |------|--------|-----|
 | **I-1 / H2** unchecked registry account | documented trust assumption | **FIXED (R2), with residual trust.** The returned account must be a contract that reports `IERC6551Account` support and claims exactly this token's binding. EOAs, wrong-token accounts and contracts without `token()` are rejected. |
 | **L-1 / H3** generator availability (codeless / reverting generator reverts `tokenURI`) | Low, documented, not fixed | **FIXED (R1 + R3).** `tokenURI` no longer reverts on a codeless, reverting or gas-exhausting generator. The setter refuses codeless addresses. |
-| **I-6** empty fallback | documented | **Still open, and now more visible.** The R1 fallback is `super.tokenURI`, and `_baseURI()` is not overridden, so the fallback returns **the empty string**. "Not bricked" is not the same as "useful metadata". While a generator is broken, marketplaces get `""`, not an error. That is arguably harder to notice than a revert. No `_baseURI` override was added (out of scope; it would need a storage or config decision). |
+| **I-6** empty fallback | documented | **FIXED after this round (I-6 round, commit `5c0e8d8`).** The R1 fallback is `super.tokenURI`, which returns **the empty string** while the base URI is unset. "Not bricked" is not the same as "useful metadata". While a generator is broken, marketplaces get `""`, not an error. That is arguably harder to notice than a revert. The I-6 round added it: `_baseTokenURI` at slot 8, `_baseURI()` overridden to join the base with the token id, and an admin-only `setBaseURI`. As shipped the base URI is unset, so the empty-string behaviour this row describes still holds until an admin sets one — verified live on the deployment, where `baseURI()` and `tokenURI(1)` both return `""`. |
 | **I-5** zero nullifier accepted | documented | **FIXED (R3)** for new mints. A zero-nullifier tree minted before an upgrade stays valid and manageable (tested). |
 | **I-8** zero checks | informational | `setURIGenerator` now also checks code. `initialize` still accepts a codeless generator (not in R3), and R1 makes that harmless for availability. |
 | **F-1 / H1** | fixed | unchanged, still passing |
@@ -258,7 +267,7 @@ documents a residual, and the second is not a behaviour-change test.)
 | I-3 | `pause()` blocks mint, growth and mortality but **not** ERC-721 transfers or approvals (`_update` is not overridden). Admin setters and upgrades also work while paused. This may be intended; it should be written down. | `test_paused_transfersAndApprovalsStillWork`, `test_paused_adminConfigStillWorks`, `test_paused_upgradeStillWorks` | documented |
 | I-4 | `initialize` accepts any `_chainId`. It is not checked against `block.chainid`. With the reference account implementation, a wrong value makes every TBA report a foreign chain. | `test_initialize_acceptsForeignChainId` | documented |
 | I-5 | `bytes32(0)` was accepted as a spatial nullifier. It is now rejected with `InvalidNullifier()` (R3). | `test_zeroNullifier_isRejected` (inverted), `test_R4_upgradeFromVerbatimOriginal_*` | fixed (R3) |
-| I-6 | With no generator set, `tokenURI` falls back to `ERC721Upgradeable.tokenURI`. `_baseURI()` is not overridden, so the result is `""`. Since R1 this is also what a broken generator yields: no revert, but empty metadata. | `test_tokenURI_noGeneratorFallback_returnsEmpty`, `test_tokenURI_noGeneratorFromInit`, `test_R1_*`, `test_H3_*` | documented, still open (no `_baseURI` override, out of scope) |
+| I-6 | With no generator set, `tokenURI` falls back to `ERC721Upgradeable.tokenURI`. `_baseURI()` is now overridden (I-6 round), so an admin-set base URI flows into this fallback; with the base unset, which is the shipped default, the result is still `""`. Since R1 this is also what a broken generator yields: no revert, but empty metadata. | `test_tokenURI_noGeneratorFallback_returnsEmpty`, `test_tokenURI_noGeneratorFromInit`, `test_R1_*`, `test_H3_*` | fixed (I-6 round), base URI unset by default |
 | I-7 | **(H6)** `uint64(block.timestamp)` (l.128, l.153) truncates only after 2^64 − 1 s, which is about 5.8×10^11 years. The test warps to `type(uint64).max` (stored exactly) and to `type(uint64).max + 1` (stored as `0`). No practical impact. | `test_H6_timestampCast_truncatesOnlyBeyondUint64` | informational |
 | I-8 | **(H6 missing-zero-check)** `_uriGenerator` / `setURIGenerator` accept `address(0)`, and that is intended: zero selects the fallback path, which is tested. The other address inputs are already zero-checked (`initialize`, `setBufferPool`, `mintTree` planter), and after F-1 the registry return is too. `erc6551Implementation` has no code check, but the reference registry doesn't require one either. Hardening round: `setURIGenerator` also rejects codeless non-zero addresses (R3), and the registry's return is validated in full (R2). | `test_initialize_revertsOnZero*`, `test_setBufferPool_revertsOnZero`, `test_setURIGenerator_toZero` | informational |
 
@@ -275,12 +284,14 @@ documents a residual, and the second is not a behaviour-change test.)
   record isn't written yet), and the outer mint reverts atomically with no state persisted (`test/Reentrancy.t.sol`, 6 tests).
 - **H5, "missing `__gap` makes upgrades unsafe": REFUTED.** Every OZ v5 parent (Initializable, ERC721, AccessControl,
   Pausable, ReentrancyGuard, UUPS) uses ERC-7201 namespaced storage. The only sequential slots belong to BioRigCoreV5
-  itself (slots 0–7: `_nextTokenId, erc6551Registry, erc6551Implementation, chainId, bufferPool, uriGenerator, _trees, _activeNullifiers`).
+  itself (slots 0–8: `_nextTokenId, erc6551Registry, erc6551Implementation, chainId, bufferPool, uriGenerator, _trees,
+  _activeNullifiers`, plus `_baseTokenURI` appended by the I-6 round).
   A `__gap` only protects a base contract whose children add variables after it. Appending to the most-derived contract
   is safe, and that is how `test/mocks/BioRigCoreV6.sol` adds `v6Marker`. `test_upgrade_v6ReadsV5State_layoutPreserved`
-  snapshots raw slots 0–7, upgrades, and asserts they are byte-identical, that `v6Marker` lands in slot 8, and that every
-  piece of V5 state reads back correctly through V6: trees (alive and dead), nullifiers, roles, approvals, pause state,
-  generator, buffer pool and the private token counter. `test_H5_parentsUseNamespacedStorage` locates ERC721 `_owners`
+  snapshots V5's own sequential slots (0–8 at the tip), upgrades, and asserts they are byte-identical, that `v6Marker`
+  lands in the first slot after V5's own (slot 9, since the I-6 round took slot 8), that no V5 slot already held the
+  marker value, and that every piece of V5 state reads back correctly through V6: trees (alive and dead), nullifiers,
+  roles, approvals, pause state, generator, buffer pool, base URI and the private token counter. `test_H5_parentsUseNamespacedStorage` locates ERC721 `_owners`
   inside its namespace. A gap would only matter if someone later **inherits from** BioRigCoreV5 and adds state in a
   different order, which is a convention, not a present defect. No gap was added.
 - **H6, "timestamp cast, missing-zero-check and reentrancy-events are real issues": no real impact shown.** They are
@@ -295,12 +306,21 @@ documents a residual, and the second is not a behaviour-change test.)
   `github.com/erc6551/reference/src/ERC6551Registry.sol`: header `3d60ad80600a3d3981f3363d3d373d3d3d363d73`, footer
   `5af43d82803e903d91602b57fd5bf3`, init code length 0xb7, CREATE2 with the raw salt. Whether the deployed registry
   behaves identically on a given chain is not established here.
+
+  **Settled since, on a live chain rather than a fork.** `BioRigCoreV5` is deployed to Celo Sepolia (chain id
+  `11142220`) behind `ERC1967Proxy` `0x21ab8b36177f65ce69e04e281e4aff3db6b5f7e6` at block `37511856`, with
+  `erc6551Registry` = `0x000000006551c19487814612e58FE06813775758` (the canonical address, and it carries code on that
+  chain) and `erc6551Implementation` = `0x3d8a53dB1bBcab6D47097B25080527e5560C5165`. `mintTree` has run against that
+  registry on chain: `getTreeStats(1)` returns a live tree. So on this chain the deployed registry does behave as the
+  mock assumes.
 - **Behaviour of the canonical deployed ERC-6551 account implementation.** Since the hardening round, account code is
   executed: `test/mocks/TokenBoundAccount.sol` is a minimal reference-style account (`token()` from the runtime footer,
   ERC-165). It is not the reference `ERC6551Account`, and `owner()`/`execute` are not exercised. That the canonical
   implementation reports `supportsInterface(0x6faff5f1) == true` comes from the ERC-6551 spec and was not tested here
   against deployed bytecode. If a deployment's implementation does not report it, **every mint reverts `InvalidTba()`**.
-  Check this with a fork test before upgrading.
+  **Settled since, on Celo Sepolia:** tree id 1 minted through `_validateTba` against the implementation named above,
+  so that deployment's implementation does report `supportsInterface(0x6faff5f1) == true` and a binding that matches.
+  A different chain still needs the same check, and a fork test remains the way to do it before an upgrade there.
 - **Off-chain impact of I-2** (whether any indexer actually depends on `TreeMinted` coming before `GrowthUpdated`).
 
 ## How the suite was checked for vacuous passes
@@ -331,8 +351,12 @@ Mocks are in `test/mocks/`:
 
 Evidence files: `evidence/storageLayout.{before,after}.txt` (byte-identical tables), `evidence/storageLayout.{original,before,after}.json`
 and `.normalized.json`, `evidence/normalize_layout.py`, `evidence/prechange-run.txt`, `evidence/forge-test.txt`.
+The I-6 round's evidence is in `evidence/i6/`: `forge-test.after.txt` (the 175-test run at the tip), `forge-test.txt`,
+the three-way storage-layout captures (`storageLayout.{original,prei6,after}.*` with `storage-layout-comparison.txt`,
+`compare_layout.py`, `inspect_layout.sh`), the pre-change runs (`prechange-orig.txt`, `prechange-prei6.txt`,
+`run_prechange.sh`) and the layout test before and after (`upgrades-test.{before,after}.sol`, `upgrades-test.diff`).
 
-## Evidence: final `forge test`
+## Evidence: `forge test` at the hardening round (160 tests)
 
 ```
 Compiling 16 files with Solc 0.8.28
