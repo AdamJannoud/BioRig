@@ -414,16 +414,15 @@ the `v1`-based `forge verify-contract` path, not to verification on this explore
 
 ## 8. Celo mainnet (chain 42220): Alpha v1 / pilot broadcast runbook
 
-**Executed by Adam Jannoud, the project's author and sole deployer, on 1 October 2026: steps 0-6 and 8 of the runbook
-below ran; step 7, the role handover, has not.** Read back
-from the chain, `DEFAULT_ADMIN_ROLE`, `UPGRADER_ROLE`, `VERIFIER_ROLE` and `bufferPool` all still sit with the deployer
-hot key `0x1DB0084Db70bF8D0E06c1785D693Fc6a95317890`, and no tree is minted: `ownerOf(1)` reverts
-`ERC721NonexistentToken(1)`. Step 7 is to run in **mode B**: the Safe takes `DEFAULT_ADMIN_ROLE` and
-`UPGRADER_ROLE` and the deployer key keeps `VERIFIER_ROLE` (minting), the choice recorded on 1 October 2026.
-`script/handover-fork-check.sh` rehearses exactly that against live mainnet state on a fork.
-Step 7 is blocked until the Safe's sole owner, today the deployer key itself, is moved to an address the hot key
-cannot sign for: that is step 7a, `script/SafeOwnerSwap.s.sol`, rehearsed end to end, swap and then mode-B
-handover, by `script/safe-owner-swap-fork-check.sh`.
+**Executed by Adam Jannoud, the project's author and sole deployer, on 1 October 2026: every step of the runbook
+below has run, step 7 the role handover included, in mode B.** Read back from the chain afterwards,
+`DEFAULT_ADMIN_ROLE` and `UPGRADER_ROLE` sit with the Safe `0x3B36b3446fCB0729B0046520156933E56352D551`, whose sole
+owner is the plain EOA `0xD314e37FD8538fe66231EE670B74C9428d03feEa` - an address the deployer hot key
+`0x1DB0084Db70bF8D0E06c1785D693Fc6a95317890` cannot sign for - while the deployer key keeps `VERIFIER_ROLE`
+(minting) and still holds `bufferPool`. No tree is minted: `ownerOf(1)` still reverts `ERC721NonexistentToken(1)`.
+Mode B was the choice recorded on 1 October 2026. `script/handover-fork-check.sh` and
+`script/safe-owner-swap-fork-check.sh` rehearse exactly that against live mainnet state on a fork, and both were
+green before anything was broadcast.
 
 One broadcast, four transactions, 4,015,198 gas, **0.803044 CELO** at 200.0011 gwei, all in block `78935900`, every
 receipt status `0x1`. The canonical registry was reused rather than deployed, so `DeployAll` sent four transactions and
@@ -442,25 +441,29 @@ All four report `is_verified: true`, read on 1 October 2026 from `/api/v2/smart-
 explorer resolved the registry, the account implementation and the proxy through its Ethereum Bytecode Database, the
 same partial match Celo Sepolia reached, and `BioRigCoreV5` from this repository's own source.
 
+**Step 7 executed later the same day, mode B**: five transactions, 278,000 gas, **0.055600295 CELO** at 200.001 gwei,
+every receipt status `0x1`. Addresses and hashes are below, step by step.
+
 The rest of this section is the ordered runbook as approved, with each step's status marked:
 
 - **Alpha v1 / pilot.** The external audit is a later grant milestone, not a gate on this deployment.
 - **Admin.** Deploy from a fresh deployer hot key with `ADMIN` equal to it, which is what `_preflightBase` requires,
-  then hand admin to a Celo Safe with `script/HardenMainnetAdmin.s.sol`. That is a separate run, step 7, and it has
-  **not run**: the deployer still holds admin.
+  then hand admin to a Celo Safe with `script/HardenMainnetAdmin.s.sol`. That separate run, step 7, **has run**: the
+  Safe holds `DEFAULT_ADMIN_ROLE` and `UPGRADER_ROLE`, and the deployer key holds neither.
 - **Verifier.** `VERIFIER_ROLE` goes to whatever address `VERIFIER_ADDRESS` names. A dedicated server-side key
   is the better end state and is what the script prefers, but the approved choice here is that there is no such
   key yet, so the deployer keeps the role and keeps mint/update/reportMortality; it loses pause, upgrade and
   role administration. The Safe holds `DEFAULT_ADMIN_ROLE` after the handover, so it can grant `VERIFIER_ROLE`
   to a dedicated key and revoke it from the deployer at any time, without another handover. The handover
-  refuses a `VERIFIER_ADDRESS` equal to the Safe, and a Safe whose owners include the deployer. **Pending**,
-  step 7: the deployer holds it today.
+  refuses a `VERIFIER_ADDRESS` equal to the Safe, and a Safe whose owners include the deployer. **Done**: the
+  deployer holds it, and the Safe that holds admin can grant it to a dedicated key at any time.
 - **Explainer.** The video stays as rendered against Celo Sepolia (`DEMO.md`); it is not re-rendered.
 
 What the code expects of mainnet: the canonical ERC-6551 registry is already there with the canonical bytecode
 (section "Deployment is not proof"), so `DeployAll` sends **four** transactions (account implementation, BioRig
 implementation, proxy, `grantRole`) and **no CREATE2**. That was estimated at about 0.81 CELO at the 202.5 gwei of
-1 October 2026; the run above actually spent 0.803044 CELO at 200.0011 gwei. The handover adds six small transactions.
+1 October 2026; the run above actually spent 0.803044 CELO at 200.0011 gwei. The handover added five small
+transactions, 0.055600295 CELO.
 
 Before starting, have three things ready: the Celo Safe that becomes admin (deployed through app.safe.global, with
 its owners and threshold decided, and the new deployer key not among them), the verifier server's address (its key
@@ -547,7 +550,7 @@ pinned by its codehash.
 
 **7a. Take the Safe off the deployer key (`script/SafeOwnerSwap.s.sol`).** The handover below refuses a `NEW_ADMIN`
 Safe the deployer can sign for, and the Safe supplied for mainnet, `0x3B36b3446fCB0729B0046520156933E56352D551`
-(SafeL2 1.5.0, threshold 1, nonce 0), has the deployer hot key as its **sole owner**, as had the other address supplied
+(SafeL2 1.5.0, threshold 1, nonce 0), had the deployer hot key as its **sole owner**, as had the other address supplied
 on 1 October 2026, `0xe7042bC31A13E4FD2D5C4176ec52D28907E1311E`. Handing admin to it would leave the pen in the same
 hand, so its owner is moved first, in one Safe transaction: `swapOwner(0x1, deployer, NEW_OWNER)`, hashed by the
 Safe's own `getTransactionHash`, signed by the deployer and sent with `execTransaction`, then read back (owners exactly
@@ -560,6 +563,14 @@ NEW_OWNER=$NEW_OWNER SAFE_ADDRESS=$SAFE_ADDRESS forge script script/SafeOwnerSwa
 NEW_OWNER=$NEW_OWNER SAFE_ADDRESS=$SAFE_ADDRESS forge script script/SafeOwnerSwap.s.sol:SafeOwnerSwap --rpc-url "$RPC_URL" --broadcast
 cast call "$SAFE_ADDRESS" "getOwners()(address[])" --rpc-url "$RPC_URL"   # [NEW_OWNER], and the deployer is gone
 ```
+
+**Run on 1 October 2026** with `NEW_OWNER=0xD314e37FD8538fe66231EE670B74C9428d03feEa`: one Safe transaction,
+`execTransaction` on the Safe in block `78991457`, tx `0x7a99f8092aa924018bab62ab4b0362c9d291376fc96065f614d44a3712288012`,
+gas 105,580, **0.021116106 CELO**, carrying `swapOwner(0x1, 0x1DB0084Db70bF8D0E06c1785D693Fc6a95317890,
+0xD314e37FD8538fe66231EE670B74C9428d03feEa)`. The Safe's own `getTransactionHash` for it was
+`0xc697ea1fc74ae8b3953f6a1ae550fb3265ea1a3c351fc4d696f6ea25981ef916358fbea7b2887cbd9bae2efb92f4ba895b1ad753733b7779b22e5b9e602152321b`.
+Read back from the chain: `getOwners()` returns `[0xD314e37FD8538fe66231EE670B74C9428d03feEa]`, `getThreshold()` 1,
+`nonce()` 1, and the deployer key is no longer an owner.
 
 The preflight runs before anything is signed and refuses, saying what to do:
 
@@ -582,6 +593,21 @@ Safe and asserts the end state with `hasRole`. It must print `REHEARSAL PASSED` 
 
 **7b. Hand the roles over**, with `NEW_ADMIN` set to the Safe swapped in 7a. Simulate first; the broadcast reads every transition back and reverts on the first
 surprise. Then read the roles from the chain itself, and sweep what is left of the deployer's CELO.
+
+**Run on 1 October 2026**, `NEW_ADMIN` the swapped Safe and `VERIFIER_ADDRESS` the deployer key: four transactions,
+every receipt `0x1`, all in the same minute.
+
+| Call | Tx | Block | Gas |
+| --- | --- | --- | --- |
+| `grantRole(UPGRADER_ROLE, Safe)` | `0x1f4e63f5d972c9b8b93316da3c2a9dc2707c10a346a3839c0a869475a101853a` | 78991473 | 56,613 |
+| `grantRole(DEFAULT_ADMIN_ROLE, Safe)` | `0xfa89432ecd8824a96597165e8402a93f7d1405a3ae2f2bc3a1ee0d6e675455cd` | 78991476 | 56,229 |
+| `renounceRole(UPGRADER_ROLE, deployer)` | `0x84977e0e9aead685a5cdf2750b38d81e1dd623d981e596ea25ac1f3a571115a8` | 78991478 | 29,981 |
+| `renounceRole(DEFAULT_ADMIN_ROLE, deployer)` | `0x631857c34f36401a0d503cdc3bbe75ebae2c16aaa090163c06b5ce231b034f55` | 78991482 | 29,597 |
+
+172,420 gas, **0.034483190 CELO** at 200.001 gwei. Both grants land before either renounce, so the proxy is never
+left without a `DEFAULT_ADMIN_ROLE` holder. Read back with the loop below, the deployer prints `false false true`
+and the Safe `true true false`: the mode-B line, exactly. `bufferPool` is unchanged at the deployer address and
+`ownerOf(1)` still reverts `ERC721NonexistentToken(1)`. The deployer's balance is `3.037630769622172860` CELO.
 
 ```bash
 forge script script/HardenMainnetAdmin.s.sol:HardenMainnetAdmin --rpc-url "$RPC_URL"

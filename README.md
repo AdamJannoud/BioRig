@@ -19,11 +19,13 @@ registry was already on the chain, so it was reused rather than deployed. All fo
 | ERC-6551 account implementation | `0x65D18C960170ca2B4936c62945bA0e827e5cCd2B` |
 | ERC-6551 registry (canonical) | `0x000000006551c19487814612e58FE06813775758` |
 
-Admin, `UPGRADER_ROLE` and `BUFFER_POOL` still sit with Adam Jannoud's deployer hot key
-`0x1DB0084Db70bF8D0E06c1785D693Fc6a95317890`, and **nothing is minted on mainnet yet**:
-step 7 of `DEPLOY.md` section 8, the role handover, has not run. It hands admin and upgrade to a Celo Safe and
-leaves minting (`VERIFIER_ROLE`) with the deployer key. That
-section records the broadcast and what it produced, address by address.
+Administration and upgrade of the mainnet deployment were handed to the Celo Safe
+`0x3B36b3446fCB0729B0046520156933E56352D551` on 1 October 2026 (step 7 of `DEPLOY.md` section 8), leaving minting
+(`VERIFIER_ROLE`) with Adam Jannoud's deployer hot key `0x1DB0084Db70bF8D0E06c1785D693Fc6a95317890`, which also
+still holds `BUFFER_POOL`. The Safe's sole owner is the plain EOA
+`0xD314e37FD8538fe66231EE670B74C9428d03feEa`, an address the hot key cannot sign for. **Nothing is minted on
+mainnet yet**: `ownerOf(1)` still reverts. That section records the broadcast, the handover and what each produced,
+address by address.
 
 **Celo Sepolia** (chain id `11142220`) is the testnet deployment the demo pieces render, live since 30 September 2026
 in block `37511856`, and still the tooling's default chain:

@@ -128,6 +128,6 @@ pinned: false
 - It does not run the video generator or the browser-based checks in `scripts/verify-demo.sh`. Those stay
   local (`pip install -r tools/requirements.txt`).
 - The verifier key lives in the host's secret store. It is still a real key: on Celo Sepolia fund it with
-  testnet CELO only; on Celo mainnet `VERIFIER_ROLE` sits with whatever address `VERIFIER_ADDRESS` names at the step 7 handover,
-  which is the deployer key itself under the 1 October 2026 decision and a dedicated key once one is granted
-  the role.
+  testnet CELO only; on Celo mainnet `VERIFIER_ROLE` names the deployer key
+  `0x1DB0084Db70bF8D0E06c1785D693Fc6a95317890`, the address step 7 settled on 1 October 2026, and a dedicated key
+  once the Safe that holds `DEFAULT_ADMIN_ROLE` grants the role to one.
