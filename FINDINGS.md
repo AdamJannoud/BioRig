@@ -11,7 +11,7 @@ Result at the hardening round: **160 tests, 160 passed, 0 failed, 0 skipped** (1
 at 256 runs each, and 1 invariant suite with 4 invariants at 128 runs × depth 100 = 12,800 handler calls, 0 reverts).
 That run's output is in `evidence/forge-test.txt` and at the end of this file.
 
-The I-6 round landed after it (`_baseURI()` override, commit `5c0e8d8`). The suite at the tip is **175 tests, 175
+The I-6 round landed after it (`_baseURI()` override, commit `2a5490b`). The suite at the tip is **175 tests, 175
 passed, 0 failed, 0 skipped across 16 suites**, re-run on 2026-10-01; that output is in
 `evidence/i6/forge-test.after.txt`. Where this file calls storage unchanged, it means unchanged by the hardening
 round — the I-6 round appended one variable (see R4).
@@ -184,7 +184,7 @@ documents a residual, and the second is not a behaviour-change test.)
 |------|--------|-----|
 | **I-1 / H2** unchecked registry account | documented trust assumption | **FIXED (R2), with residual trust.** The returned account must be a contract that reports `IERC6551Account` support and claims exactly this token's binding. EOAs, wrong-token accounts and contracts without `token()` are rejected. |
 | **L-1 / H3** generator availability (codeless / reverting generator reverts `tokenURI`) | Low, documented, not fixed | **FIXED (R1 + R3).** `tokenURI` no longer reverts on a codeless, reverting or gas-exhausting generator. The setter refuses codeless addresses. |
-| **I-6** empty fallback | documented | **FIXED after this round (I-6 round, commit `5c0e8d8`).** The R1 fallback is `super.tokenURI`, which returns **the empty string** while the base URI is unset. "Not bricked" is not the same as "useful metadata". While a generator is broken, marketplaces get `""`, not an error. That is arguably harder to notice than a revert. The I-6 round added it: `_baseTokenURI` at slot 8, `_baseURI()` overridden to join the base with the token id, and an admin-only `setBaseURI`. As shipped the base URI is unset, so the empty-string behaviour this row describes still holds until an admin sets one — verified live on the deployment, where `baseURI()` and `tokenURI(1)` both return `""`. |
+| **I-6** empty fallback | documented | **FIXED after this round (I-6 round, commit `2a5490b`).** The R1 fallback is `super.tokenURI`, which returns **the empty string** while the base URI is unset. "Not bricked" is not the same as "useful metadata". While a generator is broken, marketplaces get `""`, not an error. That is arguably harder to notice than a revert. The I-6 round added it: `_baseTokenURI` at slot 8, `_baseURI()` overridden to join the base with the token id, and an admin-only `setBaseURI`. As shipped the base URI is unset, so the empty-string behaviour this row describes still holds until an admin sets one — verified live on the deployment, where `baseURI()` and `tokenURI(1)` both return `""`. |
 | **I-5** zero nullifier accepted | documented | **FIXED (R3)** for new mints. A zero-nullifier tree minted before an upgrade stays valid and manageable (tested). |
 | **I-8** zero checks | informational | `setURIGenerator` now also checks code. `initialize` still accepts a codeless generator (not in R3), and R1 makes that harmless for availability. |
 | **F-1 / H1** | fixed | unchanged, still passing |

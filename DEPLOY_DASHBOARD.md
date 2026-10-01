@@ -36,8 +36,8 @@ secrets only pick another chain, add the signing account and change from read-on
 pinned `requirements.txt`, `.streamlit/config.toml`, `dashboard/` and `dashboard/deployment.json`, alongside
 the contracts and the test suite. Deploy from the head of `main`.
 
-For reference: the entrypoint landed in `f863608`, `668a99f` was a deploy-doc update, and `a9e24df` is the
-commit that added the regenerated architecture diagram and its README section. `a9e24df` was the head of
+For reference: the entrypoint landed in `fee46b9`, `d56b8b5` was a deploy-doc update, and `7911216` is the
+commit that added the regenerated architecture diagram and its README section. `7911216` was the head of
 `main` when this section was written. Treat the hash as a landmark rather than a pin — commits that only
 touch documentation, including the one that wrote this sentence, keep moving the tip. `git ls-remote
 origin refs/heads/main` gives the live tip, and what a deploy needs is the entrypoint, which is on `main`.
