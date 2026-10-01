@@ -124,7 +124,8 @@ The Token-Bound Account derivation agrees three independent ways: offline CREATE
 |---|---|
 | Repository | `AdamJannoud/BioRig` — **private** |
 | Branch | `main` |
-| Head commit | `cb6b2c5` (verified against the GitHub API on 1 October 2026) |
+| Head commit | `b4f34df` on `main`, verified against the GitHub API on 1 October 2026 before this document was committed |
+| Reading the live tip | `git ls-remote origin refs/heads/main` — the head moves whenever a commit lands, so read it rather than trusting any hash printed here |
 | Live demo | **Not yet public** — see below |
 
 **Two items a reviewer cannot currently open, both fixable before submission:**
@@ -255,7 +256,7 @@ The mint transaction `0x486bc529…4b9d5f9e` at block 37512380 is visible in ful
 
 **4. Repository**
 
-`AdamJannoud/BioRig`, branch `main`, head `cb6b2c5`. Run `forge test` for the 175-test suite and `forge inspect src/BioRigCoreV5.sol:BioRigCoreV5 storageLayout` for the storage layout the upgrade test asserts. `FINDINGS.md` at the repository root records the audit: per-hypothesis verdicts, the defect that was found and fixed, the residual trust deliberately left open, and an honest list of what was not verified.
+`AdamJannoud/BioRig`, branch `main`, head `b4f34df` as verified on 1 October 2026. This document was committed on `main` after that verification, so read the live tip with `git ls-remote origin refs/heads/main` rather than treating the hash in this sentence as current. Run `forge test` for the 175-test suite and `forge inspect src/BioRigCoreV5.sol:BioRigCoreV5 storageLayout` for the storage layout the upgrade test asserts. `FINDINGS.md` at the repository root records the audit: per-hypothesis verdicts, the defect that was found and fixed, the residual trust deliberately left open, and an honest list of what was not verified.
 
 **5. Hosted dashboard**
 
@@ -312,6 +313,6 @@ The most defensible route is therefore to mint a small number of real trees on t
 | Code sizes and bytecode match | Live `cast code` reads on the four Sepolia addresses and the mainnet proxy, implementation and account implementation, compared against local artifacts, 1 October 2026 |
 | Partial verification on all four, on both chains | Blockscout v2 API for Celo Sepolia and Celo mainnet, re-read 1 October 2026 |
 | Mint details and nullifier | The mint transaction, the token-bound account derivation, and the dashboard's own derivation |
-| Repository head `cb6b2c5` | GitHub API, 1 October 2026 |
+| Repository head `b4f34df` | GitHub API, 1 October 2026, verified before this document was committed |
 | 129 dashboard and tooling tests, 16 architecture address tests, entrypoint check | Project test runs under the repository's own environment |
 | Prezenti pool criteria, bands, exclusions and payment split | `prezenti.xyz/grants`, read 1 October 2026 |
