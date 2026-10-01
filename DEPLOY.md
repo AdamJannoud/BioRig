@@ -199,6 +199,17 @@ cast send "$PROXY" "mintTree(address,bytes32,uint96,uint96)" <planter> "$(cast k
 cast call "$PROXY" "getTreeStats(uint256)((uint96,uint96,uint64,address,bool,bytes32))" 1 --rpc-url "$RPC_URL"
 ```
 
+The nullifier in that command is the **bare salt**, `$(cast keccak plot-1)` =
+`0xf8fa2658012341dda81dbb7d27a6bb0accd68b63e618001d8ccbed1375dbf667`, and the live tree stored exactly that
+value (block `37512380`). It is a deliberate demo mint, not the production derivation. Production derives the
+nullifier from the plot's H3 cell at resolution 12 - `keccak256(uint64(h3Cell) ++ utf8(salt))`, implemented in
+`dashboard/h3_nullifier.py`; for that same plot and salt it gives
+`0xb7a55a6b1b7e4fe0fba76f303772cba7fdf3715d4030e3fcd91ed297c756d741`, which is the value the dashboard
+computes, displays and checks for reuse (`tools/demo_facts.json` records both digests side by side: the chain's
+under `spatial_nullifier`, the derivation's under `demo_h3`). Neither value is enforced on chain: `mintTree`
+stores the 32-byte argument it is given and rejects only `bytes32(0)`, so any deployment relying on the H3
+guarantee has to derive it off-chain. Swap the literal for the computed digest to mint a production-style tree.
+
 `mintTree` uses `_safeMint`. A planter with code must implement `onERC721Received`. That includes EOAs with an
 EIP-7702 delegation, whose code begins `0xef0100...`. On Celo Sepolia, anvil's well-known test accounts carry exactly
 such a delegation, and minting to them reverts.
