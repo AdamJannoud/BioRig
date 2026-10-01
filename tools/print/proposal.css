@@ -1,0 +1,203 @@
+/* Print stylesheet for the BioRig Prezenti proposal export.
+   Target: A4, Chromium print-to-PDF.
+
+   Type families are deliberately limited to STATIC TrueType faces: Chromium's
+   PDF backend emits Type 3 glyph procedures for variable fonts (Inter, Manrope,
+   DM Sans, Archivo are all variable here) and for Type 1 faces, which is wrong
+   for a document that will be printed. Lato + Caladea + DejaVu Sans Mono all
+   embed as subsetted CID TrueType. */
+
+:root {
+  --ink: #16212b;
+  --muted: #5a6a78;
+  --rule: #dde3e9;
+  --accent: #1f7a4d;
+  --accent-soft: #eef5f0;
+  --table-head: #16212b;
+  --sans: "Lato", "Carlito", "Liberation Sans", Arial, sans-serif;
+  --serif: "Caladea", "Liberation Serif", Georgia, serif;
+  --mono: "DejaVu Sans Mono", "Liberation Mono", monospace;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 10.6pt;
+  line-height: 1.5;
+  color: var(--ink);
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+/* ---------------------------------------------------------------- title block */
+
+.title-block {
+  border-top: 3px solid var(--accent);
+  padding-top: 12px;
+  margin-bottom: 14px;
+  font-family: var(--sans);
+}
+
+.eyebrow {
+  margin: 0 0 6px;
+  font-size: 7.8pt;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+h1.doc-title {
+  margin: 0 0 4px;
+  font-size: 20pt;
+  font-weight: 700;
+  line-height: 1.18;
+  letter-spacing: -0.01em;
+}
+
+.doc-subtitle {
+  margin: 0 0 13px;
+  font-size: 9.4pt;
+  color: var(--muted);
+}
+
+table.meta {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 9pt;
+}
+
+table.meta td {
+  padding: 3px 0;
+  vertical-align: top;
+  border-top: 1px solid var(--rule);
+}
+
+table.meta tr:first-child td { border-top: 0; }
+
+table.meta td.k {
+  width: 158px;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.callout {
+  margin: 13px 0 0;
+  padding: 9px 12px;
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+  font-family: var(--serif);
+  font-size: 9.5pt;
+  break-inside: avoid;
+}
+
+.callout p { margin: 0; }
+
+/* ----------------------------------------------------------------------- toc */
+
+.toc { font-family: var(--sans); }
+
+.toc-title {
+  margin: 19px 0 8px;
+  padding-bottom: 4px;
+  font-size: 10.4pt;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border-bottom: 1px solid var(--rule);
+}
+
+.toc ul { list-style: none; margin: 0; padding: 0; }
+.toc > ul > li { margin: 0 0 2px; font-size: 9.4pt; }
+.toc > ul > li > a { font-weight: 700; }
+.toc ul ul { margin: 2px 0 5px 15px; font-size: 8.6pt; line-height: 1.35; }
+.toc ul ul li { margin: 0 0 1px; color: var(--muted); }
+.toc a { text-decoration: none; }
+
+/* -------------------------------------------------------------------- headings */
+
+h2 {
+  break-before: page;
+  margin: 0 0 11px;
+  padding-bottom: 5px;
+  font-family: var(--sans);
+  font-size: 13.2pt;
+  font-weight: 700;
+  letter-spacing: -0.004em;
+  border-bottom: 1.6px solid var(--accent);
+}
+
+h3 {
+  break-after: avoid;
+  margin: 15px 0 5px;
+  font-family: var(--sans);
+  font-size: 10.6pt;
+  font-weight: 700;
+  color: #123743;
+}
+
+h3 + p, h3 + ul, h3 + ol, h3 + table { break-before: avoid; }
+
+/* ----------------------------------------------------------------------- flow */
+
+p { margin: 0 0 8px; orphans: 2; widows: 2; }
+ul, ol { margin: 0 0 9px; padding-left: 16px; }
+li { margin: 0 0 4px; orphans: 2; widows: 2; }
+li > ul, li > ol { margin-top: 4px; }
+hr { display: none; }
+strong { font-weight: 700; }
+
+a { color: var(--accent); text-decoration: none; }
+
+blockquote {
+  margin: 0 0 9px;
+  padding: 8px 12px;
+  border-left: 3px solid var(--rule);
+  background: #f7f9fa;
+  color: #3c4a55;
+}
+
+code {
+  font-family: var(--mono);
+  font-size: 0.82em;
+  padding: 0.5px 3px;
+  border-radius: 2px;
+  background: #f1f4f6;
+  overflow-wrap: anywhere;
+}
+
+/* --------------------------------------------------------------------- tables */
+
+table:not(.meta) {
+  width: 100%;
+  margin: 0 0 11px;
+  border-collapse: collapse;
+  font-family: var(--sans);
+  font-size: 8.6pt;
+}
+
+table:not(.meta) th {
+  padding: 5px 7px;
+  background: var(--table-head);
+  color: #ffffff;
+  font-size: 8.3pt;
+  font-weight: 700;
+  text-align: left;
+  vertical-align: bottom;
+}
+
+table:not(.meta) td {
+  padding: 5px 7px;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+  /* break-word, not anywhere: a label like "Network" must not split mid-word,
+     while a 42-character address or a 66-character hash still has to wrap. */
+  overflow-wrap: break-word;
+}
+
+table:not(.meta) tr { break-inside: avoid; }
+table:not(.meta) tbody tr:nth-child(even) { background: #f7f9fa; }
+table:not(.meta) td code { padding: 0; font-size: 7.4pt; background: transparent; overflow-wrap: anywhere; }

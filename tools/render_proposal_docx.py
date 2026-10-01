@@ -1,0 +1,788 @@
+#!/usr/bin/env python3
+"""Render docs/prezenti-proposal.md to a review-ready .docx.
+
+The Markdown stays the single source of truth, exactly as for the PDF export
+(tools/render_proposal_pdf.py): same parser, same chrome (cover, contents,
+footer), same palette as tools/print/proposal.css, so the two exports cannot
+drift apart.
+
+Typography differs from the PDF on purpose. A .docx does not embed its fonts, so
+the document is set in Cambria and Calibri: Cambria is metric-compatible with the
+PDF's Caladea body, Calibri stands in for its Lato headings, and both ship with
+Word. Consolas stands in for DejaVu Sans Mono.
+
+Usage:
+    python3 tools/render_proposal_docx.py [--src PATH] [--out PATH] [--check]
+"""
+
+from __future__ import annotations
+
+import argparse
+import pathlib
+import re
+import sys
+from html.parser import HTMLParser
+
+import markdown
+from docx import Document
+from docx.enum.table import WD_ALIGN_VERTICAL
+from docx.enum.text import WD_BREAK, WD_ALIGN_PARAGRAPH, WD_TAB_ALIGNMENT
+from docx.opc.constants import RELATIONSHIP_TYPE as RT
+from docx.oxml import OxmlElement
+from docx.oxml.ns import qn
+from docx.shared import Cm, Pt, RGBColor
+
+REPO = pathlib.Path(__file__).resolve().parents[1]
+
+INK = RGBColor(0x16, 0x21, 0x2B)
+MUTED = RGBColor(0x5A, 0x6A, 0x78)
+ACCENT = RGBColor(0x1F, 0x7A, 0x4D)
+SUBHEAD = RGBColor(0x12, 0x37, 0x43)
+QUOTE_INK = RGBColor(0x3C, 0x4A, 0x55)
+WHITE = RGBColor(0xFF, 0xFF, 0xFF)
+
+RULE = "DDE3E9"
+RULE_FILL = "F7F9FA"
+ACCENT_SOFT = "EEF5F0"
+ZEBRA = "F7F9FA"
+CODE_FILL = "F1F4F6"
+HEAD_FILL = "16212B"
+
+SANS = "Calibri"
+SERIF = "Cambria"
+MONO = "Consolas"
+
+BODY_PT = 10.5
+CONTENT_CM = 17.0
+FIELD = re.compile(r"^\*\*(?P<label>[^*]+?):\*\*\s*(?P<value>.*)$")
+SUBTITLE = "Prepared for the Prezenti review team \u00b7 1 October 2026"
+FOOTER_TITLE = "BioRig \u2014 Prezenti Grant Application Proposal"
+
+PAGE_BREAK = 1
+BOOKMARK_ID = [1000]
+
+
+# --------------------------------------------------------------------- xml helpers
+
+
+def _el(tag: str, **attrs: str) -> OxmlElement:
+    element = OxmlElement(tag)
+    for key, value in attrs.items():
+        element.set(qn(key), value)
+    return element
+
+
+def _run(text: str, *, bold: bool = False, italic: bool = False, font: str = SERIF,
+         size: float = BODY_PT, color: RGBColor | None = None,
+         underline: bool = False, fill: str | None = None,
+         letter_spacing: int | None = None) -> OxmlElement:
+    """One formatted run. Child order follows the CT_RPr schema."""
+    run = OxmlElement("w:r")
+    props = OxmlElement("w:rPr")
+    props.append(_el("w:rFonts", **{"w:ascii": font, "w:hAnsi": font, "w:cs": font}))
+    if bold:
+        props.append(OxmlElement("w:b"))
+    if italic:
+        props.append(OxmlElement("w:i"))
+    if color is not None:
+        props.append(_el("w:color", **{"w:val": str(color)}))
+    if letter_spacing is not None:
+        props.append(_el("w:spacing", **{"w:val": str(letter_spacing)}))
+    props.append(_el("w:sz", **{"w:val": str(int(round(size * 2)))}))
+    props.append(_el("w:szCs", **{"w:val": str(int(round(size * 2)))}))
+    if underline:
+        props.append(_el("w:u", **{"w:val": "single"}))
+    if fill:
+        props.append(_el("w:shd", **{"w:val": "clear", "w:color": "auto", "w:fill": fill}))
+    run.append(props)
+
+    text_el = _el("w:t", **{"xml:space": "preserve"})
+    text_el.text = text
+    run.append(text_el)
+    return run
+
+
+def _edges(tag: str, spec: dict[str, tuple[int, str]]) -> OxmlElement:
+    """Borders container (w:pBdr / w:tcBorders / w:tblBorders), edges in schema order."""
+    box = OxmlElement(tag)
+    for edge in ("top", "left", "bottom", "right", "insideH", "insideV"):
+        if edge not in spec:
+            continue
+        size, color = spec[edge]
+        if size == 0:
+            box.append(_el(f"w:{edge}", **{"w:val": "none", "w:sz": "0",
+                                           "w:space": "0", "w:color": "auto"}))
+            continue
+        box.append(_el(f"w:{edge}", **{"w:val": "single", "w:sz": str(size),
+                                       "w:space": "0", "w:color": color}))
+    return box
+
+
+def _fill(properties: OxmlElement, fill: str) -> None:
+    properties.append(_el("w:shd", **{"w:val": "clear", "w:color": "auto", "w:fill": fill}))
+
+
+def _hyperlink(paragraph, url: str | None, anchor: str | None) -> OxmlElement:
+    link = OxmlElement("w:hyperlink")
+    if anchor:
+        link.set(qn("w:anchor"), anchor)
+    else:
+        link.set(qn("r:id"), paragraph.part.relate_to(url, RT.HYPERLINK, is_external=True))
+    return link
+
+
+def _field(paragraph, instruction: str, *, font: str, size: float, color: RGBColor) -> None:
+    run = paragraph.add_run()
+    run.font.name = font
+    run.font.size = Pt(size)
+    run.font.color.rgb = color
+    run._r.append(_el("w:fldChar", **{"w:fldCharType": "begin"}))
+    instruction_el = _el("w:instrText", **{"xml:space": "preserve"})
+    instruction_el.text = instruction
+    run._r.append(instruction_el)
+    run._r.append(_el("w:fldChar", **{"w:fldCharType": "end"}))
+
+
+# ----------------------------------------------------------------- markdown -> tree
+
+
+class Node:
+    __slots__ = ("tag", "attrs", "text", "children")
+
+    def __init__(self, tag: str, attrs: dict[str, str] | None = None, text: str = ""):
+        self.tag = tag
+        self.attrs = attrs or {}
+        self.text = text
+        self.children: list[Node] = []
+
+    def first(self, *tags: str) -> Node | None:
+        for child in self.children:
+            if child.tag in tags:
+                return child
+        return None
+
+
+class TreeBuilder(HTMLParser):
+    VOID = {"br", "hr", "img"}
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.root = Node("root")
+        self.stack = [self.root]
+
+    def handle_starttag(self, tag, attrs):
+        node = Node(tag, dict(attrs))
+        self.stack[-1].children.append(node)
+        if tag not in self.VOID:
+            self.stack.append(node)
+
+    def handle_startendtag(self, tag, attrs):
+        self.handle_starttag(tag, attrs)
+        if tag not in self.VOID:
+            self.stack.pop()
+
+    def handle_endtag(self, tag):
+        for index in range(len(self.stack) - 1, 0, -1):
+            if self.stack[index].tag == tag:
+                del self.stack[index:]
+                return
+
+    def handle_data(self, data):
+        if data:
+            self.stack[-1].children.append(Node("#text", text=data))
+
+
+def parse_markdown(text: str) -> Node:
+    """Same extensions as the PDF export, so heading ids and links agree."""
+    body = markdown.markdown(text, extensions=["extra", "sane_lists", "toc"],
+                             extension_configs={"toc": {"permalink": False}})
+    builder = TreeBuilder()
+    builder.feed(body)
+    builder.close()
+    return builder.root
+
+
+def bookmark_name(anchor_id: str) -> str:
+    """Word bookmark names take letters, digits and underscores, max 40 chars."""
+    name = "s_" + re.sub(r"[^0-9A-Za-z_]", "_", anchor_id)
+    return name[:40]
+
+
+def _plain_text(node: Node) -> str:
+    parts: list[str] = []
+    for child in node.children:
+        parts.append(child.text if child.tag == "#text" else _plain_text(child))
+    return "".join(parts).strip()
+
+
+def _cells(row: Node) -> list[Node]:
+    """Real cells only: the parser keeps the newlines inside <tr> as text nodes."""
+    return [child for child in row.children if child.tag in ("td", "th")]
+
+
+def _next_bookmark_id() -> int:
+    BOOKMARK_ID[0] += 1
+    return BOOKMARK_ID[0]
+
+
+def _style_name(document: Document, name: str) -> str | None:
+    """Built-in style name if this template carries it, else None."""
+    try:
+        document.styles[name]
+    except KeyError:
+        return None
+    return name
+
+
+def _paragraph_text(paragraph) -> str:
+    """Text of a paragraph including runs nested in hyperlinks (Paragraph.text skips those)."""
+    return "".join(node.text or "" for node in paragraph._p.iter(qn("w:t")))
+
+
+def _set_paragraph_border(paragraph, spec: dict[str, tuple[int, str]]) -> None:
+    pPr = paragraph._p.get_or_add_pPr()
+    getter = getattr(pPr, "get_or_add_pBdr", None)
+    if getter is not None:
+        box = getter()
+        for edge, (size, color) in spec.items():
+            box.append(_el(f"w:{edge}", **{"w:val": "single", "w:sz": str(size),
+                                           "w:space": "4", "w:color": color}))
+        return
+    box = _edges("w:pBdr", spec)
+    style = pPr.find(qn("w:pStyle"))
+    if style is None:
+        pPr.insert(0, box)
+    else:
+        style.addnext(box)
+
+
+def _shade_paragraph(paragraph, fill: str) -> None:
+    pPr = paragraph._p.get_or_add_pPr()
+    getter = getattr(pPr, "get_or_add_shd", None)
+    if getter is None:
+        pPr.append(_el("w:shd", **{"w:val": "clear", "w:color": "auto", "w:fill": fill}))
+        return
+    shd = getter()
+    shd.set(qn("w:val"), "clear")
+    shd.set(qn("w:color"), "auto")
+    shd.set(qn("w:fill"), fill)
+
+
+def _cell_border(cell, spec: dict[str, tuple[int, str]]) -> None:
+    cell._tc.get_or_add_tcPr().append(_edges("w:tcBorders", spec))
+
+
+def _cell_fill(cell, fill: str) -> None:
+    _fill(cell._tc.get_or_add_tcPr(), fill)
+
+
+def column_widths(rows: list[list[str]], total: float = CONTENT_CM,
+                  minimum: float = 2.4, ceiling: float = 50.0) -> list[float]:
+    """Widths in cm, weighted by the longest cell in each column.
+
+    The longest cell is capped so one paragraph-length cell cannot starve the
+    others, and every column keeps room for a word or two.
+    """
+    count = max(len(row) for row in rows)
+    weights = []
+    for index in range(count):
+        longest = max((len(row[index]) if index < len(row) else 1) for row in rows)
+        weights.append(min(max(longest, 12), ceiling))
+    widths = [total * weight / sum(weights) for weight in weights]
+    for index, width in enumerate(widths):
+        if width >= minimum:
+            continue
+        deficit = minimum - width
+        donor = widths.index(max(widths))
+        widths[donor] -= deficit
+        widths[index] = minimum
+    return widths
+
+
+def configure_table(table, widths: list[float], *,
+                    borders: dict[str, tuple[int, str]] | None = None,
+                    header_rows: int = 0) -> None:
+    """Rule-only table chrome: no vertical rules, hairline horizontals, 17cm wide."""
+    if borders is None:
+        borders = {"top": (4, RULE), "bottom": (4, RULE), "insideH": (4, RULE),
+                   "left": (0, "auto"), "right": (0, "auto"), "insideV": (0, "auto")}
+    tblPr = table._tbl.tblPr
+    for child in list(tblPr):
+        tblPr.remove(child)
+    tblPr.append(_el("w:tblW", **{"w:w": str(int(sum(widths) * 567)), "w:type": "dxa"}))
+    tblPr.append(_el("w:jc", **{"w:val": "left"}))
+    tblPr.append(_edges("w:tblBorders", borders))
+    tblPr.append(_el("w:tblLayout", **{"w:type": "fixed"}))
+    # fixed layout means the renderer obeys tblGrid, so the grid has to carry the
+    # widths as well: a per-cell w:tcW alone leaves every column equal-width.
+    for column, width in zip(table.columns, widths):
+        column.width = Cm(width)
+    margins = OxmlElement("w:tblCellMar")
+    for edge, value in (("top", 40), ("left", 90), ("bottom", 40), ("right", 90)):
+        margins.append(_el(f"w:{edge}", **{"w:w": str(value), "w:type": "dxa"}))
+    tblPr.append(margins)
+    table.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    for row in table.rows[:header_rows]:
+        row._tr.get_or_add_trPr().append(_el("w:tblHeader", **{"w:val": "true"}))
+
+
+# --------------------------------------------------------------------- docx writer
+
+
+class ProposalWriter:
+    """Emits the document body: cover, contents, then the Markdown blocks."""
+
+    HEADING = {
+        2: ("Heading 1", 13.5, INK),
+        3: ("Heading 2", 10.7, SUBHEAD),
+        4: ("Heading 3", 10.3, SUBHEAD),
+    }
+
+    def __init__(self, document: Document):
+        self.doc = document
+        self.anchors: dict[str, str] = {}
+        self.headings: list[tuple[int, str, str]] = []
+        self.link_targets: list[str] = []
+        self.external_links: list[str] = []
+
+    # -- scan ------------------------------------------------------------------
+    def scan(self, root: Node) -> None:
+        for node in root.children:
+            if node.tag not in ("h1", "h2", "h3", "h4"):
+                continue
+            anchor_id = node.attrs.get("id", "")
+            if not anchor_id:
+                continue
+            name = bookmark_name(anchor_id)
+            self.anchors[anchor_id] = name
+            if int(node.tag[1]) <= 3:
+                self.headings.append((int(node.tag[1]), _plain_text(node), name))
+
+    # -- inline ----------------------------------------------------------------
+    def inline(self, container, paragraph, node, *, bold: bool = False, italic: bool = False,
+               mono: bool = False, link: bool = False, font: str = SERIF,
+               color: RGBColor = INK, size: float = BODY_PT) -> None:
+        for child in node.children:
+            tag = child.tag
+            if tag == "#text":
+                if not child.text:
+                    continue
+                container.append(_run(
+                    child.text, bold=bold, italic=italic,
+                    font=MONO if mono else font,
+                    size=(size - 1.7) if mono else size,
+                    color=ACCENT if link else (INK if mono else color),
+                    underline=link,
+                    fill=CODE_FILL if mono and not link else None,
+                ))
+            elif tag in ("strong", "b"):
+                self.inline(container, paragraph, child, bold=True, italic=italic, mono=mono,
+                            link=link, font=font, color=color, size=size)
+            elif tag in ("em", "i"):
+                self.inline(container, paragraph, child, bold=bold, italic=True, mono=mono,
+                            link=link, font=font, color=color, size=size)
+            elif tag == "code":
+                self.inline(container, paragraph, child, bold=bold, italic=italic, mono=True,
+                            link=link, font=font, color=color, size=size)
+            elif tag == "br":
+                container.append(_el("w:br"))
+            elif tag == "a":
+                href = child.attrs.get("href", "")
+                anchor = None
+                if href.startswith("#"):
+                    anchor = bookmark_name(href[1:])
+                    self.link_targets.append(href[1:])
+                else:
+                    self.external_links.append(href)
+                link_el = _hyperlink(paragraph, None if anchor else href, anchor)
+                container.append(link_el)
+                self.inline(link_el, paragraph, child, bold=bold, italic=italic, mono=mono,
+                            link=True, font=font, color=color, size=size)
+            else:
+                self.inline(container, paragraph, child, bold=bold, italic=italic, mono=mono,
+                            link=link, font=font, color=color, size=size)
+
+    # -- blocks ----------------------------------------------------------------
+    def emit_all(self, root: Node) -> None:
+        for node in root.children:
+            self.emit(node)
+
+    def emit(self, node: Node, *, level: int = 0) -> None:
+        tag = node.tag
+        if tag in ("h1", "h2", "h3", "h4", "h5", "h6"):
+            self.emit_heading(node)
+        elif tag == "p":
+            paragraph = self._paragraph()
+            self.inline(paragraph._p, paragraph, node)
+        elif tag in ("ul", "ol"):
+            self.emit_list(node, ordered=(tag == "ol"), level=level)
+        elif tag == "table":
+            self.emit_table(node)
+        elif tag == "blockquote":
+            self.emit_quote(node)
+        elif tag == "hr":
+            return  # hidden in the PDF too: the level-2 page breaks do the separating
+        elif tag == "#text":
+            if node.text.strip():
+                paragraph = self._paragraph()
+                self.inline(paragraph._p, paragraph, node)
+        else:
+            for child in node.children:
+                self.emit(child, level=level)
+
+    def _paragraph(self, *, style: str | None = None, space_after: float = 7.0,
+                   space_before: float = 0.0, line_spacing: float = 1.3):
+        paragraph = self.doc.add_paragraph(style=style) if style else self.doc.add_paragraph()
+        fmt = paragraph.paragraph_format
+        fmt.space_after = Pt(space_after)
+        fmt.space_before = Pt(space_before)
+        fmt.line_spacing = line_spacing
+        fmt.widow_control = True
+        return paragraph
+
+    def emit_heading(self, node: Node) -> None:
+        level = int(node.tag[1])
+        anchor_id = node.attrs.get("id", "")
+        if anchor_id and anchor_id not in self.anchors:
+            self.anchors[anchor_id] = bookmark_name(anchor_id)
+        style, size, color = self.HEADING.get(level, self.HEADING[4])
+        paragraph = self._paragraph(style=_style_name(self.doc, style),
+                                    space_after=8.0, space_before=0.0 if level == 2 else 12.0)
+        fmt = paragraph.paragraph_format
+        fmt.keep_with_next = True
+        if level == 2:
+            fmt.page_break_before = True
+            _set_paragraph_border(paragraph, {"bottom": (11, "1F7A4D")})
+        start = _el("w:bookmarkStart", **{"w:id": str(_next_bookmark_id()),
+                                          "w:name": self.anchors.get(anchor_id, "")})
+        paragraph._p.append(start)
+        self.inline(paragraph._p, paragraph, node, bold=(level >= 3), font=SANS,
+                    color=color, size=size)
+        paragraph._p.append(_el("w:bookmarkEnd", **{"w:id": start.get(qn("w:id"))}))
+
+    def _list_paragraph(self, *, ordered: bool, level: int, number: int = 1):
+        if ordered:
+            paragraph = self._paragraph(space_after=4.0)
+            fmt = paragraph.paragraph_format
+            fmt.left_indent = Cm(0.85 + 0.6 * level)
+            fmt.first_line_indent = Cm(-0.85)
+            marker = paragraph.add_run(f"{number}. ")
+            marker.font.name = SERIF
+            marker.font.size = Pt(BODY_PT)
+            marker.font.color.rgb = INK
+            return paragraph
+        style = _style_name(self.doc, "List Bullet" if level == 0 else f"List Bullet {min(level + 1, 3)}")
+        paragraph = self._paragraph(style=style, space_after=4.0)
+        fmt = paragraph.paragraph_format
+        fmt.left_indent = Cm(0.75 + 0.6 * level)
+        fmt.first_line_indent = Cm(-0.35)
+        if style is None:
+            marker = paragraph.add_run("\u2022  ")
+            marker.font.name = SERIF
+            marker.font.size = Pt(BODY_PT)
+            marker.font.color.rgb = INK
+        return paragraph
+
+    def emit_list(self, node: Node, *, ordered: bool, level: int = 0) -> None:
+        number = 0
+        for item in node.children:
+            if item.tag != "li":
+                continue
+            number += 1
+            paragraph = self._list_paragraph(ordered=ordered, level=level, number=number)
+            self.inline(paragraph._p, paragraph, item.first("p") or item)
+            for nested in item.children:
+                if nested.tag in ("ul", "ol"):
+                    self.emit_list(nested, ordered=(nested.tag == "ol"), level=level + 1)
+
+    def emit_quote(self, node: Node) -> None:
+        paragraph = self._paragraph(space_after=9.0)
+        paragraph.paragraph_format.left_indent = Cm(0.4)
+        paragraph.paragraph_format.right_indent = Cm(0.2)
+        _set_paragraph_border(paragraph, {"left": (18, "1F7A4D")})
+        _shade_paragraph(paragraph, RULE_FILL)
+        self.inline(paragraph._p, paragraph, node.first("p") or node, color=QUOTE_INK)
+
+    def emit_table(self, node: Node) -> None:
+        head = node.first("thead")
+        head_row = head.first("tr") if head else None
+        rows = [head_row] if head_row else []
+        rows.extend(row for row in (node.first("tbody") or node).children if row.tag == "tr")
+        if not rows:
+            return
+        text_rows = [[_plain_text(cell) for cell in _cells(row)] for row in rows]
+        widths = column_widths(text_rows)
+        table = self.doc.add_table(rows=len(rows), cols=len(_cells(rows[0])))
+        configure_table(table, widths, header_rows=1 if head_row else 0)
+        for row_index, row in enumerate(rows):
+            header = head_row is not None and row_index == 0
+            for column_index, cell_node in enumerate(_cells(row)):
+                cell = table.cell(row_index, column_index)
+                cell.width = Cm(widths[column_index])
+                if header:
+                    _cell_fill(cell, HEAD_FILL)
+                elif row_index % 2 == 0:
+                    _cell_fill(cell, ZEBRA)
+                cell.vertical_alignment = (WD_ALIGN_VERTICAL.BOTTOM if header
+                                           else WD_ALIGN_VERTICAL.TOP)
+                paragraph = cell.paragraphs[0]
+                paragraph.paragraph_format.space_after = Pt(0)
+                paragraph.paragraph_format.space_before = Pt(0)
+                paragraph.paragraph_format.line_spacing = 1.15
+                self.inline(paragraph._p, paragraph, cell_node, bold=header, font=SANS,
+                            size=8.3 if header else 8.6,
+                            color=WHITE if header else INK)
+        spacer = self.doc.add_paragraph()
+        spacer.paragraph_format.space_after = Pt(6)
+        spacer.add_run(" ").font.size = Pt(2)
+
+
+# ------------------------------------------------------------------------- chrome
+
+
+def build_cover(document: Document, header_md: str, writer: ProposalWriter) -> None:
+    lines = header_md.splitlines()
+    title = lines[0].lstrip("#").strip() if lines else "BioRig — Prezenti Proposal"
+    fields: list[tuple[str, Node]] = []
+    callout: list[str] = []
+    for raw in lines[1:]:
+        line = raw.strip()
+        if not line or line == "---":
+            continue
+        if line.startswith(">"):
+            callout.append(line.lstrip("> ").strip())
+            continue
+        match = FIELD.match(line)
+        if not match:
+            raise ValueError(f"title-block line is neither a meta field nor a quote: {line!r}")
+        fields.append((match.group("label"), parse_markdown(match.group("value"))))
+
+    rule = document.add_paragraph()
+    rule.paragraph_format.space_after = Pt(10)
+    _set_paragraph_border(rule, {"bottom": (20, "1F7A4D")})
+
+    eyebrow = document.add_paragraph()
+    eyebrow.paragraph_format.space_after = Pt(6)
+    eyebrow._p.append(_run("Prezenti Grants \u00b7 Celo Community Grants", bold=True,
+                           font=SANS, size=8.0, color=ACCENT, letter_spacing=26))
+
+    heading = document.add_paragraph()
+    heading.paragraph_format.space_after = Pt(4)
+    heading.paragraph_format.line_spacing = 1.15
+    heading._p.append(_run(title, bold=True, font=SANS, size=20.0, color=INK))
+
+    subtitle = document.add_paragraph()
+    subtitle.paragraph_format.space_after = Pt(13)
+    subtitle._p.append(_run(SUBTITLE, font=SANS, size=9.4, color=MUTED))
+
+    widths = [4.3, CONTENT_CM - 4.3]
+    table = document.add_table(rows=len(fields), cols=2)
+    configure_table(table, widths, borders={"top": (0, "auto"), "left": (0, "auto"),
+                                            "bottom": (0, "auto"), "right": (0, "auto"),
+                                            "insideH": (0, "auto"), "insideV": (0, "auto")})
+    for index, (label, value_root) in enumerate(fields):
+        label_cell, value_cell = table.cell(index, 0), table.cell(index, 1)
+        for cell in (label_cell, value_cell):
+            cell.width = Cm(widths[0] if cell is label_cell else widths[1])
+            cell.vertical_alignment = WD_ALIGN_VERTICAL.TOP
+            paragraph = cell.paragraphs[0]
+            paragraph.paragraph_format.space_after = Pt(4)
+            paragraph.paragraph_format.space_before = Pt(4)
+            paragraph.paragraph_format.line_spacing = 1.2
+            if index:  # the CSS rules every row but the first
+                _cell_border(cell, {"top": (4, RULE)})
+        label_cell.paragraphs[0]._p.append(_run(f"{label}:", bold=True, font=SANS,
+                                                size=9.0, color=MUTED))
+        writer.inline(value_cell.paragraphs[0]._p, value_cell.paragraphs[0],
+                      value_root.first("p") or value_root, size=9.0)
+
+    if callout:
+        callout_root = parse_markdown(" ".join(callout))
+        cell_table = document.add_table(rows=1, cols=1)
+        configure_table(cell_table, [CONTENT_CM], borders={"top": (0, "auto"), "left": (24, "1F7A4D"),
+                                                           "bottom": (0, "auto"), "right": (0, "auto"),
+                                                           "insideH": (0, "auto"), "insideV": (0, "auto")})
+        cell = cell_table.cell(0, 0)
+        cell.width = Cm(CONTENT_CM)
+        _cell_fill(cell, ACCENT_SOFT)
+        paragraph = cell.paragraphs[0]
+        paragraph.paragraph_format.space_after = Pt(2)
+        paragraph.paragraph_format.space_before = Pt(2)
+        paragraph.paragraph_format.line_spacing = 1.25
+        writer.inline(paragraph._p, paragraph, callout_root.first("p") or callout_root,
+                      size=9.5, color=QUOTE_INK)
+
+    break_paragraph = document.add_paragraph()
+    break_paragraph.add_run().add_break(WD_BREAK.PAGE)
+
+
+def build_contents(document: Document, writer: ProposalWriter) -> None:
+    heading = document.add_paragraph()
+    heading.paragraph_format.space_after = Pt(9)
+    heading.paragraph_format.line_spacing = 1.0
+    _set_paragraph_border(heading, {"bottom": (6, RULE)})
+    heading._p.append(_run("Contents", bold=True, font=SANS, size=10.4, color=MUTED,
+                           letter_spacing=12))
+    for level, text, anchor in writer.headings:
+        paragraph = document.add_paragraph()
+        fmt = paragraph.paragraph_format
+        fmt.space_after = Pt(2.5 if level == 2 else 1.5)
+        fmt.line_spacing = 1.2
+        fmt.left_indent = Cm(0.0 if level == 2 else 0.55)
+        link = _hyperlink(paragraph, None, anchor)
+        paragraph._p.append(link)
+        link.append(_run(text, bold=(level == 2), font=SANS,
+                         size=9.6 if level == 2 else 8.8,
+                         color=INK if level == 2 else MUTED))
+
+
+def build_footer(section) -> None:
+    section.different_first_page_header_footer = True
+    section.first_page_footer.is_linked_to_previous = False
+    footer = section.footer
+    footer.is_linked_to_previous = False
+    paragraph = footer.paragraphs[0]
+    fmt = paragraph.paragraph_format
+    fmt.space_before = Pt(4)
+    fmt.space_after = Pt(0)
+    fmt.line_spacing = 1.0
+    fmt.tab_stops.add_tab_stop(Cm(CONTENT_CM), WD_TAB_ALIGNMENT.RIGHT)
+    _set_paragraph_border(paragraph, {"top": (6, RULE)})
+    paragraph.add_run(FOOTER_TITLE)
+    paragraph.add_run("\tPage ")
+    _field(paragraph, " PAGE ", font=SANS, size=7.6, color=MUTED)
+    paragraph.add_run(" of ")
+    _field(paragraph, " NUMPAGES ", font=SANS, size=7.6, color=MUTED)
+    for run in paragraph.runs:
+        run.font.name = SANS
+        run.font.size = Pt(7.6)
+        run.font.color.rgb = MUTED
+
+
+def setup_page(section) -> None:
+    section.page_width = Cm(21.0)
+    section.page_height = Cm(29.7)
+    section.left_margin = Cm(2.0)
+    section.right_margin = Cm(2.0)
+    section.top_margin = Cm(1.9)
+    section.bottom_margin = Cm(1.8)
+    section.header_distance = Cm(1.0)
+    section.footer_distance = Cm(1.0)
+
+
+def set_properties(document: Document, source: pathlib.Path) -> None:
+    properties = document.core_properties
+    properties.author = "Adam Jannoud"
+    properties.last_modified_by = "Adam Jannoud"
+    properties.title = "BioRig \u2014 Prezenti Grant Application Proposal"
+    properties.subject = "Prezenti Grants application (Celo Community Grants)"
+    properties.category = "Grant application"
+    properties.keywords = "BioRig, Celo, Prezenti, dMRV, ERC-721, ERC-6551"
+    properties.comments = (f"Rendered from {source.name} by tools/render_proposal_docx.py. "
+                           "The Markdown is the source of truth.")
+    settings = document.settings.element
+    getter = getattr(settings, "get_or_add_updateFields", None)
+    if getter is not None:
+        getter().set(qn("w:val"), "true")
+
+
+# ----------------------------------------------------------------------- pipeline
+
+
+def render(source: pathlib.Path, destination: pathlib.Path) -> dict[str, object]:
+    text = source.read_text(encoding="utf-8")
+    match = re.search(r"^## ", text, re.M)
+    if not match:
+        raise ValueError("no level-2 heading found; nothing to split the title block from")
+    header_md, body_md = text[: match.start()], text[match.start():]
+
+    document = Document()
+    setup_page(document.sections[0])
+    writer = ProposalWriter(document)
+    body_root = parse_markdown(body_md)
+    writer.scan(body_root)
+
+    build_cover(document, header_md, writer)
+    build_contents(document, writer)
+    writer.emit_all(body_root)
+    build_footer(document.sections[0])
+    set_properties(document, source)
+
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    document.save(destination)
+
+    saved = Document(destination)
+    body_text = "\n".join(
+        [_paragraph_text(paragraph) for paragraph in saved.paragraphs]
+        + [_paragraph_text(paragraph) for table in saved.tables
+           for row in table.rows for cell in row.cells for paragraph in cell.paragraphs]
+        + [_paragraph_text(paragraph) for section in saved.sections
+           for part in (section.footer, section.first_page_footer)
+           for paragraph in part.paragraphs]
+    )
+    missing = [heading for _, heading, _ in writer.headings if heading not in body_text]
+    unresolved = sorted(set(writer.link_targets) - set(writer.anchors))
+    return {
+        "path": destination,
+        "bytes": destination.stat().st_size,
+        "paragraphs": len(saved.paragraphs),
+        "tables": len(saved.tables),
+        "headings": len(writer.headings),
+        "internal_links": len(writer.link_targets),
+        "external_links": len(writer.external_links),
+        "missing_headings": missing,
+        "unresolved_anchors": unresolved,
+        "text": body_text,
+    }
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--src", default=str(REPO / "docs/prezenti-proposal.md"))
+    parser.add_argument("--out", default=str(REPO / "out/proposal/BioRig-Prezenti-Grant-Application-Proposal.docx"))
+    parser.add_argument("--check", action="store_true",
+                        help="also assert the section 5.5 hosted-dashboard text records the live public URL")
+    args = parser.parse_args()
+
+    report = render(pathlib.Path(args.src), pathlib.Path(args.out))
+    for key in ("path", "bytes", "paragraphs", "tables", "headings",
+                "internal_links", "external_links"):
+        print(f"{key}: {report[key]}")
+    problems: list[str] = []
+    if report["missing_headings"]:
+        problems.append(f"headings missing from the rendered text: {report['missing_headings']}")
+    if report["unresolved_anchors"]:
+        problems.append(f"internal links pointing at no heading: {report['unresolved_anchors']}")
+    if args.check:
+        text = str(report["text"])
+        # The live URL replaced the "not yet public" wording on 1 October 2026;
+        # both earlier phrasings must now be gone from the rendered document.
+        stale = (
+            "Once the deployment is completed, this section will carry the public URL",
+            "publishing the dashboard to its public host is a hosting step of its own",
+            "Not yet public. The dashboard is running",
+        )
+        live_url = "https://biorigdemo.streamlit.app"
+        for sentence in stale:
+            if sentence in text:
+                problems.append(f"stale section-5.5 text is still present: {sentence!r}")
+        if live_url not in text:
+            problems.append(f"the live dashboard URL is missing from the rendered document: {live_url}")
+        # The paragraph must stand alone: without a blank line before it, Markdown
+        # folds it into list item 1 and the reviewer reads one run-on item. Tested
+        # at paragraph level, because a merged item keeps the soft line break and
+        # so still looks like two lines in the flattened text.
+        with_marker = [p.text for p in Document(report["path"]).paragraphs
+                       if "The hosted dashboard is now live." in p.text]
+        if len(with_marker) != 1:
+            problems.append(f"live-dashboard paragraph found in {len(with_marker)} paragraphs (expected 1)")
+        elif not with_marker[0].lstrip().startswith("The hosted dashboard is now live."):
+            problems.append("the live-dashboard paragraph is merged into list item 1 - "
+                            "add a blank line before it in the Markdown")
+    for problem in problems:
+        print(f"FAIL: {problem}", file=sys.stderr)
+    return 1 if problems else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
