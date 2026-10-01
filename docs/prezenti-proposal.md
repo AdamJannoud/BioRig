@@ -260,7 +260,7 @@ The mint transaction `0x486bc529…4b9d5f9e` at block 37512380 is visible in ful
 
 **5. Hosted dashboard**
 
-Not yet public. Once the deployment is completed, this section will carry the public URL; the reviewer-facing behaviour is read-only telemetry against the live proxy with minting disabled by default.
+Not yet public. The dashboard is running and its reviewer-facing behaviour is fixed, but its public URL is not yet in place: publishing the dashboard to its public host is a hosting step of its own, separate from the on-chain deployments in Section 2, which are already live on Celo Sepolia and Celo mainnet. This line will carry the public URL once that dashboard hosting step is complete. What the page exposes is read-only telemetry against the live proxy, with minting disabled by default.
 
 ---
 
@@ -293,7 +293,7 @@ The most defensible route is therefore to mint a small number of real trees on t
 
 | # | Item | Why it matters | Owner |
 |---|---|---|---|
-| 1 | Complete the Streamlit Community Cloud deployment and insert the public URL | Section 2.6 and the reviewer note both currently say "not yet public". A reviewer needs a URL they can open | Adam (requires the applicant's own GitHub sign-in) |
+| 1 | Complete the Streamlit Community Cloud deployment and insert the public URL | Section 2.6 says "Not yet public" and the reviewer note gives no URL yet. A reviewer needs a URL they can open | Adam (requires the applicant's own GitHub sign-in) |
 | 2 | Make the repository public, or grant reviewer access | `AdamJannoud/BioRig` is private, so a reviewer following the link gets a 404 | Adam |
 | 3 | Confirm or replace the budget figure and allocation | Section 4.2 is a recommendation, not a settled ask | Adam |
 | 4 | Supply team members, roles and links | Section 5.1 has a named applicant and nothing else | Adam |
