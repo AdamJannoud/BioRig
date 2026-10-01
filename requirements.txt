@@ -5,4 +5,7 @@
 streamlit==1.64.0
 web3==8.0.0
 eth-account==0.14.0
+# Imported directly by dashboard/chain.py; web3 pulls both in, but a direct import deserves a direct pin.
+eth-utils==6.0.0
+eth-abi==6.0.0
 h3==4.5.0

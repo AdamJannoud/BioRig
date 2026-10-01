@@ -6,6 +6,10 @@ imageio-ffmpeg>=0.5
 gTTS>=2.5            # --voiceover only; needs network
 h3>=4.0
 web3>=7
+# Imported directly by tools/check_artefacts.py and tools/test_architecture.py (eth-utils) and by
+# dashboard/chain.py (eth-abi); web3 pulls both in, but a direct import deserves a direct declaration.
+eth-utils>=5
+eth-abi>=5
 streamlit>=1.46
 pytest>=8
 # tools/test_architecture.py also reads the diagram's pixels back with the tesseract CLI

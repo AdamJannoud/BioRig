@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from dashboard import config
-from dashboard.config import (CONFIG_KEYS, ChainSelectionError, ProxyResolutionError, Settings, chain_config,
+from dashboard.config import (CONFIG_KEYS, ChainSelectionError, ProxyResolutionError, chain_config,
                               load_dotenv, load_settings, record_deployment, resolve_proxy, select_chain)
 
 SEPOLIA, MAINNET = 11142220, 42220
