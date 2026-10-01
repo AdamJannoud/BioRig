@@ -16,9 +16,16 @@ addresses this page reads on both Celo Sepolia and Celo mainnet.
 
 The video generator and the test tooling are a separate list: `pip install -r tools/requirements.txt`.
 
-Locally, `.env` supplies `RPC_URL`, `CHAIN_ID` and `PRIVATE_KEY` (an account holding `VERIFIER_ROLE`).
-Hosted, the same keys arrive through `st.secrets`, and `ALLOW_MINT=false` keeps the simulation while
-removing the button that broadcasts a real mint. Deploying to a public host: see `DEPLOY_DASHBOARD.md`.
+Every setting is optional. Locally, `.env` may supply `RPC_URL`, `CHAIN_ID` and `PRIVATE_KEY`; hosted, the same
+keys arrive through `st.secrets`. With none of them the page renders the default chain read-only.
+
+`PRIVATE_KEY` only adds signing: the eth_call simulation and, with `ALLOW_MINT=true`, the mint button, both from
+that account (which needs `VERIFIER_ROLE`). When set it must be a 32-byte hex key, `0x` followed by 64 hex digits
+or the 64 digits bare. Anything else (wrong length, a stray character, a JSON blob from a secret store pasted
+whole) is rejected at load time: the page stays up read-only and shows one warning with the value's length and
+the index of the first bad character, never the value. `ALLOW_MINT=false` keeps the simulation while removing the
+button that broadcasts a real mint. Deploying to a public host: see `DEPLOY_DASHBOARD.md`; the hosted read-only
+demo needs no key at all.
 
 | file | role |
 | --- | --- |

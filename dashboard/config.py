@@ -33,6 +33,7 @@ import re
 import sys
 from collections.abc import Mapping
 from dataclasses import dataclass, field
+from dataclasses import replace as _replace
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -53,6 +54,47 @@ class ProxyResolutionError(RuntimeError):
 
 class ChainSelectionError(RuntimeError):
     """No chain selected, or the selected chain is not in dashboard/chains.json."""
+
+
+class PrivateKeyError(ValueError):
+    """PRIVATE_KEY is set but is not a 32-byte hex key. Signing is optional, so this never blocks the reads:
+    `settings` is the fully resolved configuration with the key dropped (read-only), ready to render.
+
+    The message names the length and the index of the first invalid character, never any part of the value.
+    """
+
+    def __init__(self, message: str, settings: "Settings | None" = None):
+        super().__init__(message)
+        self.settings = settings
+
+
+_HEX_DIGITS = frozenset("0123456789abcdefABCDEF")
+_SECP256K1_N = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
+
+
+def validate_private_key(raw: str | None) -> str | None:
+    """`raw` if it is a usable signing key (`0x` + 64 hex digits, or 64 bare hex digits), None if unset.
+
+    Anything else raises PrivateKeyError: wrong length, a non-hex or non-ASCII character, a JSON envelope pasted
+    whole. Only character-level checks run on the value, so no codec error can escape from here, and the error
+    carries the length and an index, nothing from the value itself.
+    """
+    if raw is None or not raw.strip():
+        return None
+    key = raw.strip()
+    digits_at = 2 if key.startswith("0x") else 0
+    bad = next((i for i, c in enumerate(key) if i >= digits_at and c not in _HEX_DIGITS), None)
+    expected = "expected 0x followed by 64 hex digits, or 64 bare hex digits"
+    if bad is not None:
+        raise PrivateKeyError(f"PRIVATE_KEY is not a hex key: {len(key)} characters, first invalid character at "
+                              f"index {bad}; {expected}.")
+    if len(key) - digits_at != 64:
+        raise PrivateKeyError(f"PRIVATE_KEY has the wrong length: {len(key)} characters with "
+                              f"{len(key) - digits_at} hex digits; {expected}.")
+    if not 0 < int(key[digits_at:], 16) < _SECP256K1_N:
+        raise PrivateKeyError(f"PRIVATE_KEY is out of range for secp256k1: {len(key)} characters, all hex, but "
+                              "the value is zero or not below the curve order.")
+    return key
 
 
 @dataclass(frozen=True)
@@ -441,17 +483,26 @@ def load_settings(repo_root: Path = REPO_ROOT, env_file: Path | None = None,
 
     `secrets` defaults to what the platform handed the app (hosted_secrets()); pass a mapping to exercise a
     hosted configuration without a secrets file on disk.
+
+    A PRIVATE_KEY that is set but malformed raises PrivateKeyError carrying the same settings without a key, so
+    a caller that only reads can carry on read-only and say why signing is off.
     """
     chain, rpc_url, explorer_url, env = network_settings(repo_root, env_file, secrets)
-    return Settings(
+    settings = Settings(
         rpc_url=rpc_url,
         chain_id=chain.chain_id,
         explorer_url=explorer_url,
         proxy=resolve_proxy(repo_root, env, chain.chain_id),
-        private_key=env.get("PRIVATE_KEY") or None,
+        private_key=None,
         allow_mint=_flag(env.get("ALLOW_MINT"), True),
         chain=chain,
     )
+    try:
+        key = validate_private_key(env.get("PRIVATE_KEY"))
+    except PrivateKeyError as exc:
+        exc.settings = settings
+        raise
+    return _replace(settings, private_key=key)
 
 
 def main(argv: list[str] | None = None) -> int:

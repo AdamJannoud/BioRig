@@ -27,7 +27,9 @@ The proxy address resolves in this order, first hit wins: `broadcast/DeployAll.s
 process environment, then `dashboard/deployment.json`. The chain is `CHAIN_ID` if set, else the record's
 `default_chain_id`; its RPC endpoint and explorer URL come from `dashboard/chains.json` unless `RPC_URL` /
 `EXPLORER_URL` override them. So a hosted instance needs no configuration at all to render the default chain;
-secrets only pick another chain, add the signing account and change from read-only to interactive.
+secrets only pick another chain, add the signing account and change from read-only to interactive. The hosted
+read-only demo needs no secrets, `PRIVATE_KEY` included: do not paste a key unless the instance should simulate
+or sign mints.
 
 ## 1. Repository state (done — pushed 2026-09-30)
 
@@ -58,23 +60,29 @@ This branch is `master` locally and was pushed to `main` remotely, so nothing on
 4. Optionally set the **App URL** subdomain — the deployed app uses `biorigdemo`, giving `https://biorigdemo.streamlit.app`.
 5. Open **Advanced settings**:
    - **Python version**: `3.12` (the platform default; the pins work there).
-   - **Secrets**: paste the block in the next section.
+   - **Secrets**: optional. Leave empty for the read-only demo; otherwise paste the block in the next section.
 6. Click **Deploy**. First build takes a few minutes; the log pane on the right shows `pip install` progress
    and any error.
 7. Afterwards, **App settings → Sharing** controls who can open it. Keep it public for reviewers; the URL is
    the one to submit.
 
-### Secrets to paste (Advanced settings → Secrets)
+### Optional secrets (Advanced settings → Secrets)
+
+None of these is required; the public read-only demo runs with the field empty.
 
 ```toml
 # Same keys as .env, never committed. Leave a key out and the default applies: the record's default chain,
 # Celo mainnet (42220), and that chain's RPC from dashboard/chains.json. The public instance sets no CHAIN_ID;
 # uncomment the line below only to render Celo Sepolia, the demo tree the video and the screenshots show.
 # CHAIN_ID = 11142220
-PRIVATE_KEY = "0x..."              # account holding VERIFIER_ROLE; omit for a read-only page
+# PRIVATE_KEY = "0x<64 hex digits>" # optional; only to simulate/sign as the VERIFIER_ROLE account
 PROXY_ADDRESS = ""                 # empty is fine: dashboard/deployment.json is the fallback
 ALLOW_MINT = false                 # false = read-only; true = visitors can broadcast a real mintTree
 ```
+
+`PRIVATE_KEY`, when set, must be a 32-byte hex key: `0x` plus 64 hex digits, or the 64 digits bare. Paste the
+key itself, not the JSON a secret store wraps it in. A malformed value does not take the page down: the app drops
+to read-only and shows one warning naming the length and the index of the first invalid character, never the value.
 
 `ALLOW_MINT` is the one decision worth making deliberately. The app signs with the server-side verifier key,
 so with `true` **anyone who opens the URL can spend that key's CELO by minting a tree**. The default chain is
@@ -106,8 +114,8 @@ pinned: false
    `.streamlit/config.toml`, and `dashboard/` are needed to run; pushing the whole checkout is fine too. The
    front matter above goes at the top of the repository's `README.md`, above the existing text (it is inert
    for Streamlit Cloud and for GitHub).
-4. **Settings → Variables and secrets → New secret**: add the same keys as the TOML block above, one per
-   entry (`CHAIN_ID`, `PRIVATE_KEY`, `ALLOW_MINT`).
+4. Optional, skip it for the read-only demo. **Settings → Variables and secrets → New secret**: add whichever
+   keys from the TOML block above you need, one per entry (`CHAIN_ID`, `PRIVATE_KEY`, `ALLOW_MINT`).
 5. The Space builds on push; the URL is `https://huggingface.co/spaces/<user>/<space>`.
 
 ## 4. Check the deployed instance
@@ -121,6 +129,8 @@ pinned: false
   account `0x453e89520DB8f374CFCeA95625B99DF5d4F1256A`); that proves the RPC is reachable from the host.
 - With `ALLOW_MINT=false`, expect the blue read-only notice above the confirm box instead of an enabled
   **Mint tree** button.
+- A yellow "Signing disabled, showing read-only telemetry" warning means `PRIVATE_KEY` is set but is not a
+  32-byte hex key; fix or remove the secret. The telemetry above is still live.
 
 ## 5. What the hosted instance cannot do
 
@@ -128,7 +138,7 @@ pinned: false
   are covered by the static record and the Secrets field.
 - It does not run the video generator or the browser-based checks in `scripts/verify-demo.sh`. Those stay
   local (`pip install -r tools/requirements.txt`).
-- The verifier key lives in the host's secret store. It is still a real key: on Celo Sepolia fund it with
+- If you configure a verifier key, it lives in the host's secret store. It is still a real key: on Celo Sepolia fund it with
   testnet CELO only; on Celo mainnet `VERIFIER_ROLE` names the deployer key
   `0x1DB0084Db70bF8D0E06c1785D693Fc6a95317890`, the address step 7 settled on 1 October 2026, and a dedicated key
   once the Safe that holds `DEFAULT_ADMIN_ROLE` grants the role to one.

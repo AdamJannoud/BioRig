@@ -18,7 +18,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from dashboard import h3_nullifier  # noqa: E402
 from dashboard.chain import Chain, format_tree_stats, short_hex  # noqa: E402
-from dashboard.config import ChainSelectionError, ProxyResolutionError, load_settings  # noqa: E402
+from dashboard.config import (ChainSelectionError, PrivateKeyError, ProxyResolutionError,  # noqa: E402
+                              load_settings)
 
 st.set_page_config(page_title="BioRig demo", page_icon="🌳", layout="wide")
 
@@ -97,19 +98,24 @@ def pill(ok: bool, yes: str, no: str) -> str:
 # --------------------------------------------------------------------------- connection
 
 @st.cache_resource(show_spinner="Connecting to the chain…")
-def get_chain() -> Chain:
-    return Chain(load_settings())
+def get_chain() -> tuple[Chain, str | None]:
+    """The chain, and why signing is off when PRIVATE_KEY was set but rejected. Signing is optional: a bad key
+    drops to read-only here, so it can never take the telemetry down with it."""
+    try:
+        return Chain(load_settings()), None
+    except PrivateKeyError as exc:
+        return Chain(exc.settings), str(exc)
 
 
 @st.cache_data(ttl=600, show_spinner=False)
 def cached_tba_check(token_id: int, block_hint: int):
-    chain = get_chain()
+    chain, _ = get_chain()
     record = chain.find_mint(token_id)
     return record, chain.check_tba(token_id, record)
 
 
 try:
-    chain = get_chain()
+    chain, key_problem = get_chain()
     settings = chain.settings
     rpc_chain = chain.assert_chain()
     overview = chain.overview()
@@ -123,6 +129,8 @@ except Exception as exc:  # RPC down, wrong chain: show it rather than a blank p
 
 explorer = settings.explorer_url
 st.set_page_config(page_title=f"BioRig · {settings.chain_name} demo")
+if key_problem:
+    st.warning(f"Signing disabled, showing read-only telemetry. {key_problem}")
 signer = chain.signer
 st.markdown(
     f'<div class="br-bar"><span class="br-dot"></span><b>{html.escape(settings.chain_name)}</b>'
@@ -180,7 +188,9 @@ with left:
     st.markdown('<div class="br-label">eth_call simulation (runs on every change, never broadcasts)</div>',
                 unsafe_allow_html=True)
     sim = None
-    if not signer:
+    if key_problem:
+        st.info("Simulation needs the verifier account, and signing is disabled (see the PRIVATE_KEY warning).")
+    elif not signer:
         st.warning("PRIVATE_KEY is not set in .env, so the verifier account is unavailable.")
     else:
         try:

@@ -468,3 +468,63 @@ def test_env_example_network_block_is_the_registry_entry_for_its_chain():
 
 def load_dotenv_text(text: str) -> dict[str, str]:
     return dict(line.split("=", 1) for line in text.splitlines() if line and not line.startswith("#"))
+
+
+# --------------------------------------------------------------------------- PRIVATE_KEY validation
+
+HEX64 = "4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d"
+# (label, raw value, expected length, index of the first invalid character or None)
+BAD_KEYS = [
+    ("stored_shape", "0ء" + HEX64, 66, 1),                       # what the secret store actually held
+    ("json_envelope", '{"value":"0ء' + HEX64 + '"}', 78, 0),      # the proxy's envelope, pasted whole
+    ("wrong_length", "0x" + HEX64[:-2], 64, None),
+    ("non_hex_ascii", "0x" + HEX64[:10] + "g" + HEX64[11:], 66, 12),
+]
+
+
+def _key_env(tmp_path, monkeypatch, chain_id=MAINNET):
+    for key in CONFIG_KEYS:
+        monkeypatch.delenv(key, raising=False)
+    (tmp_path / ".env").write_text(f"CHAIN_ID={chain_id}\nPROXY_ADDRESS={EXPECTED[chain_id]['proxy']}\n")
+
+
+def test_absent_private_key_is_read_only(tmp_path, monkeypatch):
+    _key_env(tmp_path, monkeypatch)
+    assert config.validate_private_key(None) is None and config.validate_private_key("  ") is None
+    s = load_settings(tmp_path, secrets={})
+    assert s.private_key is None and "<unset>" in repr(s)
+
+
+@pytest.mark.parametrize("key", [HEX64, "0x" + HEX64, HEX64.upper()], ids=["bare", "0x", "upper"])
+def test_valid_private_key_is_kept(tmp_path, monkeypatch, key):
+    _key_env(tmp_path, monkeypatch)
+    monkeypatch.setenv("PRIVATE_KEY", key)
+    s = load_settings(tmp_path, secrets={})
+    assert s.private_key == key
+    assert HEX64 not in repr(s).lower()
+
+
+@pytest.mark.parametrize("label,raw,length,index", BAD_KEYS, ids=[b[0] for b in BAD_KEYS])
+def test_invalid_private_key_raises_typed_error_with_read_only_settings(tmp_path, monkeypatch, caplog,
+                                                                         label, raw, length, index):
+    _key_env(tmp_path, monkeypatch)
+    monkeypatch.setenv("PRIVATE_KEY", raw)
+    with pytest.raises(config.PrivateKeyError) as info:
+        load_settings(tmp_path, secrets={})
+    exc = info.value
+    msg = str(exc)
+    assert f"{length} characters" in msg
+    assert (f"index {index}" in msg) if index is not None else ("wrong length" in msg)
+    assert exc.__cause__ is None and exc.__context__ is None  # no codec error riding along
+    assert msg.isascii() and "codec" not in msg
+    s = exc.settings  # the reads still have everything they need
+    assert s.private_key is None and s.chain_id == MAINNET
+    assert s.proxy.address.lower() == EXPECTED[MAINNET]["proxy"]
+    for text in (msg, repr(exc), repr(s), str(s), caplog.text):
+        assert HEX64 not in text.lower() and raw not in text and "ء" not in text
+
+
+def test_out_of_range_private_key_is_rejected():
+    for raw in ("0x" + "0" * 64, "f" * 64):
+        with pytest.raises(config.PrivateKeyError, match="out of range"):
+            config.validate_private_key(raw)
