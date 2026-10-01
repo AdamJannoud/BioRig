@@ -43,9 +43,9 @@ networks are configured in one place, `dashboard/chains.json`.
 **How the nullifier is derived.** The production derivation is `keccak256(uint64(h3Cell) ++ utf8(salt))` with the
 cell taken at H3 resolution 12, implemented in `dashboard/h3_nullifier.py`. The contract is looser than that:
 `mintTree` stores the 32-byte value the verifier passes and rejects only `bytes32(0)`, so the H3 derivation is
-an off-chain convention, not an on-chain rule. The one tree live on this deployment was minted from the bare
+an off-chain convention, not an on-chain rule. The Sepolia tree live on that deployment was minted from the bare
 salt as a demo, so token 1's stored nullifier is `keccak256("plot-1")` and does not exercise the H3 pipeline.
-Section 4 of `DEPLOY.md` records that mint, with both digests.
+Section 4 of `DEPLOY.md` records that mint, with both digests. The first Celo mainnet tree, minted 1 October 2026, does carry the derived value; section 8 records it.
 
 ## Architecture
 

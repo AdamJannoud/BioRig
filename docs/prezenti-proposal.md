@@ -6,7 +6,7 @@
 **Current round open until:** 29 December 2026
 **Proposal status:** Draft for applicant review before submission
 **Prepared:** 1 October 2026
-**Last revised:** 1 October 2026 — Celo mainnet deployment executed; four contracts live on chain 42220 for 0.803044 CELO (see [Section 2.1](#21-network), [Section 2.2](#22-deployed-contracts), [Section 6.2](#62-the-honest-summary)), and Milestone 4 restated as the pilot and the first live trees, the deployment itself now being done. The reviewer verification note (Section 5.2) now carries the four Celo mainnet deployment transaction hashes with explorer links. The reviewer-facing dashboard is now live and public at [https://biorigdemo.streamlit.app](https://biorigdemo.streamlit.app), verified anonymously; Section 2.6, Section 5 and the open-items table record it.
+**Last revised:** 1 October 2026 — Celo mainnet deployment executed; four contracts live on chain 42220 for 0.803044 CELO (see [Section 2.1](#21-network), [Section 2.2](#22-deployed-contracts), [Section 6.2](#62-the-honest-summary)), and Milestone 4 restated as the pilot and the first live trees, the deployment itself now being done. The reviewer verification note (Section 5.2) now carries the four Celo mainnet deployment transaction hashes with explorer links. The first Celo mainnet tree was minted on 1 October 2026 and is recorded in Section 2, item 3. The reviewer-facing dashboard is now live and public at [https://biorigdemo.streamlit.app](https://biorigdemo.streamlit.app), verified anonymously; Section 2.6, Section 5 and the open-items table record it.
 
 > **Read this first.** This draft is grounded in the live state of the project on 1 October 2026, re-verified the same day. Three things commonly assumed about BioRig in draft applications do not currently hold, and they are stated plainly below rather than smoothed over, because a Prezenti reviewer will check them: the explorer records are *partially* verified rather than fully verified, the one tree on chain was minted with a bare-salt nullifier rather than the documented H3 derivation, and the live **Celo mainnet** deployment carries no minted trees yet, so the on-chain activity a reviewer can point at is still the Celo Sepolia one. See [Section 6](#6-eligibility-position-against-prezentis-published-criteria) and [Section 7](#7-open-items-to-close-before-submission).
 
@@ -100,7 +100,7 @@ Re-verified live on 1 October 2026: chain ID `11142220` at block 37531117, all f
 
 ### 2.5 Live on-chain state
 
-One tree has been minted, and it is live:
+One tree is live on Celo Sepolia; a second, the first on Celo mainnet, was minted on 1 October 2026 and is recorded in Section 2, item 3. The table below is the Sepolia tree.
 
 | Field | Value |
 |---|---|
@@ -116,7 +116,7 @@ The Token-Bound Account derivation agrees three independent ways: offline CREATE
 
 **A correction on the nullifier.** The production nullifier pipeline is the H3 resolution-12 derivation `keccak256(uint64(h3Cell) ++ utf8(salt))`, implemented in `dashboard/h3_nullifier.py`. For the demo plot at lat -1.2921, lng 36.8219, res 12, salt `"plot-1"`, that yields cell `8c7a6e42ca207ff` and nullifier `0xb7a55a6b1b7e4fe0fba76f303772cba7fdf3715d4030e3fcd91ed297c756d741`.
 
-**The tree currently on chain is not a product of that pipeline.** Its nullifier is `keccak256("plot-1")` — the bare salt, with no H3 cell — because `mintTree` stores whatever 32-byte value the verifier passes and rejects only `bytes32(0)`. The derivation is therefore an off-chain convention enforced by the application, not an on-chain rule. This is documented in the repository. The consequence for this application is stated plainly: **the only tree on chain does not demonstrate the H3 pipeline, and the H3 nullifier mechanism is proven by tests and by the dashboard rather than by on-chain history.**
+**The Sepolia tree is not a product of that pipeline; the first mainnet tree is.** Its nullifier is `keccak256("plot-1")` — the bare salt, with no H3 cell — because `mintTree` stores whatever 32-byte value the verifier passes and rejects only `bytes32(0)`. The derivation is therefore an off-chain convention enforced by the application, not an on-chain rule. This is documented in the repository. The consequence for this application is stated plainly: **the Sepolia tree does not demonstrate the H3 pipeline, though the mainnet tree now minted does, and the H3 nullifier mechanism is proven by tests and by the dashboard rather than by on-chain history.**
 
 ### 2.6 Repository and demo
 
@@ -247,11 +247,13 @@ The canonical ERC-6551 registry has no deployment transaction of its own: it alr
 
 **2. Reading the live state yourself**
 
-Using the RPC endpoint `https://forno.celo-sepolia.celo-testnet.org` against the proxy address, call `getTreeStats(1)`. It returns the live tree, including the bound Token-Bound Account and the stored nullifier listed in Section 2.5. `getTreeStats(2)` reverts, which confirms exactly one tree exists. The same call against the Celo mainnet proxy `0x04Db169dDF8AbB80943161C01B2a71DC40384E64` on `https://forno.celo.org` reverts for `getTreeStats(1)`, which confirms the mainnet contract holds no trees yet.
+Using the RPC endpoint `https://forno.celo-sepolia.celo-testnet.org` against the proxy address, call `getTreeStats(1)`. It returns the live Sepolia tree, including the bound Token-Bound Account and the stored nullifier listed in Section 2.5. `getTreeStats(2)` reverts, which confirms exactly one tree exists there. The same call against the Celo mainnet proxy `0x04Db169dDF8AbB80943161C01B2a71DC40384E64` on `https://forno.celo.org` returns the first mainnet tree: token `1`, planter `0xD314e37FD8538fe66231EE670B74C9428d03feEa`, DBH `10`, biomass `20`, alive, with its own token-bound account `0x453e89520DB8f374CFCeA95625B99DF5d4F1256A`. `getTreeStats(2)` reverts there too, which confirms exactly one tree exists on mainnet as well.
 
 **3. Reading the mint**
 
 The mint transaction `0x486bc529…4b9d5f9e` at block 37512380 is visible in full on the explorer: 267,565 gas, planter `0xb5aB2054b43040593805Cf662A938eFE924F2778`, and the nullifier value the transaction itself carries as its second argument. That argument is the bare salt, as Section 2.5 states.
+
+The first Celo **mainnet** mint came later the same day: transaction [`0x70476c02…97f7`](https://celo.blockscout.com/tx/0x70476c02ef1af918a213eec63472e6cdbabcedd50193cdd6a7a89a09527797f7) at block 78992489, 270,077 gas, 0.054015697 CELO, planter `0xD314e37FD8538fe66231EE670B74C9428d03feEa`, nullifier `0xb7a55a6b1b7e4fe0fba76f303772cba7fdf3715d4030e3fcd91ed297c756d741` - the H3 derivation, not the bare salt. Its token-bound account `0x453e89520DB8f374CFCeA95625B99DF5d4F1256A` is the one the canonical registry derives from `keccak256(abi.encodePacked(uint256(1), planter, nullifier))` and it agrees with the value `getTreeStats(1)` returns, and the verifier's balance moved by exactly the gas cost, so the mint moved no value.
 
 **4. Repository**
 
@@ -272,17 +274,17 @@ This section exists because the published criteria for both open pools contain h
 | Pool | Access | Core requirement | BioRig position |
 |---|---|---|---|
 | **Boost** | Invitation only, from Celo Core Co / DevRel | Live app, ideally a MiniApp; must deploy on Celo mainnet | Not applicable — no invitation |
-| **Anchor** | Open application | Verifiable traction: stage bands keyed to 10K-100K+ daily transactions; must deploy on Celo mainnet | **Does not currently qualify.** The mainnet deployment requirement is now met (Section 2.2), but there is one on-chain tree and no transaction volume |
+| **Anchor** | Open application | Verifiable traction: stage bands keyed to 10K-100K+ daily transactions; must deploy on Celo mainnet | **Does not currently qualify.** The mainnet deployment requirement is now met (Section 2.2), but there are two on-chain trees, one per chain, and no transaction volume |
 | **Frontier** | Open application | AI and agent-economy **infrastructure**; working Celo mainnet deployment verified by Prezenti; ERC-8004 registration and Self Agent ID for agent projects | **Does not currently qualify.** The mainnet deployment exists but is not yet verified by Prezenti, and BioRig is ReFi/dMRV infrastructure rather than AI/agent infrastructure |
 
 ### 6.2 The honest summary
 
 BioRig's technical foundation is real, deployed and verified: contracts live on Celo Sepolia and on Celo mainnet, 175 tests green, upgrade safety proven, and bytecode matching the source. Its position against Prezenti's published criteria is still not met by either open pool. Two things decide that position, and only the second is a gap today:
 
-1. **Mainnet — closed on 1 October 2026.** Both open pools require a working deployment on Celo **mainnet**. The four contracts are live there, deployed for a measured 0.803044 CELO (Section 2.2). The contract holds no trees yet, so the deployment exists without activity on it.
-2. **Traction.** The Anchor pool is explicitly stage-based on daily transaction volume and rejects projects "without verifiable traction or credible usage evidence". BioRig has one minted tree, on Celo Sepolia, and none on Celo mainnet.
+1. **Mainnet — closed on 1 October 2026.** Both open pools require a working deployment on Celo **mainnet**. The four contracts are live there, deployed for a measured 0.803044 CELO (Section 2.2). The contract now carries a tree, minted the same day, so the deployment exists with live on-chain state rather than none.
+2. **Traction.** The Anchor pool is explicitly stage-based on daily transaction volume and rejects projects "without verifiable traction or credible usage evidence". BioRig has two minted trees, one on Celo Sepolia and one on Celo mainnet.
 
-The most defensible route is therefore to mint a small number of real trees on the now-live mainnet contract and apply with that evidence in hand. Applying today would mean asking a reviewer to fund a project against the traction criteria the application itself does not meet.
+The most defensible route is therefore to keep minting real trees on the now-live mainnet contract - the first is already there (Section 2, item 3) - and to apply with that evidence in hand. Applying today would mean asking a reviewer to fund a project against the traction criteria the application itself does not meet.
 
 **Also worth noting:** Prezenti explicitly excludes ongoing salaries, core costs, pure marketing spend, events, liquidity provision, token listings and general VC investment from funding. The budget in Section 4.2 is structured as engineering and review work to stay inside those bounds.
 
@@ -295,7 +297,7 @@ The most defensible route is therefore to mint a small number of real trees on t
 | 1 | ~~Make the repository public, or grant reviewer access~~ — **done**: `AdamJannoud/BioRig` is public and opens without a sign-in, and the live demo at **[https://biorigdemo.streamlit.app](https://biorigdemo.streamlit.app)** opens without a sign-in too (both checked 1 October 2026) | — | — |
 | 2 | Confirm or replace the budget figure and allocation | Section 4.2 is a recommendation, not a settled ask | Adam |
 | 3 | Supply team members, roles and links | Section 5.1 has a named applicant and nothing else | Adam |
-| 4 | ~~Deploy to Celo mainnet~~ — **done 1 October 2026**: four contracts live on chain `42220` for 0.803044 CELO, as an Alpha v1 / pilot, with the external audit deferred to a later milestone. ~~Hand the roles to a Celo Safe~~ — **done 1 October 2026**: `DEFAULT_ADMIN_ROLE` and `UPGRADER_ROLE` moved to a Safe whose sole owner is a key the deployer hot key cannot sign for, with `VERIFIER_ROLE` (minting) deliberately kept on the deployer. Still open: minting the first mainnet trees, and which pool to apply to, and when | Section 6.2 shows the eligibility position; mainnet deployment is no longer the gap — traction is | Adam |
+| 4 | ~~Deploy to Celo mainnet~~ — **done 1 October 2026**: four contracts live on chain `42220` for 0.803044 CELO, as an Alpha v1 / pilot, with the external audit deferred to a later milestone. ~~Hand the roles to a Celo Safe~~ — **done 1 October 2026**: `DEFAULT_ADMIN_ROLE` and `UPGRADER_ROLE` moved to a Safe whose sole owner is a key the deployer hot key cannot sign for, with `VERIFIER_ROLE` (minting) deliberately kept on the deployer. The first mainnet tree was minted on 1 October 2026 (Section 2, item 3); still open: minting the rest of the pilot trees, and which pool to apply to, and when | Section 6.2 shows the eligibility position; mainnet deployment is no longer the gap — traction is | Adam |
 | 5 | Decide whether to disclose the AI-assisted development workflow | Relevant because Prezenti's Frontier pool states it wants "the efficient and effective use of agentic tooling" rather than low-effort output. This is a positioning choice, not a technical one | Adam |
 
 ---
@@ -310,7 +312,7 @@ The most defensible route is therefore to mint a small number of real trees on t
 | Storage layout, slots 0-8 with 9 reserved | `forge inspect` plus the upgrade test that snapshots all nine slots with `vm.load` |
 | Code sizes and bytecode match | Live `cast code` reads on the four Sepolia addresses and the mainnet proxy, implementation and account implementation, compared against local artifacts, 1 October 2026 |
 | Partial verification on all four, on both chains | Blockscout v2 API for Celo Sepolia and Celo mainnet, re-read 1 October 2026 |
-| Mint details and nullifier | The mint transaction, the token-bound account derivation, and the dashboard's own derivation |
+| Mint details and nullifiers | Both mint transactions, both token-bound account derivations, and the dashboard's own derivation |
 | Repository visibility, and the head read live | Anonymous fetch of the repository, and `git ls-remote origin refs/heads/main`, both on 1 October 2026 |
 | 155 dashboard and tooling tests, 25 architecture address tests, entrypoint check | Project test runs under the repository's own environment |
 | Prezenti pool criteria, bands, exclusions and payment split | `prezenti.xyz/grants`, read 1 October 2026 |

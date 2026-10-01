@@ -419,7 +419,36 @@ below has run, step 7 the role handover included, in mode B.** Read back from th
 `DEFAULT_ADMIN_ROLE` and `UPGRADER_ROLE` sit with the Safe `0x3B36b3446fCB0729B0046520156933E56352D551`, whose sole
 owner is the plain EOA `0xD314e37FD8538fe66231EE670B74C9428d03feEa` - an address the deployer hot key
 `0x1DB0084Db70bF8D0E06c1785D693Fc6a95317890` cannot sign for - while the deployer key keeps `VERIFIER_ROLE`
-(minting) and still holds `bufferPool`. No tree is minted: `ownerOf(1)` still reverts `ERC721NonexistentToken(1)`.
+(minting) and still holds `bufferPool`. It has since minted the first mainnet tree, recorded below.
+
+**The first mainnet tree.** This deployment is no longer inert: one tree was minted on it on 1 October 2026,
+from the verifier key the handover above left in place.
+
+```bash
+cast send "$PROXY" "mintTree(address,bytes32,uint96,uint96)" 0xD314e37FD8538fe66231EE670B74C9428d03feEa 0xb7a55a6b1b7e4fe0fba76f303772cba7fdf3715d4030e3fcd91ed297c756d741 10 20 --private-key <VERIFIER key> --rpc-url "$RPC_URL"
+```
+
+Tx `0x70476c02ef1af918a213eec63472e6cdbabcedd50193cdd6a7a89a09527797f7`, block `78992489`, status `0x1`,
+270,077 gas, 0.054015697 CELO at 200.0011 gwei. The verifier's balance moved by exactly that figure and nothing
+else, which is the non-payable claim holding on chain. The nullifier is the **production H3 derivation** for the
+demo plot (`plot-1` at -1.2921, 36.8219, resolution 12) - not the bare salt the Sepolia tree in section 4 used.
+
+```bash
+cast call "$PROXY" "ownerOf(uint256)(address)" 1
+#   0xD314e37FD8538fe66231EE670B74C9428d03feEa
+cast call "$PROXY" "getTreeStats(uint256)((uint96,uint96,uint64,address,bool,bytes32))" 1
+#   (10, 20, 1790893247, 0x453e89520DB8f374CFCeA95625B99DF5d4F1256A, true,
+#    0xb7a55a6b1b7e4fe0fba76f303772cba7fdf3715d4030e3fcd91ed297c756d741)
+cast call "$PROXY" "getTreeStats(uint256)((uint96,uint96,uint64,address,bool,bytes32))" 2
+#   reverts InvalidTree - exactly one tree exists
+cast call "$PROXY" "isNullifierActive(bytes32)(bool)" 0xb7a55a6b1b7e4fe0fba76f303772cba7fdf3715d4030e3fcd91ed297c756d741
+#   true
+```
+
+The tree's token-bound account `0x453e89520DB8f374CFCeA95625B99DF5d4F1256A` is the one the canonical registry
+derives from `salt = keccak256(abi.encodePacked(uint256(1), planter, nullifier))`, so the registry and account
+path is proven on mainnet as it is on Sepolia: it reports ERC-165 `0x6faff5f1`, and its `token()` returns
+`(42220, 0x04Db169dDF8AbB80943161C01B2a71DC40384E64, 1)`.
 Mode B was the choice recorded on 1 October 2026. `script/handover-fork-check.sh` and
 `script/safe-owner-swap-fork-check.sh` rehearse exactly that against live mainnet state on a fork, and both were
 green before anything was broadcast.
