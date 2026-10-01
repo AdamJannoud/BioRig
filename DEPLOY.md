@@ -288,7 +288,11 @@ wrong reason still fails the run:
 9. **Handover guards:** `HardenMainnetAdmin` must refuse a wrong `CHAIN_ID`, a `VERIFIER_ADDRESS` equal to
    `NEW_ADMIN`, a `NEW_ADMIN` with no code, a contract that is not a Safe, a Safe the deployer owns, a
    `PROXY_ADDRESS` that is not a BioRig proxy, and - when `VERIFIER_ADDRESS` is the deployer - a deployer that
-   does not already hold `VERIFIER_ROLE` (which would leave nobody able to mint).
+   does not already hold `VERIFIER_ROLE` (which would leave nobody able to mint). "A Safe the deployer owns" means
+   anywhere in the ownership tree, to `MAX_OWNERSHIP_DEPTH` contract hops: a Safe whose owner is another
+   deployer-owned Safe is refused too, and the rehearsal covers that nested case, a chain that exceeds the bound,
+   and an owner that is a contract whose Safe views cannot be read (refused unless `ALLOW_UNINSPECTED_OWNER=true`
+   is set deliberately - an owner address may legitimately carry code, e.g. an EIP-7702 delegation).
 10. **Handover:** `HardenMainnetAdmin` is simulated and broadcast to the fork, then every role is read back from the
     fork with `cast`: the deployer holds no admin and no upgrade, the Safe holds admin and upgrader only, and
     `VERIFIER_ROLE` sits with the verifier - the dedicated key, or the deployer itself when that is what
