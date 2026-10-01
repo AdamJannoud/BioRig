@@ -6,9 +6,9 @@
 **Current round open until:** 29 December 2026
 **Proposal status:** Draft for applicant review before submission
 **Prepared:** 1 October 2026
-**Last revised:** 1 October 2026 — Celo mainnet deployment executed; four contracts live on chain 42220 for 0.803044 CELO (see [Section 2.1](#21-network), [Section 2.2](#22-deployed-contracts), [Section 6.2](#62-the-honest-summary)), and Milestone 4 restated as the pilot and the first live trees, the deployment itself now being done. The reviewer verification note (Section 5.2) now carries the four Celo mainnet deployment transaction hashes with explorer links.
+**Last revised:** 1 October 2026 — Celo mainnet deployment executed; four contracts live on chain 42220 for 0.803044 CELO (see [Section 2.1](#21-network), [Section 2.2](#22-deployed-contracts), [Section 6.2](#62-the-honest-summary)), and Milestone 4 restated as the pilot and the first live trees, the deployment itself now being done. The reviewer verification note (Section 5.2) now carries the four Celo mainnet deployment transaction hashes with explorer links. The reviewer-facing dashboard is now live and public at <https://biorigdemo.streamlit.app>, verified anonymously; Section 2.6, Section 5 and the open-items table record it.
 
-> **Read this first.** This draft is grounded in the live state of the project on 1 October 2026, re-verified the same day. Four things commonly assumed about BioRig in draft applications do not currently hold, and they are stated plainly below rather than smoothed over, because a Prezenti reviewer will check them: the hosted dashboard URL is not live, the explorer records are *partially* verified rather than fully verified, the one tree on chain was minted with a bare-salt nullifier rather than the documented H3 derivation, and the live **Celo mainnet** deployment carries no minted trees yet, so the on-chain activity a reviewer can point at is still the Celo Sepolia one. See [Section 6](#6-eligibility-position-against-prezentis-published-criteria) and [Section 7](#7-open-items-to-close-before-submission).
+> **Read this first.** This draft is grounded in the live state of the project on 1 October 2026, re-verified the same day. Three things commonly assumed about BioRig in draft applications do not currently hold, and they are stated plainly below rather than smoothed over, because a Prezenti reviewer will check them: the explorer records are *partially* verified rather than fully verified, the one tree on chain was minted with a bare-salt nullifier rather than the documented H3 derivation, and the live **Celo mainnet** deployment carries no minted trees yet, so the on-chain activity a reviewer can point at is still the Celo Sepolia one. See [Section 6](#6-eligibility-position-against-prezentis-published-criteria) and [Section 7](#7-open-items-to-close-before-submission).
 
 ---
 
@@ -126,12 +126,13 @@ The Token-Bound Account derivation agrees three independent ways: offline CREATE
 | Branch | `main` |
 | Head commit | `b4f34df` on `main`, verified against the GitHub API on 1 October 2026 before this document was committed |
 | Reading the live tip | `git ls-remote origin refs/heads/main` — the head moves whenever a commit lands, so read it rather than trusting any hash printed here |
-| Live demo | **Not yet public** — see below |
+| Live demo | **<https://biorigdemo.streamlit.app>** — public, opens without a sign-in; verified anonymously on 1 October 2026 |
 
-**Two items a reviewer cannot currently open, both fixable before submission:**
+**One thing a reviewer cannot currently open, fixable before submission:**
 
 1. **The repository is private.** A reviewer following the repository link will get a 404. It must either be made public before submission or reviewer access granted.
-2. **There is no public hosted dashboard yet.** The Streamlit Community Cloud deployment has not been completed, because it requires the applicant's own GitHub account to authorise the app. The repository side is finished and pushed: root `streamlit_app.py`, a pinned runtime `requirements.txt`, `.streamlit/config.toml`, `dashboard/deployment.json`, and `st.secrets` support are all on `main`. A hosted-entrypoint check confirms the app renders in a real browser with no secrets and no `.env`. What is missing is the public `*.streamlit.app` URL, and it does not exist until that sign-in is completed.
+
+**The hosted dashboard is now live.** <https://biorigdemo.streamlit.app> opens without a sign-in and renders read-only telemetry against the live Celo Sepolia proxy: the chain ID, the proxy and implementation addresses, the current block, and `getTreeStats(1)` for the one tree on chain, with minting disabled by default. It was verified anonymously on 1 October 2026 — a browser session carrying no cookies and no stored credentials loaded the page and read the tree state from the chain. The page resolves its deployment from `dashboard/deployment.json`, so it renders against chain `11142220` (Celo Sepolia), where the demo tree lives; the Celo mainnet deployment is recorded in the same file.
 
 ### 2.7 Security posture
 
@@ -260,7 +261,7 @@ The mint transaction `0x486bc529…4b9d5f9e` at block 37512380 is visible in ful
 
 **5. Hosted dashboard**
 
-Not yet public. The dashboard is running and its reviewer-facing behaviour is fixed, but its public URL is not yet in place: publishing the dashboard to its public host is a hosting step of its own, separate from the on-chain deployments in Section 2, which are already live on Celo Sepolia and Celo mainnet. This line will carry the public URL once that dashboard hosting step is complete. What the page exposes is read-only telemetry against the live proxy, with minting disabled by default.
+Live at <https://biorigdemo.streamlit.app> — public, no sign-in required, verified anonymously on 1 October 2026. The page exposes read-only telemetry against the live Celo Sepolia proxy (chain ID, proxy and implementation addresses, current block, and `getTreeStats(1)` for the one tree on chain) with minting disabled by default. It resolves its deployment from `dashboard/deployment.json` and therefore renders against chain `11142220`, where the demo tree lives; the Celo mainnet deployment is recorded in the same file.
 
 ---
 
@@ -293,12 +294,11 @@ The most defensible route is therefore to mint a small number of real trees on t
 
 | # | Item | Why it matters | Owner |
 |---|---|---|---|
-| 1 | Complete the Streamlit Community Cloud deployment and insert the public URL | Section 2.6 says "Not yet public" and the reviewer note gives no URL yet. A reviewer needs a URL they can open | Adam (requires the applicant's own GitHub sign-in) |
-| 2 | Make the repository public, or grant reviewer access | `AdamJannoud/BioRig` is private, so a reviewer following the link gets a 404 | Adam |
-| 3 | Confirm or replace the budget figure and allocation | Section 4.2 is a recommendation, not a settled ask | Adam |
-| 4 | Supply team members, roles and links | Section 5.1 has a named applicant and nothing else | Adam |
-| 5 | ~~Deploy to Celo mainnet~~ — **done 1 October 2026**: four contracts live on chain `42220` for 0.803044 CELO, as an Alpha v1 / pilot, with the external audit deferred to a later milestone. Still open: minting the first mainnet trees, the deployer role handover, and which pool to apply to, and when | Section 6.2 shows the eligibility position; mainnet deployment is no longer the gap — traction is | Adam |
-| 6 | Decide whether to disclose the AI-assisted development workflow | Relevant because Prezenti's Frontier pool states it wants "the efficient and effective use of agentic tooling" rather than low-effort output. This is a positioning choice, not a technical one | Adam |
+| 1 | Make the repository public, or grant reviewer access | `AdamJannoud/BioRig` is private, so a reviewer following the link gets a 404 | Adam |
+| 2 | Confirm or replace the budget figure and allocation | Section 4.2 is a recommendation, not a settled ask | Adam |
+| 3 | Supply team members, roles and links | Section 5.1 has a named applicant and nothing else | Adam |
+| 4 | ~~Deploy to Celo mainnet~~ — **done 1 October 2026**: four contracts live on chain `42220` for 0.803044 CELO, as an Alpha v1 / pilot, with the external audit deferred to a later milestone. Still open: minting the first mainnet trees, the deployer role handover, and which pool to apply to, and when | Section 6.2 shows the eligibility position; mainnet deployment is no longer the gap — traction is | Adam |
+| 5 | Decide whether to disclose the AI-assisted development workflow | Relevant because Prezenti's Frontier pool states it wants "the efficient and effective use of agentic tooling" rather than low-effort output. This is a positioning choice, not a technical one | Adam |
 
 ---
 
