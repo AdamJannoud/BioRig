@@ -6,7 +6,10 @@ lockup and the diagram svg copied from the checkout, plus a stand-in raster of a
 and the gate only hashes it). The tree is recorded once per module from its own fresh renders, and each test gets
 its own copy, shown to pass before it is broken, so a red result cannot be a broken copy. Renders are memoised on
 their inputs, so only a test that changes an input pays for a new one. One control runs the real CLI on this
-checkout against the committed record. Nothing here reads cache/carriers/published/.
+checkout against the committed record: with nothing staged it must pass in any environment, noting that the pdf's
+raw bytes are not attested there, because Chromium print-to-PDF bytes depend on the browser build and fonts. The
+controls below show that byte comparison is still enforced wherever the published copies are staged. Nothing here
+reads cache/carriers/published/.
 """
 from __future__ import annotations
 
@@ -89,13 +92,22 @@ def drift(capsys) -> list[str]:
 # ---- the committed record describes this checkout
 
 def test_committed_record_matches_the_tree(tmp_path):
-    """Control 1: the real CLI, real renders, on this checkout, with nothing staged."""
+    """Control 1: the real CLI, real renders, on this checkout, with nothing staged: the CI shape. Every source
+    digest is asserted; the pdf's render bytes are noted as unattested here, whatever they came out as."""
     run_ = subprocess.run([sys.executable, str(CLI), "--staged", str(tmp_path / "none")],
                           capture_output=True, text=True, timeout=600)
     assert (run_.returncode, run_.stderr) == (0, "")
-    assert "note: no staged copies in" in run_.stdout
+    out = run_.stdout.splitlines()
+    assert any(l.startswith("note: no staged copies in") for l in out)
+    assert any(l.startswith("note: proposal.pdf: a fresh render ") and "not attested in this environment" in l
+               and l.endswith("the recorded source digests are enforced") for l in out)
     for carrier in C.CARRIERS:
-        assert f"ok: {carrier.name}: " in run_.stdout
+        n = len(carrier.sources)
+        assert f"ok: {carrier.name}: {n}/{n} sources match the record" in out
+    for name in ("proposal.docx", "proposal.md", "architecture.png"):
+        assert any(l.startswith(f"ok: {name}: ") and "matches the published" in l for l in out)
+    assert [l for l in out if not l.startswith("ok: ")] == [l for l in out if l.startswith("note: ")]
+    assert sum(l.startswith("note: ") for l in out) == 2
 
 
 def test_committed_record_covers_every_source_and_no_internal_location():
@@ -191,6 +203,94 @@ def test_absent_staged_dir_passes_with_a_note(tree, capsys):
     out = capsys.readouterr()
     assert out.err == ""
     assert "note: no staged copies in cache/carriers/published/; download the four carriers" in out.out
+    assert "note: proposal.pdf: a fresh render matches the published sha256 " in out.out
+    assert "not attested in this environment" in out.out
+
+
+def foreign_render(monkeypatch):
+    """Renders as a machine without the pinned browser build or brand fonts would: same source, other pdf bytes."""
+    def render(root: Path, carrier: C.Carrier, out_dir: Path) -> Path:
+        out = memo_render(root, carrier, out_dir)
+        if carrier.name == "proposal.pdf":
+            out.write_bytes(out.read_bytes() + b"\n% rendered with other fonts\n")
+        return out
+    monkeypatch.setattr(C, "render", render)
+
+
+def test_foreign_render_without_staged_copies_is_a_note(tree, capsys, monkeypatch):
+    """The CI failure of run 37072253803: unchanged source, other render bytes, nothing staged. Not drift."""
+    shutil.rmtree(tree / C.STAGED)
+    foreign_render(monkeypatch)
+    assert run(tree) == 0
+    out = capsys.readouterr()
+    assert out.err == ""
+    note = [l for l in out.out.splitlines() if l.startswith("note: proposal.pdf: ")]
+    assert len(note) == 1 and note[0].startswith("note: proposal.pdf: a fresh render is ")
+    assert ", not the published sha256 " in note[0] and "not attested in this environment" in note[0]
+    assert "ok: proposal.pdf: 4/4 sources match the record" in out.out
+
+
+def test_foreign_render_with_staged_copies_is_drift(tree, capsys, monkeypatch):
+    """Where the published copies are staged the byte comparison is still asserted, exactly as before."""
+    foreign_render(monkeypatch)
+    assert run(tree) == 1
+    lines = drift(capsys)
+    assert len(lines) == 1, lines
+    assert lines[0].startswith("drift: proposal.pdf: a fresh render is sha256 ")
+    assert lines[0].endswith("then --record (DEPLOY.md section 9)")
+
+
+def test_staged_pdf_differing_is_caught(tree, capsys):
+    (tree / C.STAGED / "proposal.pdf").write_bytes(b"%PDF-1.7 an older render")
+    assert run(tree) == 1
+    lines = drift(capsys)
+    assert len(lines) == 1, lines
+    assert lines[0].startswith("drift: proposal.pdf: the copy in cache/carriers/published/proposal.pdf is not the "
+                               "published artifact (sha256 ")
+
+
+def test_staged_pdf_alone_turns_the_byte_comparison_on(tree, capsys, monkeypatch):
+    for name in ("proposal.docx", "proposal.md", "architecture.png"):
+        (tree / C.STAGED / name).unlink()
+    foreign_render(monkeypatch)
+    assert run(tree) == 1
+    assert [l.split(" is ")[0] for l in drift(capsys)] == ["drift: proposal.pdf: a fresh render"]
+
+
+def test_edited_record_digest_is_caught(tree, capsys):
+    path = tree / C.RECORD
+    raw = json.loads(path.read_text())
+    pdf = next(c for c in raw["carriers"] if c["name"] == "proposal.pdf")
+    pdf["digest"] = "0" * 64
+    path.write_text(C.render_record(raw["carriers"]))
+    assert run(tree) == 1
+    lines = drift(capsys)
+    assert any(l.startswith("drift: proposal.pdf: a fresh render is sha256 ") for l in lines)
+    assert any(l.startswith("drift: proposal.pdf: the copy in cache/carriers/published/proposal.pdf") for l in lines)
+
+
+def test_edited_record_source_is_caught_without_staged_copies(tree, capsys):
+    shutil.rmtree(tree / C.STAGED)
+    path = tree / C.RECORD
+    raw = json.loads(path.read_text())
+    pdf = next(c for c in raw["carriers"] if c["name"] == "proposal.pdf")
+    pdf["sources"][C.STYLESHEET.as_posix()] = "0" * 64
+    path.write_text(C.render_record(raw["carriers"]))
+    assert run(tree) == 1
+    lines = drift(capsys)
+    assert len(lines) == 1, lines
+    assert lines[0].startswith("drift: proposal.pdf: source tools/print/proposal.css moved (recorded 000000000000, ")
+
+
+def test_edited_markdown_without_staged_copies_is_caught(tree, capsys):
+    shutil.rmtree(tree / C.STAGED)
+    with (tree / C.MARKDOWN).open("a") as f:
+        f.write("\nA sentence added after the carriers were published.\n")
+    assert run(tree) == 1
+    lines = drift(capsys)
+    for name in ("proposal.pdf", "proposal.docx", "proposal.md"):
+        assert any(l.startswith(f"drift: {name}: source docs/prezenti-proposal.md moved") for l in lines)
+    assert any(l.startswith("drift: proposal.docx: a fresh render is sha256-zip-entries ") for l in lines)
 
 
 def test_absent_staged_dir_still_fails_on_repo_drift(tree, capsys):

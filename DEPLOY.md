@@ -748,8 +748,12 @@ the bytes actually held in Files.
    unless every staged copy agrees with the fresh render, so a stale or wrong upload is caught here, not by a reviewer.
 6. Commit `docs/carriers.json` with the source change.
 
-The pdf is byte-deterministic and compared by sha256. The docx is compared by a digest over its zip entries' names,
-CRC32s and sizes, because python-docx stamps the render time into every entry; the module docstring of
+The pdf is byte-deterministic on one machine and compared by sha256. Byte-equality of the rendered pdf is attested in
+the publishing environment, where the published copies are staged and the browser build and brand fonts (Caladea,
+Lato) are the ones it was rendered with; elsewhere, such as a fresh clone in CI, Chromium print-to-PDF yields other
+bytes from unchanged source, so the check enforces the recorded source digests plus whatever staged copies it can see,
+and prints a `note:` saying the pdf bytes are not attested there. The docx is compared by a digest over its zip
+entries' names, CRC32s and sizes, because python-docx stamps the render time into every entry; the module docstring of
 `tools/check_carriers.py` carries the evidence. Without staged copies the check prints a note and still fails on any
 repo-side drift; exit status is 0 clean, 1 drift, 2 setup failure.
 

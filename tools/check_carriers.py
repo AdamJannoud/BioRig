@@ -6,8 +6,11 @@
 
 Carriers (docs/carriers.json is the publish record: per carrier its size, digest and the sources it was made from):
   proposal.pdf      tools/render_proposal_pdf.py over docs/prezenti-proposal.md, tools/print/proposal.css and
-                    assets/brand/biorig-lockup.png. Byte-deterministic: two renders of the same markdown are
-                    identical, and the published copy equals a fresh render. Compared by sha256.
+                    assets/brand/biorig-lockup.png. Byte-deterministic on one machine: two renders of the same
+                    markdown are identical, and in the publishing environment the published copy equals a fresh
+                    render. Compared by sha256. Those bytes come from Chromium print-to-PDF, so they depend on the
+                    browser build and on the brand fonts (Caladea, Lato) being installed: a fresh clone in CI without
+                    them renders different bytes from an unchanged source (see `derive` below).
   proposal.docx     tools/render_proposal_docx.py over the same markdown and lockup. Its content is deterministic
                     but its bytes are not: python-docx stamps the wall-clock time into every zip entry (DOS time and
                     date, once in the local header and once in the central directory). Two renders seconds apart
@@ -24,7 +27,11 @@ Carriers (docs/carriers.json is the publish record: per carrier its size, digest
 Checks, one line per carrier per check:
   sources   every source the record names still hashes to the recorded value (a moved source is a carrier
             that was not republished)
-  derive    a fresh pdf/docx render into a temp dir, or the md/png file it is copied from, equals the record
+  derive    a fresh pdf/docx render into a temp dir, or the md/png file it is copied from, equals the record.
+            Byte-equality of a raw render (proposal.pdf) is attested only in the publishing environment, where the
+            published copy is staged (pinned browser build and brand fonts); without a staged copy the line is a
+            note on stdout saying the render's bytes are not attested here, and the recorded source digests,
+            the docx/md/png comparisons and any staged copies present still decide the exit status.
   staged    each file in cache/carriers/published/ (the bytes downloaded from the workspace Files; git-ignored)
             equals the record: the copy in Files is the artefact the publish flow produced. Absent directory:
             a note, and the repo-side checks still decide the exit status.
@@ -192,10 +199,22 @@ def check_sources(root: Path, carrier: Carrier, entry: dict) -> list[Line]:
     return lines or [Line(carrier.name, "sources", "ok", f"{n}/{n} sources match the record")]
 
 
-def check_derived(root: Path, carrier: Carrier, entry: dict, out_dir: Path) -> Line:
+def environment_bound(carrier: Carrier) -> bool:
+    """A carrier compared on raw render bytes: the comparison holds only where the render environment is pinned."""
+    return carrier.renderer is not None and carrier.algorithm == SHA256
+
+
+def check_derived(root: Path, carrier: Carrier, entry: dict, out_dir: Path, staged: Path) -> Line:
     have, _ = derived(root, carrier, out_dir)
     want = entry["digest"]
     what = "a fresh render" if carrier.renderer else f"the committed {carrier.copy_of.as_posix()}"
+    if environment_bound(carrier) and not (staged / carrier.name).is_file():
+        verdict = "matches" if have == want else f"is {short(have)}, not"
+        return Line(carrier.name, "derive", "note",
+                    f"{what} {verdict} the published {entry['algorithm']} {short(want)}, but its bytes are not "
+                    f"attested in this environment: no published copy is staged, and Chromium print-to-PDF bytes "
+                    f"depend on the browser build and the brand fonts, so byte-equality is checked only where the "
+                    f"published copies are staged (DEPLOY.md section 9); the recorded source digests are enforced")
     if have == want:
         return Line(carrier.name, "derive", "ok", f"{what} matches the published {entry['algorithm']} {short(want)}")
     return Line(carrier.name, "derive", "drift",
@@ -231,7 +250,7 @@ def check(root: Path, staged: Path) -> list[Line]:
     with tempfile.TemporaryDirectory(prefix="carriers-") as tmp:
         for carrier in CARRIERS:
             lines += check_sources(root, carrier, record[carrier.name])
-            lines.append(check_derived(root, carrier, record[carrier.name], Path(tmp)))
+            lines.append(check_derived(root, carrier, record[carrier.name], Path(tmp), staged))
     return lines + check_staged(staged, record, root)
 
 
