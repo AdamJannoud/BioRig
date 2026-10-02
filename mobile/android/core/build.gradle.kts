@@ -39,3 +39,12 @@ tasks.register<JavaExec>("emitRegistrationBody") {
     classpath = sourceSets["test"].runtimeClasspath
     mainClass.set("org.biorig.core.relay.EmitRegistrationBodyKt")
 }
+
+// Drives SubmissionQueue against a live relay; tools/relay_e2e.py starts the real relay and passes its URL.
+tasks.register<JavaExec>("relayE2e") {
+    group = "verification"
+    description = "Run the queue against a running relay (-Prelay=http://127.0.0.1:PORT)"
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass.set("org.biorig.core.e2e.RelayE2eKt")
+    args(providers.gradleProperty("relay").orElse("http://127.0.0.1:8787").get())
+}
