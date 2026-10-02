@@ -450,7 +450,8 @@ def run_quick_start(args, record: dict, clone: Path, key: str | None, workdir: P
     print_table(rows)
 
     if failed:
-        where = f"quick start line {failed.n}: {failed.line}"
+        command = re.sub(r"\s+#.*$", "", failed.line)  # the README comment dropped
+        where = f"quick start line {failed.n}: {command}"
         if failed.kind == "gate" and gate:
             where += f" (gate step {gate['failing_step']})"
         record.update(verdict="FAIL", failing_step=where)
