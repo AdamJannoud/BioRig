@@ -2,6 +2,12 @@
 # Verify both demo pieces end to end. Exits non-zero on the first failure.
 #   scripts/verify-demo.sh              full run (re-renders the 1080p master, ~80 s)
 #   SKIP_RENDER=1 scripts/verify-demo.sh  probe the existing mp4 instead of re-rendering
+#   VERIFY_ALLOW_NO_KEY=1 scripts/verify-demo.sh  key-free mode: a partial run, for CI and clean-clone proofs
+#
+# Key-free mode skips the steps that need the deployer key (3, the live mint simulation; 4b, the fork rehearsals;
+# 6, the exact-key scan of tracked files, replaced by a pattern scan) and prints `SKIPPED (no key): step N` for
+# each. Its closing banner names the skipped steps instead of ALL DEMO CHECKS PASSED, so a partial run can never
+# read as a full acceptance pass. The flag is refused when a key IS configured: it cannot weaken a real run.
 #
 # Step 4b rehearses the two Celo mainnet operations that have already executed, against a fork of the live chain
 # (script/safe-owner-swap-fork-check.sh then script/handover-fork-check.sh). It signs as the deployer and forks
@@ -14,6 +20,22 @@ PY=.venv/bin/python
 MP4=assets/media/demo_90s.mp4
 PORT=${DEMO_PORT:-8599}
 step() { printf '\n== %s\n' "$*"; }
+SKIPPED=()  # steps key-free mode did not run; named in the closing banner
+skip() { echo "SKIPPED (no key): step $1"; SKIPPED+=("$1"); }
+
+# Whether a key is configured, through the same loader steps 3, 4b and 6 use (.env, then the environment).
+HAVE_KEY=$($PY -c 'from dashboard.config import load_settings; print(1 if (load_settings().private_key or "").strip() else 0)')
+NO_KEY=0
+if [ "${VERIFY_ALLOW_NO_KEY:-0}" = 1 ]; then
+    if [ "$HAVE_KEY" = 1 ]; then
+        echo "VERIFY_ALLOW_NO_KEY=1 refused: a PRIVATE_KEY is configured, so run the full gate instead"
+        exit 1
+    fi
+    NO_KEY=1
+    echo "key-free mode: steps 3, 4b and 6 will be SKIPPED; this is a partial run, not a full acceptance pass"
+elif [ "${VERIFY_ALLOW_NO_KEY:-0}" != 0 ]; then
+    echo "VERIFY_ALLOW_NO_KEY must be 1 or unset"; exit 1
+fi
 
 step "1. contract sources untouched (src/ and test/ match HEAD)"
 git diff --quiet HEAD -- src test || { echo "src/ or test/ has local changes"; exit 1; }
@@ -26,7 +48,7 @@ passed=$(echo "$out" | grep -oE '[0-9]+ passed' | grep -oE '[0-9]+')
 [ "${passed:-0}" -gt 0 ] || { echo "no tests ran"; exit 1; }
 
 step "3. live chain: getTreeStats, TBA derivation, mintTree eth_call simulation (no broadcast)"
-$PY -m dashboard.smoke --token 1
+if [ "$NO_KEY" = 1 ]; then skip 3; else $PY -m dashboard.smoke --token 1; fi
 
 step "4. dashboard in a real browser"
 # The pip package does not ship the browser binary, so a fresh machine fails the check below with
@@ -50,6 +72,7 @@ step "4b. mainnet rehearsals on a fork: the Safe owner swap, then the role hando
 # mode-B handover, blocks 78991473-78991482). Nothing ran either harness afterwards, so both sat asserting the
 # pre-operation world while forking the tip and neither red run was noticed. The gate runs them now: a rehearsal
 # that cannot build its fork, or whose facts have moved, fails the gate instead of ageing quietly. ~30 s.
+if [ "$NO_KEY" = 1 ]; then skip 4b; else
 LOGDIR=cache/verify-demo; mkdir -p "$LOGDIR"
 KEYDIR=$(mktemp -d); chmod 700 "$KEYDIR"
 $PY - "$KEYDIR/deployer.key" <<'PY'
@@ -86,6 +109,7 @@ rehearse() {  # $1 the harness: its verdict on success, its whole log on failure
 
 rehearse script/safe-owner-swap-fork-check.sh || exit 1
 rehearse script/handover-fork-check.sh || exit 1
+fi
 
 step "5. video: render and probe"
 if [ "${SKIP_RENDER:-0}" != 1 ]; then $PY tools/generate_demo.py --out "$MP4"; fi
@@ -132,6 +156,15 @@ print("label burned into scene 4 and the closing card")
 PY
 
 step "6. secrets: the .env key is in no tracked file"
+if [ "$NO_KEY" = 1 ]; then
+    skip 6
+    # Without the key there is nothing exact to look for; still refuse an assignment of key-shaped material. The
+    # public anvil test keys (script/fork-dry-run.sh, marked "anvil" on their line) are not secrets.
+    hits=$(git grep -nIE '(PRIVATE_KEY|private_key)[[:space:]]*[:=][[:space:]]*["'"'"']?(0x)?[0-9a-fA-F]{64}' -- . ':!lib' \
+        | grep -vi anvil || true)
+    if [ -n "$hits" ]; then echo "key-shaped assignment in tracked files:"; echo "$hits" | cut -d: -f1-2; exit 1; fi
+    echo "  pattern scan only: no PRIVATE_KEY=<64 hex> assignment in tracked files"
+else
 $PY - <<'PY'
 import subprocess, sys
 from dashboard.config import load_settings
@@ -145,6 +178,7 @@ if hits:
     sys.exit(f"key found in tracked files: {hits}")
 print(f"checked {len(files)} tracked files: none contain the key")
 PY
+fi
 
 step "7. proposal carriers: the published copies still match their source"
 # The pdf, docx, md and architecture raster held in the workspace Files are compared against the markdown, the two
@@ -154,4 +188,9 @@ step "7. proposal carriers: the published copies still match their source"
 # cache/carriers/published/ are checked too; without them it notes so and still fails on repo-side drift.
 $PY tools/check_carriers.py || { echo "carriers drifted: see DEPLOY.md section 9"; exit 1; }
 
+if [ "${#SKIPPED[@]}" -gt 0 ]; then
+    printf '\nPARTIAL: DEMO CHECKS PASSED EXCEPT SKIPPED STEPS: %s (key-free mode, not a full acceptance pass)\n' \
+        "${SKIPPED[*]}"
+    exit 0
+fi
 printf '\nALL DEMO CHECKS PASSED\n'
