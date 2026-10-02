@@ -64,6 +64,8 @@ object CaptureState {
     const val REJECTED = "rejected"
     /** Refused, or out of attempts: the planter has to act before it is sent again. */
     const val NEEDS_ATTENTION = "needs_attention"
+    /** The planter gave up on it (the plot is taken, the area excluded). Kept as a record, never sent. */
+    const val DISCARDED = "discarded"
 }
 
 /** Persistence for the queue; :app implements it with Room, the tests with a map. */
