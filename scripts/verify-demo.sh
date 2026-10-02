@@ -2,6 +2,12 @@
 # Verify both demo pieces end to end. Exits non-zero on the first failure.
 #   scripts/verify-demo.sh              full run (re-renders the 1080p master, ~80 s)
 #   SKIP_RENDER=1 scripts/verify-demo.sh  probe the existing mp4 instead of re-rendering
+#
+# Step 4b rehearses the two Celo mainnet operations that have already executed, against a fork of the live chain
+# (script/safe-owner-swap-fork-check.sh then script/handover-fork-check.sh). It signs as the deployer and forks
+# the chain, so it needs the key step 6 looks for and the live RPC, and it costs ~30 s. FORK_MODE is inherited,
+# so FORK_MODE=pin (needs an archive FORK_URL) and FORK_MODE=raw (fails by design) reach both harnesses
+# unchanged. Each rehearsal leaves its full log in cache/verify-demo/.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 PY=.venv/bin/python
@@ -29,7 +35,8 @@ $PY -m playwright install chromium >/dev/null 2>&1 || { echo "could not install 
 $PY -m streamlit run dashboard/app.py --server.headless true --server.port "$PORT" \
   --browser.gatherUsageStats false > .streamlit-run.log 2>&1 &
 ST_PID=$!
-trap 'kill $ST_PID 2>/dev/null || true' EXIT
+KEYDIR=   # step 4b's key file; removed on the way out
+trap 'kill "$ST_PID" 2>/dev/null || true; if [ -n "$KEYDIR" ]; then rm -rf "$KEYDIR"; fi' EXIT
 for _ in $(seq 1 60); do curl -sf "localhost:$PORT/_stcore/health" >/dev/null && break; sleep 0.5; done
 curl -sf "localhost:$PORT/_stcore/health" >/dev/null || { echo "streamlit did not start"; cat .streamlit-run.log; exit 1; }
 hdrs=$(curl -sI "localhost:$PORT/")
@@ -37,6 +44,48 @@ if echo "$hdrs" | grep -qiE '^x-frame-options|frame-ancestors'; then echo "frami
 echo "no X-Frame-Options / frame-ancestors"
 $PY scripts/check_dashboard_ui.py "http://localhost:$PORT"
 kill $ST_PID 2>/dev/null || true
+
+step "4b. mainnet rehearsals on a fork: the Safe owner swap, then the role handover"
+# Both operations EXECUTED on Celo mainnet on 1 October 2026 (swap tx 0x7a99f809…, block 78991457, then the
+# mode-B handover, blocks 78991473-78991482). Nothing ran either harness afterwards, so both sat asserting the
+# pre-operation world while forking the tip and neither red run was noticed. The gate runs them now: a rehearsal
+# that cannot build its fork, or whose facts have moved, fails the gate instead of ageing quietly. ~30 s.
+LOGDIR=cache/verify-demo; mkdir -p "$LOGDIR"
+KEYDIR=$(mktemp -d); chmod 700 "$KEYDIR"
+$PY - "$KEYDIR/deployer.key" <<'PY'
+import pathlib, sys
+from dashboard.config import load_settings
+# Both rehearsals need the real deployer key as their local sender (the swap guard refuses any other signer).
+# Nothing it signs reaches the chain: anvil forks the chain and every --broadcast goes to the fork.
+key = (load_settings().private_key or "").strip()
+if not key:
+    sys.exit("no PRIVATE_KEY configured: the fork rehearsals sign as the deployer")
+pathlib.Path(sys.argv[1]).write_text(key + "\n")
+PY
+chmod 600 "$KEYDIR/deployer.key"
+
+rehearse() {  # $1 the harness: its verdict on success, its whole log on failure
+    local log rc
+    log="$LOGDIR/$(basename "$1").log"
+    rc=0
+    # Through bash, the way DEPLOY.md documents running them: the gate must test the rehearsal, not the
+    # harness's file mode. A lost exec bit exits 126 and would read as a dead rehearsal.
+    KEY_FILE="$KEYDIR/deployer.key" bash "$1" > "$log" 2>&1 || rc=$?
+    if [ "$rc" -eq 0 ]; then
+        grep -E '^REHEARSAL PASSED' "$log" | sed 's/^/  /' || true
+        echo "  $(grep -cE '^  PASS ' "$log") checks passed, full log in $log"
+        return 0
+    fi
+    echo "$(basename "$1") exited $rc"
+    if [ "$rc" -eq 2 ]; then
+        echo "  an environment gap, not a facts mismatch: it could not build its fork, so it asserted nothing"
+    fi
+    cat "$log"
+    return 1
+}
+
+rehearse script/safe-owner-swap-fork-check.sh || exit 1
+rehearse script/handover-fork-check.sh || exit 1
 
 step "5. video: render and probe"
 if [ "${SKIP_RENDER:-0}" != 1 ]; then $PY tools/generate_demo.py --out "$MP4"; fi
