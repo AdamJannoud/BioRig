@@ -148,9 +148,12 @@ class Repo:
             if path.startswith("../") or path == "..":
                 self._ignored[path] = False
             else:
-                result = subprocess.run(["git", "-C", str(self.root), "check-ignore", "-q", "--no-index", path],
-                                        capture_output=True)
-                self._ignored[path] = result.returncode == 0
+                # Also as a directory: a dir-only pattern (`cache/`, `.venv/`) cannot match a path that does not
+                # exist yet, which is every generated directory in a fresh clone.
+                self._ignored[path] = any(
+                    subprocess.run(["git", "-C", str(self.root), "check-ignore", "-q", "--no-index", candidate],
+                                   capture_output=True).returncode == 0
+                    for candidate in (path, path + "/"))
         return self._ignored[path]
 
     def read(self, path: str) -> str:

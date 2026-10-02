@@ -61,6 +61,15 @@ def test_paths_resolve_tracked_relative_basename_and_ignored(tmp_path, capsys):
     assert check(capsys, root, "doc.md", "pkg/README.md") == (0, [])
 
 
+def test_ignored_directories_that_do_not_exist_yet_still_count_as_ignored(tmp_path, capsys):
+    # A fresh clone has no cache/ or .venv/ yet; the dir-only patterns must still excuse them (found by perturbing a
+    # scratch clone: the real checkout passed only because both directories existed).
+    root = make_repo(tmp_path, {".gitignore": ".venv/\ncache/\n",
+                                "doc.md": "Logs go to `cache/` and the toolchain to `.venv`.\n"})
+    assert not (root / "cache").exists() and not (root / ".venv").exists()
+    assert check(capsys, root, "doc.md") == (0, [])
+
+
 def test_paths_flag_a_missing_file(tmp_path, capsys):
     root = make_repo(tmp_path, {"tools/build.py": "", "doc.md": "Run `tools/biuld.py`, then read GUIDE.md.\n"})
     code, findings = check(capsys, root, "doc.md")
