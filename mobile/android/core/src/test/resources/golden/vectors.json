@@ -1,0 +1,1745 @@
+{
+ "_generated_by": "mobile/android/tools/gen_golden.py from dashboard/allometry.py, dashboard/h3_nullifier.py, relay/plot_index.py, relay/config.py and relay/validate.py",
+ "constants": {
+  "chave_a": 0.0673,
+  "chave_b": 0.976,
+  "height_a": 1.3,
+  "height_b": 0.55,
+  "height_c": 0.9,
+  "default_wood_density": 0.6,
+  "carbon_fraction": 0.47,
+  "co2_per_c": 3.6666666666666665,
+  "dbh_min_cm": 2,
+  "dbh_max_cm": 120,
+  "h3_resolution": 12,
+  "salt_prefix": "biorig:v1:",
+  "earth_radius_m": 6371008.8
+ },
+ "limits": {
+  "max_accuracy_m": 30.0,
+  "collision_radius_m": 20.0,
+  "fix_max_age_s": 600,
+  "fix_max_future_s": 60,
+  "biomass_tolerance_rel": 0.02,
+  "biomass_tolerance_abs_kg": 0.5,
+  "max_trees_per_cell": 4,
+  "per_session": 3
+ },
+ "default_species": [
+  "unspecified"
+ ],
+ "fields": {
+  "top": [
+   "client_estimate",
+   "fix",
+   "photo_sha256",
+   "planter_address",
+   "submission_id",
+   "tree"
+  ],
+  "fix": [
+   "accuracy_m",
+   "captured_at",
+   "lat",
+   "lng"
+  ],
+  "tree": [
+   "dbh_cm",
+   "species"
+  ],
+  "client_estimate": [
+   "biomass_kg",
+   "co2e_kg"
+  ],
+  "forbidden": [
+   "biomass_kg",
+   "cell",
+   "co2e_kg",
+   "h3_cell",
+   "nullifier",
+   "ordinal",
+   "plot_index",
+   "ref",
+   "reference",
+   "salt",
+   "spatialNullifier",
+   "spatial_nullifier",
+   "token_id",
+   "tree_ordinal"
+  ]
+ },
+ "allometry": [
+  {
+   "dbh_cm": 2,
+   "height_m": 2.326336290690488,
+   "biomass_kg": 0.36055671805412765,
+   "carbon_kg": 0.16946165748543998,
+   "co2e_kg": 0.6213594107799466,
+   "mint_biomass_kg": 0
+  },
+  {
+   "dbh_cm": 3,
+   "height_m": 2.7783314587372576,
+   "biomass_kg": 0.9461600633355606,
+   "carbon_kg": 0.4446952297677134,
+   "co2e_kg": 1.630549175814949,
+   "mint_biomass_kg": 1
+  },
+  {
+   "dbh_cm": 4,
+   "height_m": 3.2152112392514733,
+   "biomass_kg": 1.913146690052254,
+   "carbon_kg": 0.8991789443245594,
+   "co2e_kg": 3.296989462523384,
+   "mint_biomass_kg": 2
+  },
+  {
+   "dbh_cm": 5,
+   "height_m": 3.6411847869321585,
+   "biomass_kg": 3.339281468579586,
+   "carbon_kg": 1.5694622902324054,
+   "co2e_kg": 5.754695064185486,
+   "mint_biomass_kg": 3
+  },
+  {
+   "dbh_cm": 6,
+   "height_m": 4.058664046857192,
+   "biomass_kg": 5.299365025995037,
+   "carbon_kg": 2.490701562217667,
+   "co2e_kg": 9.132572394798112,
+   "mint_biomass_kg": 5
+  },
+  {
+   "dbh_cm": 7,
+   "height_m": 4.469209327873221,
+   "biomass_kg": 7.8658782230089335,
+   "carbon_kg": 3.6969627648141987,
+   "co2e_kg": 13.555530137652061,
+   "mint_biomass_kg": 8
+  },
+  {
+   "dbh_cm": 8,
+   "height_m": 4.873910543967437,
+   "biomass_kg": 11.109405824905457,
+   "carbon_kg": 5.221420737705564,
+   "co2e_kg": 19.145209371587068,
+   "mint_biomass_kg": 11
+  },
+  {
+   "dbh_cm": 9,
+   "height_m": 5.273570730713142,
+   "biomass_kg": 15.098935284442758,
+   "carbon_kg": 7.096499583688096,
+   "co2e_kg": 26.020498473523016,
+   "mint_biomass_kg": 15
+  },
+  {
+   "dbh_cm": 10,
+   "height_m": 5.668805290983549,
+   "biomass_kg": 19.902078182395257,
+   "carbon_kg": 9.35397674572577,
+   "co2e_kg": 34.297914734327826,
+   "mint_biomass_kg": 20
+  },
+  {
+   "dbh_cm": 11,
+   "height_m": 6.060100325290473,
+   "biomass_kg": 25.585240547831592,
+   "carbon_kg": 12.025063057480848,
+   "co2e_kg": 44.09189787742977,
+   "mint_biomass_kg": 26
+  },
+  {
+   "dbh_cm": 12,
+   "height_m": 6.4478491365684025,
+   "biomass_kg": 32.21375768704699,
+   "carbon_kg": 15.140466112912085,
+   "co2e_kg": 55.51504241401098,
+   "mint_biomass_kg": 32
+  },
+  {
+   "dbh_cm": 13,
+   "height_m": 6.832376228386879,
+   "biomass_kg": 39.85200340409539,
+   "carbon_kg": 18.730441599924834,
+   "co2e_kg": 68.67828586639105,
+   "mint_biomass_kg": 40
+  },
+  {
+   "dbh_cm": 14,
+   "height_m": 7.213953719983812,
+   "biomass_kg": 48.563480161265886,
+   "carbon_kg": 22.824835675794965,
+   "co2e_kg": 83.69106414458153,
+   "mint_biomass_kg": 49
+  },
+  {
+   "dbh_cm": 15,
+   "height_m": 7.592812947707078,
+   "biomass_kg": 58.41089468589719,
+   "carbon_kg": 27.45312050237168,
+   "co2e_kg": 100.66144184202949,
+   "mint_biomass_kg": 58
+  },
+  {
+   "dbh_cm": 16,
+   "height_m": 7.969152892645752,
+   "biomass_kg": 69.45622222355742,
+   "carbon_kg": 32.644424445071984,
+   "co2e_kg": 119.69622296526393,
+   "mint_biomass_kg": 69
+  },
+  {
+   "dbh_cm": 17,
+   "height_m": 8.343146447549115,
+   "biomass_kg": 81.76076177083307,
+   "carbon_kg": 38.42755803229154,
+   "co2e_kg": 140.90104611840232,
+   "mint_biomass_kg": 82
+  },
+  {
+   "dbh_cm": 18,
+   "height_m": 8.714945171920762,
+   "biomass_kg": 95.38518402784456,
+   "carbon_kg": 44.83103649308694,
+   "co2e_kg": 164.38046714131877,
+   "mint_biomass_kg": 95
+  },
+  {
+   "dbh_cm": 19,
+   "height_m": 9.084682963951607,
+   "biomass_kg": 110.38957339386417,
+   "carbon_kg": 51.883099495116156,
+   "co2e_kg": 190.23803148209257,
+   "mint_biomass_kg": 110
+  },
+  {
+   "dbh_cm": 20,
+   "height_m": 9.452478940176427,
+   "biomass_kg": 126.8334650298047,
+   "carbon_kg": 59.6117285640082,
+   "co2e_kg": 218.57633806803008,
+   "mint_biomass_kg": 127
+  },
+  {
+   "dbh_cm": 21,
+   "height_m": 9.818439724942806,
+   "biomass_kg": 144.77587779157895,
+   "carbon_kg": 68.0446625620421,
+   "co2e_kg": 249.49709606082104,
+   "mint_biomass_kg": 145
+  },
+  {
+   "dbh_cm": 22,
+   "height_m": 10.182661293042202,
+   "biomass_kg": 164.27534367423416,
+   "carbon_kg": 77.20941152689005,
+   "co2e_kg": 283.10117559859685,
+   "mint_biomass_kg": 164
+  },
+  {
+   "dbh_cm": 23,
+   "height_m": 10.54523046908805,
+   "biomass_kg": 185.38993428228682,
+   "carbon_kg": 87.1332691126748,
+   "co2e_kg": 319.4886534131409,
+   "mint_biomass_kg": 185
+  },
+  {
+   "dbh_cm": 24,
+   "height_m": 10.906226159745176,
+   "biomass_kg": 208.17728474590865,
+   "carbon_kg": 97.84332383057706,
+   "co2e_kg": 358.7588540454492,
+   "mint_biomass_kg": 208
+  },
+  {
+   "dbh_cm": 25,
+   "height_m": 11.265720375568316,
+   "biomass_kg": 232.69461542797725,
+   "carbon_kg": 109.3664692511493,
+   "co2e_kg": 401.0103872542141,
+   "mint_biomass_kg": 233
+  },
+  {
+   "dbh_cm": 26,
+   "height_m": 11.623779085357858,
+   "biomass_kg": 258.9987517081617,
+   "carbon_kg": 121.729413302836,
+   "co2e_kg": 446.3411821103986,
+   "mint_biomass_kg": 259
+  },
+  {
+   "dbh_cm": 27,
+   "height_m": 11.980462935874238,
+   "biomass_kg": 287.1461420833333,
+   "carbon_kg": 134.95868677916664,
+   "co2e_kg": 494.8485181902777,
+   "mint_biomass_kg": 287
+  },
+  {
+   "dbh_cm": 28,
+   "height_m": 12.335827862333453,
+   "biomass_kg": 317.19287478587387,
+   "carbon_kg": 149.0806511493607,
+   "co2e_kg": 546.6290542143225,
+   "mint_biomass_kg": 317
+  },
+  {
+   "dbh_cm": 29,
+   "height_m": 12.689925609568718,
+   "biomass_kg": 349.1946930908492,
+   "carbon_kg": 164.12150575269914,
+   "co2e_kg": 601.7788544265635,
+   "mint_biomass_kg": 349
+  },
+  {
+   "dbh_cm": 30,
+   "height_m": 13.042804179561381,
+   "biomass_kg": 383.20700945796483,
+   "carbon_kg": 180.10729444524347,
+   "co2e_kg": 660.3934129658927,
+   "mint_biomass_kg": 383
+  },
+  {
+   "dbh_cm": 31,
+   "height_m": 13.394508217852248,
+   "biomass_kg": 419.2849186335731,
+   "carbon_kg": 197.06391175777935,
+   "co2e_kg": 722.567676445191,
+   "mint_biomass_kg": 419
+  },
+  {
+   "dbh_cm": 32,
+   "height_m": 13.74507934888324,
+   "biomass_kg": 457.4832098208594,
+   "carbon_kg": 215.0171086158039,
+   "co2e_kg": 788.3960649246143,
+   "mint_biomass_kg": 457
+  },
+  {
+   "dbh_cm": 33,
+   "height_m": 14.09455646840429,
+   "biomass_kg": 497.8563780120043,
+   "carbon_kg": 233.99249766564202,
+   "co2e_kg": 857.9724914406873,
+   "mint_biomass_kg": 498
+  },
+  {
+   "dbh_cm": 34,
+   "height_m": 14.442975999577179,
+   "biomass_kg": 540.4586345640789,
+   "carbon_kg": 254.0155582451171,
+   "co2e_kg": 931.3903802320959,
+   "mint_biomass_kg": 540
+  },
+  {
+   "dbh_cm": 35,
+   "height_m": 14.790372118218679,
+   "biomass_kg": 585.3439170902444,
+   "carbon_kg": 275.11164103241487,
+   "co2e_kg": 1008.7426837855211,
+   "mint_biomass_kg": 585
+  },
+  {
+   "dbh_cm": 36,
+   "height_m": 15.136776951677271,
+   "biomass_kg": 632.5658987291711,
+   "carbon_kg": 297.3059724027104,
+   "co2e_kg": 1090.121898809938,
+   "mint_biomass_kg": 633
+  },
+  {
+   "dbh_cm": 37,
+   "height_m": 15.482220755076492,
+   "biomass_kg": 682.1779968482008,
+   "carbon_kg": 320.62365851865434,
+   "co2e_kg": 1175.6200812350658,
+   "mint_biomass_kg": 682
+  },
+  {
+   "dbh_cm": 38,
+   "height_m": 15.826732068042778,
+   "biomass_kg": 734.2333812294272,
+   "carbon_kg": 345.0896891778308,
+   "co2e_kg": 1265.328860318713,
+   "mint_biomass_kg": 734
+  },
+  {
+   "dbh_cm": 39,
+   "height_m": 16.170337854535457,
+   "biomass_kg": 788.7849817823999,
+   "carbon_kg": 370.72894143772794,
+   "co2e_kg": 1359.3394519383357,
+   "mint_biomass_kg": 789
+  },
+  {
+   "dbh_cm": 40,
+   "height_m": 16.513063627987265,
+   "biomass_kg": 845.8854958224235,
+   "carbon_kg": 397.56618303653903,
+   "co2e_kg": 1457.7426711339763,
+   "mint_biomass_kg": 846
+  },
+  {
+   "dbh_cm": 41,
+   "height_m": 16.854933563627128,
+   "biomass_kg": 905.5873949493075,
+   "carbon_kg": 425.6260756261745,
+   "co2e_kg": 1560.6289439626398,
+   "mint_biomass_kg": 906
+  },
+  {
+   "dbh_cm": 42,
+   "height_m": 17.195970599578725,
+   "biomass_kg": 967.9429315578312,
+   "carbon_kg": 454.93317783218066,
+   "co2e_kg": 1668.0883187179957,
+   "mint_biomass_kg": 968
+  },
+  {
+   "dbh_cm": 43,
+   "height_m": 17.536196528096877,
+   "biomass_kg": 1033.0041450080516,
+   "carbon_kg": 485.51194815378426,
+   "co2e_kg": 1780.2104765638755,
+   "mint_biomass_kg": 1033
+  },
+  {
+   "dbh_cm": 44,
+   "height_m": 17.87563207811074,
+   "biomass_kg": 1100.8228674808106,
+   "carbon_kg": 517.386747715981,
+   "co2e_kg": 1897.0847416252634,
+   "mint_biomass_kg": 1101
+  },
+  {
+   "dbh_cm": 45,
+   "height_m": 18.21429699008092,
+   "biomass_kg": 1171.4507295413855,
+   "carbon_kg": 550.5818428844511,
+   "co2e_kg": 2018.8000905763208,
+   "mint_biomass_kg": 1171
+  },
+  {
+   "dbh_cm": 46,
+   "height_m": 18.552210084040933,
+   "biomass_kg": 1244.939165432056,
+   "carbon_kg": 585.1214077530663,
+   "co2e_kg": 2145.4451617612426,
+   "mint_biomass_kg": 1245
+  },
+  {
+   "dbh_cm": 47,
+   "height_m": 18.889389321578275,
+   "biomass_kg": 1321.3394181124722,
+   "carbon_kg": 621.0295265128619,
+   "co2e_kg": 2277.1082638804937,
+   "mint_biomass_kg": 1321
+  },
+  {
+   "dbh_cm": 48,
+   "height_m": 19.22585186241236,
+   "biomass_kg": 1400.7025440650089,
+   "carbon_kg": 658.3301957105541,
+   "co2e_kg": 2413.8773842720316,
+   "mint_biomass_kg": 1401
+  },
+  {
+   "dbh_cm": 49,
+   "height_m": 19.561614116142966,
+   "biomass_kg": 1483.079417880781,
+   "carbon_kg": 697.047326403967,
+   "co2e_kg": 2555.8401968145454,
+   "mint_biomass_kg": 1483
+  },
+  {
+   "dbh_cm": 50,
+   "height_m": 19.896691789671642,
+   "biomass_kg": 1568.5207366406548,
+   "carbon_kg": 737.2047462211077,
+   "co2e_kg": 2703.0840694773947,
+   "mint_biomass_kg": 1569
+  },
+  {
+   "dbh_cm": 51,
+   "height_m": 20.231099930737127,
+   "biomass_kg": 1657.0770241043708,
+   "carbon_kg": 778.8262013290542,
+   "co2e_kg": 2855.6960715398654,
+   "mint_biomass_kg": 1657
+  },
+  {
+   "dbh_cm": 52,
+   "height_m": 20.564852967953136,
+   "biomass_kg": 1748.7986347198228,
+   "carbon_kg": 821.9353583183166,
+   "co2e_kg": 3013.762980500494,
+   "mint_biomass_kg": 1749
+  },
+  {
+   "dbh_cm": 53,
+   "height_m": 20.89796474769144,
+   "biomass_kg": 1843.735757463559,
+   "carbon_kg": 866.5558060078727,
+   "co2e_kg": 3177.371288695533,
+   "mint_biomass_kg": 1844
+  },
+  {
+   "dbh_cm": 54,
+   "height_m": 21.230448568113466,
+   "biomass_kg": 1941.93841952268,
+   "carbon_kg": 912.7110571756596,
+   "co2e_kg": 3346.607209644085,
+   "mint_biomass_kg": 1942
+  },
+  {
+   "dbh_cm": 55,
+   "height_m": 21.562317210619764,
+   "biomass_kg": 2043.4564898275428,
+   "carbon_kg": 960.424550218945,
+   "co2e_kg": 3521.5566841361315,
+   "mint_biomass_kg": 2043
+  },
+  {
+   "dbh_cm": 56,
+   "height_m": 21.893582968956466,
+   "biomass_kg": 2148.33968244393,
+   "carbon_kg": 1009.719650748647,
+   "co2e_kg": 3702.3053860783725,
+   "mint_biomass_kg": 2148
+  },
+  {
+   "dbh_cm": 57,
+   "height_m": 22.224257676192106,
+   "biomass_kg": 2256.637559832715,
+   "carbon_kg": 1060.619653121376,
+   "co2e_kg": 3888.9387281117115,
+   "mint_biomass_kg": 2257
+  },
+  {
+   "dbh_cm": 58,
+   "height_m": 22.55435272975519,
+   "biomass_kg": 2368.3995359844453,
+   "carbon_kg": 1113.1477819126892,
+   "co2e_kg": 4081.5418670131935,
+   "mint_biomass_kg": 2368
+  },
+  {
+   "dbh_cm": 59,
+   "height_m": 22.883879114702964,
+   "biomass_kg": 2483.6748794357495,
+   "carbon_kg": 1167.3271933348021,
+   "co2e_kg": 4280.199708894274,
+   "mint_biomass_kg": 2484
+  },
+  {
+   "dbh_cm": 60,
+   "height_m": 23.21284742537416,
+   "biomass_kg": 2602.5127161739497,
+   "carbon_kg": 1223.1809766017564,
+   "co2e_kg": 4484.99691420644,
+   "mint_biomass_kg": 2603
+  },
+  {
+   "dbh_cm": 61,
+   "height_m": 23.541267885563062,
+   "biomass_kg": 2724.9620324358502,
+   "carbon_kg": 1280.7321552448495,
+   "co2e_kg": 4696.017902564448,
+   "mint_biomass_kg": 2725
+  },
+  {
+   "dbh_cm": 62,
+   "height_m": 23.869150367338367,
+   "biomass_kg": 2851.0716774062275,
+   "carbon_kg": 1340.0036883809269,
+   "co2e_kg": 4913.346857396732,
+   "mint_biomass_kg": 2851
+  },
+  {
+   "dbh_cm": 63,
+   "height_m": 24.196504408618363,
+   "biomass_kg": 2980.8903658212007,
+   "carbon_kg": 1401.0184719359643,
+   "co2e_kg": 5137.067730431869,
+   "mint_biomass_kg": 2981
+  },
+  {
+   "dbh_cm": 64,
+   "height_m": 24.523339229602943,
+   "biomass_kg": 3114.4666804812987,
+   "carbon_kg": 1463.7993398262104,
+   "co2e_kg": 5367.264246029438,
+   "mint_biomass_kg": 3114
+  },
+  {
+   "dbh_cm": 65,
+   "height_m": 24.84966374815358,
+   "biomass_kg": 3251.849074678731,
+   "carbon_kg": 1528.3690650990036,
+   "co2e_kg": 5604.019905363013,
+   "mint_biomass_kg": 3252
+  },
+  {
+   "dbh_cm": 66,
+   "height_m": 25.17548659420373,
+   "biomass_kg": 3393.08587454307,
+   "carbon_kg": 1594.7503610352428,
+   "co2e_kg": 5847.417990462557,
+   "mint_biomass_kg": 3393
+  },
+  {
+   "dbh_cm": 67,
+   "height_m": 25.50081612327453,
+   "biomass_kg": 3538.2252813093,
+   "carbon_kg": 1662.965882215371,
+   "co2e_kg": 6097.541568123027,
+   "mint_biomass_kg": 3538
+  },
+  {
+   "dbh_cm": 68,
+   "height_m": 25.825660429163914,
+   "biomass_kg": 3687.315373511929,
+   "carbon_kg": 1733.0382255506065,
+   "co2e_kg": 6354.473493685557,
+   "mint_biomass_kg": 3687
+  },
+  {
+   "dbh_cm": 69,
+   "height_m": 26.150027355871053,
+   "biomass_kg": 3840.4041091086265,
+   "carbon_kg": 1804.9899312810544,
+   "co2e_kg": 6618.296414697199,
+   "mint_biomass_kg": 3840
+  },
+  {
+   "dbh_cm": 70,
+   "height_m": 26.473924508812622,
+   "biomass_kg": 3997.539327536657,
+   "carbon_kg": 1878.8434839422287,
+   "co2e_kg": 6889.092774454838,
+   "mint_biomass_kg": 3998
+  },
+  {
+   "dbh_cm": 71,
+   "height_m": 26.7973592653825,
+   "biomass_kg": 4158.768751705159,
+   "carbon_kg": 1954.6213133014246,
+   "co2e_kg": 7166.944815438556,
+   "mint_biomass_kg": 4159
+  },
+  {
+   "dbh_cm": 72,
+   "height_m": 27.120338784901982,
+   "biomass_kg": 4324.139989926174,
+   "carbon_kg": 2032.3457952653018,
+   "co2e_kg": 7451.93458263944,
+   "mint_biomass_kg": 4324
+  },
+  {
+   "dbh_cm": 73,
+   "height_m": 27.442870018003717,
+   "biomass_kg": 4493.700537787109,
+   "carbon_kg": 2112.039252759941,
+   "co2e_kg": 7744.14392678645,
+   "mint_biomass_kg": 4494
+  },
+  {
+   "dbh_cm": 74,
+   "height_m": 27.76495971548884,
+   "biomass_kg": 4667.497779967222,
+   "carbon_kg": 2193.7239565845944,
+   "co2e_kg": 8043.6545074768455,
+   "mint_biomass_kg": 4667
+  },
+  {
+   "dbh_cm": 75,
+   "height_m": 28.08661443669367,
+   "biomass_kg": 4845.578992000522,
+   "carbon_kg": 2277.4221262402452,
+   "co2e_kg": 8350.547796214232,
+   "mint_biomass_kg": 4846
+  },
+  {
+   "dbh_cm": 76,
+   "height_m": 28.407840557399254,
+   "biomass_kg": 5027.991341987371,
+   "carbon_kg": 2363.1559307340644,
+   "co2e_kg": 8664.905079358236,
+   "mint_biomass_kg": 5028
+  },
+  {
+   "dbh_cm": 77,
+   "height_m": 28.728644277314395,
+   "biomass_kg": 5214.7818922569395,
+   "carbon_kg": 2450.947489360761,
+   "co2e_kg": 8986.807460989457,
+   "mint_biomass_kg": 5215
+  },
+  {
+   "dbh_cm": 78,
+   "height_m": 29.0490316271605,
+   "biomass_kg": 5405.99760098255,
+   "carbon_kg": 2540.818872461798,
+   "co2e_kg": 9316.33586569326,
+   "mint_biomass_kg": 5406
+  },
+  {
+   "dbh_cm": 79,
+   "height_m": 29.369008475384152,
+   "biomass_kg": 5601.685323751834,
+   "carbon_kg": 2632.792102163362,
+   "co2e_kg": 9653.57104126566,
+   "mint_biomass_kg": 5602
+  },
+  {
+   "dbh_cm": 80,
+   "height_m": 29.68858053452151,
+   "biomass_kg": 5801.891815093526,
+   "carbon_kg": 2726.8891530939572,
+   "co2e_kg": 9998.593561344509,
+   "mint_biomass_kg": 5802
+  },
+  {
+   "dbh_cm": 81,
+   "height_m": 30.00775336723668,
+   "biomass_kg": 6006.663729962619,
+   "carbon_kg": 2823.1319530824308,
+   "co2e_kg": 10351.483827968912,
+   "mint_biomass_kg": 6007
+  },
+  {
+   "dbh_cm": 82,
+   "height_m": 30.326532392054624,
+   "biomass_kg": 6216.0476251855325,
+   "carbon_kg": 2921.5423838372003,
+   "co2e_kg": 10712.322074069734,
+   "mint_biomass_kg": 6216
+  },
+  {
+   "dbh_cm": 83,
+   "height_m": 30.644922888807496,
+   "biomass_kg": 6430.089960866829,
+   "carbon_kg": 3022.142281607409,
+   "co2e_kg": 11081.188365893833,
+   "mint_biomass_kg": 6430
+  },
+  {
+   "dbh_cm": 84,
+   "height_m": 30.962930003812158,
+   "biomass_kg": 6648.837101758972,
+   "carbon_kg": 3124.9534378267163,
+   "co2e_kg": 11458.162605364625,
+   "mint_biomass_kg": 6649
+  },
+  {
+   "dbh_cm": 85,
+   "height_m": 31.280558754795017,
+   "biomass_kg": 6872.335318596512,
+   "carbon_kg": 3229.9975997403603,
+   "co2e_kg": 11843.32453238132,
+   "mint_biomass_kg": 6872
+  },
+  {
+   "dbh_cm": 86,
+   "height_m": 31.597814035579507,
+   "biomass_kg": 7100.630789396056,
+   "carbon_kg": 3337.296471016146,
+   "co2e_kg": 12236.753727059202,
+   "mint_biomass_kg": 7101
+  },
+  {
+   "dbh_cm": 87,
+   "height_m": 31.914700620550125,
+   "biomass_kg": 7333.769600723256,
+   "carbon_kg": 3446.87171233993,
+   "co2e_kg": 12638.529611913076,
+   "mint_biomass_kg": 7334
+  },
+  {
+   "dbh_cm": 88,
+   "height_m": 32.23122316890626,
+   "biomass_kg": 7571.797748928066,
+   "carbon_kg": 3558.744941996191,
+   "co2e_kg": 13048.731453986033,
+   "mint_biomass_kg": 7572
+  },
+  {
+   "dbh_cm": 89,
+   "height_m": 32.54738622871787,
+   "biomass_kg": 7814.761141349368,
+   "carbon_kg": 3672.9377364342026,
+   "co2e_kg": 13467.43836692541,
+   "mint_biomass_kg": 7815
+  },
+  {
+   "dbh_cm": 90,
+   "height_m": 32.863194240794435,
+   "biomass_kg": 8062.705597490114,
+   "carbon_kg": 3789.4716308203533,
+   "co2e_kg": 13894.729313007962,
+   "mint_biomass_kg": 8063
+  },
+  {
+   "dbh_cm": 91,
+   "height_m": 33.17865154237775,
+   "biomass_kg": 8315.676850163984,
+   "carbon_kg": 3908.368119577072,
+   "co2e_kg": 14330.68310511593,
+   "mint_biomass_kg": 8316
+  },
+  {
+   "dbh_cm": 92,
+   "height_m": 33.49376237066837,
+   "biomass_kg": 8573.720546614577,
+   "carbon_kg": 4029.648656908851,
+   "co2e_kg": 14775.378408665787,
+   "mint_biomass_kg": 8574
+  },
+  {
+   "dbh_cm": 93,
+   "height_m": 33.80853086619502,
+   "biomass_kg": 8836.882249608103,
+   "carbon_kg": 4153.334657315808,
+   "co2e_kg": 15228.893743491295,
+   "mint_biomass_kg": 8837
+  },
+  {
+   "dbh_cm": 94,
+   "height_m": 34.1229610760355,
+   "biomass_kg": 9105.207438500434,
+   "carbon_kg": 4279.447496095204,
+   "co2e_kg": 15691.307485682413,
+   "mint_biomass_kg": 9105
+  },
+  {
+   "dbh_cm": 95,
+   "height_m": 34.437056956897166,
+   "biomass_kg": 9378.74151027945,
+   "carbon_kg": 4408.008509831341,
+   "co2e_kg": 16162.697869381584,
+   "mint_biomass_kg": 9379
+  },
+  {
+   "dbh_cm": 96,
+   "height_m": 34.750822378064505,
+   "biomass_kg": 9657.529780583427,
+   "carbon_kg": 4539.03899687421,
+   "co2e_kg": 16643.14298853877,
+   "mint_biomass_kg": 9658
+  },
+  {
+   "dbh_cm": 97,
+   "height_m": 35.064261124220934,
+   "biomass_kg": 9941.617484696359,
+   "carbon_kg": 4672.560217807289,
+   "co2e_kg": 17132.720798626724,
+   "mint_biomass_kg": 9942
+  },
+  {
+   "dbh_cm": 98,
+   "height_m": 35.37737689815132,
+   "biomass_kg": 10231.04977852087,
+   "carbon_kg": 4808.593395904809,
+   "co2e_kg": 17631.50911831763,
+   "mint_biomass_kg": 10231
+  },
+  {
+   "dbh_cm": 99,
+   "height_m": 35.69017332333151,
+   "biomass_kg": 10525.871739529528,
+   "carbon_kg": 4947.1597175788775,
+   "co2e_kg": 18139.58563112255,
+   "mint_biomass_kg": 10526
+  },
+  {
+   "dbh_cm": 100,
+   "height_m": 36.00265394641063,
+   "biomass_kg": 10826.128367695197,
+   "carbon_kg": 5088.280332816742,
+   "co2e_kg": 18657.02788699472,
+   "mint_biomass_kg": 10826
+  },
+  {
+   "dbh_cm": 101,
+   "height_m": 36.314822239591756,
+   "biomass_kg": 11131.864586401129,
+   "carbon_kg": 5231.97635560853,
+   "co2e_kg": 19183.91330389794,
+   "mint_biomass_kg": 11132
+  },
+  {
+   "dbh_cm": 102,
+   "height_m": 36.626681602915816,
+   "biomass_kg": 11443.125243331435,
+   "carbon_kg": 5378.268864365774,
+   "co2e_kg": 19720.31916934117,
+   "mint_biomass_kg": 11443
+  },
+  {
+   "dbh_cm": 103,
+   "height_m": 36.938235366453874,
+   "biomass_kg": 11759.955111342488,
+   "carbon_kg": 5527.178902330969,
+   "co2e_kg": 20266.32264188022,
+   "mint_biomass_kg": 11760
+  },
+  {
+   "dbh_cm": 104,
+   "height_m": 37.249486792412114,
+   "biomass_kg": 12082.398889315973,
+   "carbon_kg": 5678.727477978507,
+   "co2e_kg": 20822.000752587857,
+   "mint_biomass_kg": 12082
+  },
+  {
+   "dbh_cm": 105,
+   "height_m": 37.5604390771539,
+   "biomass_kg": 12410.501202993995,
+   "carbon_kg": 5832.935565407178,
+   "co2e_kg": 21387.430406492986,
+   "mint_biomass_kg": 12411
+  },
+  {
+   "dbh_cm": 106,
+   "height_m": 37.87109535314287,
+   "biomass_kg": 12744.306605796892,
+   "carbon_kg": 5989.824104724539,
+   "co2e_kg": 21962.688383989975,
+   "mint_biomass_kg": 12744
+  },
+  {
+   "dbh_cm": 107,
+   "height_m": 38.18145869081095,
+   "biomass_kg": 13083.859579624252,
+   "carbon_kg": 6149.4140024233975,
+   "co2e_kg": 22547.851342219124,
+   "mint_biomass_kg": 13084
+  },
+  {
+   "dbh_cm": 108,
+   "height_m": 38.491532100354775,
+   "biomass_kg": 13429.204535639601,
+   "carbon_kg": 6311.726131750612,
+   "co2e_kg": 23142.99581641891,
+   "mint_biomass_kg": 13429
+  },
+  {
+   "dbh_cm": 109,
+   "height_m": 38.801318533464006,
+   "biomass_kg": 13780.385815039283,
+   "carbon_kg": 6476.781333068462,
+   "co2e_kg": 23748.198221251027,
+   "mint_biomass_kg": 13780
+  },
+  {
+   "dbh_cm": 110,
+   "height_m": 39.11082088498459,
+   "biomass_kg": 14137.447689805973,
+   "carbon_kg": 6644.600414208807,
+   "co2e_kg": 24363.534852098957,
+   "mint_biomass_kg": 14137
+  },
+  {
+   "dbh_cm": 111,
+   "height_m": 39.42004199452007,
+   "biomass_kg": 14500.434363447253,
+   "carbon_kg": 6815.204150820208,
+   "co2e_kg": 24989.081886340762,
+   "mint_biomass_kg": 14500
+  },
+  {
+   "dbh_cm": 112,
+   "height_m": 39.728984647973796,
+   "biomass_kg": 14869.389971719727,
+   "carbon_kg": 6988.6132867082715,
+   "co2e_kg": 25624.915384596996,
+   "mint_biomass_kg": 14869
+  },
+  {
+   "dbh_cm": 113,
+   "height_m": 40.03765157903467,
+   "biomass_kg": 15244.35858333903,
+   "carbon_kg": 7164.848534169344,
+   "co2e_kg": 26271.11129195426,
+   "mint_biomass_kg": 15244
+  },
+  {
+   "dbh_cm": 114,
+   "height_m": 40.34604547060905,
+   "biomass_kg": 15625.384200676173,
+   "carbon_kg": 7343.930574317801,
+   "co2e_kg": 26927.745439165268,
+   "mint_biomass_kg": 15625
+  },
+  {
+   "dbh_cm": 115,
+   "height_m": 40.65416895620109,
+   "biomass_kg": 16012.51076044057,
+   "carbon_kg": 7525.880057407067,
+   "co2e_kg": 27594.893543825914,
+   "mint_biomass_kg": 16013
+  },
+  {
+   "dbh_cm": 116,
+   "height_m": 40.962024621243984,
+   "biomass_kg": 16405.78213435014,
+   "carbon_kg": 7710.717603144564,
+   "co2e_kg": 28272.631211530068,
+   "mint_biomass_kg": 16406
+  },
+  {
+   "dbh_cm": 117,
+   "height_m": 41.26961500438412,
+   "biomass_kg": 16805.242129788843,
+   "carbon_kg": 7898.463801000756,
+   "co2e_kg": 28961.03393700277,
+   "mint_biomass_kg": 16805
+  },
+  {
+   "dbh_cm": 118,
+   "height_m": 41.576942598720244,
+   "biomass_kg": 17210.93449045195,
+   "carbon_kg": 8089.139210512416,
+   "co2e_kg": 29660.17710521219,
+   "mint_biomass_kg": 17211
+  },
+  {
+   "dbh_cm": 119,
+   "height_m": 41.88400985299962,
+   "biomass_kg": 17622.90289697943,
+   "carbon_kg": 8282.764361580332,
+   "co2e_kg": 30370.135992461215,
+   "mint_biomass_kg": 17623
+  },
+  {
+   "dbh_cm": 120,
+   "height_m": 42.19081917277296,
+   "biomass_kg": 18041.19096757774,
+   "carbon_kg": 8479.359754761537,
+   "co2e_kg": 31090.98576745897,
+   "mint_biomass_kg": 18041
+  }
+ ],
+ "allometry_density": [
+  {
+   "dbh_cm": 5,
+   "wood_density": 0.3,
+   "biomass_kg": 1.6976484121224462
+  },
+  {
+   "dbh_cm": 5,
+   "wood_density": 0.6,
+   "biomass_kg": 3.339281468579586
+  },
+  {
+   "dbh_cm": 5,
+   "wood_density": 0.85,
+   "biomass_kg": 4.691268374798607
+  },
+  {
+   "dbh_cm": 10,
+   "wood_density": 0.3,
+   "biomass_kg": 10.117964520867954
+  },
+  {
+   "dbh_cm": 10,
+   "wood_density": 0.6,
+   "biomass_kg": 19.902078182395257
+  },
+  {
+   "dbh_cm": 10,
+   "wood_density": 0.85,
+   "biomass_kg": 27.959904203449756
+  },
+  {
+   "dbh_cm": 37,
+   "wood_density": 0.3,
+   "biomass_kg": 346.8106549361453
+  },
+  {
+   "dbh_cm": 37,
+   "wood_density": 0.6,
+   "biomass_kg": 682.1779968482008
+  },
+  {
+   "dbh_cm": 37,
+   "wood_density": 0.85,
+   "biomass_kg": 958.373857582816
+  },
+  {
+   "dbh_cm": 120,
+   "wood_density": 0.3,
+   "biomass_kg": 9171.913025928323
+  },
+  {
+   "dbh_cm": 120,
+   "wood_density": 0.6,
+   "biomass_kg": 18041.19096757774
+  },
+  {
+   "dbh_cm": 120,
+   "wood_density": 0.85,
+   "biomass_kg": 25345.5928846576
+  }
+ ],
+ "cells": [
+  {
+   "name": "nairobi_dashboard_default",
+   "lat": -1.2921,
+   "lng": 36.8219,
+   "cell": "8c7a6e42ca207ff",
+   "resolution": 12,
+   "ring_k": 2,
+   "neighbourhood": [
+    "8c7a6e42ca201ff",
+    "8c7a6e42ca203ff",
+    "8c7a6e42ca205ff",
+    "8c7a6e42ca207ff",
+    "8c7a6e42ca209ff",
+    "8c7a6e42ca20bff",
+    "8c7a6e42ca20dff",
+    "8c7a6e42ca215ff",
+    "8c7a6e42ca21dff",
+    "8c7a6e42ca221ff",
+    "8c7a6e42ca223ff",
+    "8c7a6e42ca229ff",
+    "8c7a6e42ca22bff",
+    "8c7a6e42ca231ff",
+    "8c7a6e42ca235ff",
+    "8c7a6e42ca239ff",
+    "8c7a6e42ca23bff",
+    "8c7a6e42ca23dff",
+    "8c7a6e42ca263ff"
+   ]
+  },
+  {
+   "name": "relay_api_example",
+   "lat": -1.2903,
+   "lng": 36.8219,
+   "cell": "8c7a6e42ca1cdff",
+   "resolution": 12,
+   "ring_k": 2,
+   "neighbourhood": [
+    "8c7a6e42ca021ff",
+    "8c7a6e42ca023ff",
+    "8c7a6e42ca025ff",
+    "8c7a6e42ca027ff",
+    "8c7a6e42ca035ff",
+    "8c7a6e42ca111ff",
+    "8c7a6e42ca113ff",
+    "8c7a6e42ca117ff",
+    "8c7a6e42ca119ff",
+    "8c7a6e42ca11bff",
+    "8c7a6e42ca1c1ff",
+    "8c7a6e42ca1c3ff",
+    "8c7a6e42ca1c5ff",
+    "8c7a6e42ca1c7ff",
+    "8c7a6e42ca1c9ff",
+    "8c7a6e42ca1cbff",
+    "8c7a6e42ca1cdff",
+    "8c7a6e42ca1e9ff",
+    "8c7a6e42ca1ebff"
+   ]
+  },
+  {
+   "name": "lagos_plan_mockup",
+   "lat": 6.428093,
+   "lng": 3.421974,
+   "cell": "8c589c8b4b2adff",
+   "resolution": 12,
+   "ring_k": 3,
+   "neighbourhood": [
+    "8c589c8b4b00bff",
+    "8c589c8b4b011ff",
+    "8c589c8b4b013ff",
+    "8c589c8b4b019ff",
+    "8c589c8b4b01bff",
+    "8c589c8b4b01dff",
+    "8c589c8b4b051ff",
+    "8c589c8b4b053ff",
+    "8c589c8b4b055ff",
+    "8c589c8b4b057ff",
+    "8c589c8b4b059ff",
+    "8c589c8b4b05bff",
+    "8c589c8b4b05dff",
+    "8c589c8b4b0c9ff",
+    "8c589c8b4b0cdff",
+    "8c589c8b4b233ff",
+    "8c589c8b4b237ff",
+    "8c589c8b4b281ff",
+    "8c589c8b4b285ff",
+    "8c589c8b4b287ff",
+    "8c589c8b4b28dff",
+    "8c589c8b4b2a1ff",
+    "8c589c8b4b2a3ff",
+    "8c589c8b4b2a5ff",
+    "8c589c8b4b2a7ff",
+    "8c589c8b4b2a9ff",
+    "8c589c8b4b2abff",
+    "8c589c8b4b2adff",
+    "8c589c8b4b2b5ff",
+    "8c589c8b4b2bdff",
+    "8c589c8b4b2e1ff",
+    "8c589c8b4b2e3ff",
+    "8c589c8b4b2e5ff",
+    "8c589c8b4b2e7ff",
+    "8c589c8b4b2e9ff",
+    "8c589c8b4b2ebff",
+    "8c589c8b4b2edff"
+   ]
+  },
+  {
+   "name": "sao_paulo",
+   "lat": -23.55052,
+   "lng": -46.633308,
+   "cell": "8ca8100c02899ff",
+   "resolution": 12,
+   "ring_k": 2,
+   "neighbourhood": [
+    "8ca8100c02883ff",
+    "8ca8100c0288bff",
+    "8ca8100c02891ff",
+    "8ca8100c02893ff",
+    "8ca8100c02895ff",
+    "8ca8100c02897ff",
+    "8ca8100c02899ff",
+    "8ca8100c0289bff",
+    "8ca8100c0289dff",
+    "8ca8100c028d1ff",
+    "8ca8100c028d3ff",
+    "8ca8100c028d5ff",
+    "8ca8100c028d7ff",
+    "8ca8100c028dbff",
+    "8ca8100c02d4dff",
+    "8ca8100c02f21ff",
+    "8ca8100c02f25ff",
+    "8ca8100c02f27ff",
+    "8ca8100c02f2dff"
+   ]
+  },
+  {
+   "name": "jakarta",
+   "lat": -6.2088,
+   "lng": 106.8456,
+   "cell": "8c8c107836ea7ff",
+   "resolution": 12,
+   "ring_k": 2,
+   "neighbourhood": [
+    "8c8c107836c11ff",
+    "8c8c107836c13ff",
+    "8c8c107836c19ff",
+    "8c8c107836c1bff",
+    "8c8c107836c53ff",
+    "8c8c107836cc1ff",
+    "8c8c107836cc5ff",
+    "8c8c107836cc9ff",
+    "8c8c107836ccbff",
+    "8c8c107836ccdff",
+    "8c8c107836ea1ff",
+    "8c8c107836ea3ff",
+    "8c8c107836ea5ff",
+    "8c8c107836ea7ff",
+    "8c8c107836ea9ff",
+    "8c8c107836eabff",
+    "8c8c107836eadff",
+    "8c8c107836eb5ff",
+    "8c8c107836ebdff"
+   ]
+  },
+  {
+   "name": "near_equator_greenwich",
+   "lat": 0.000123,
+   "lng": 0.000456,
+   "cell": "8c754e64d2de7ff",
+   "resolution": 12,
+   "ring_k": 3,
+   "neighbourhood": [
+    "8c754e6499299ff",
+    "8c754e649929bff",
+    "8c754e64992d1ff",
+    "8c754e64992d3ff",
+    "8c754e64992d5ff",
+    "8c754e64992d7ff",
+    "8c754e64992d9ff",
+    "8c754e64992dbff",
+    "8c754e64992ddff",
+    "8c754e64d2d13ff",
+    "8c754e64d2d17ff",
+    "8c754e64d2d31ff",
+    "8c754e64d2d33ff",
+    "8c754e64d2d37ff",
+    "8c754e64d2d3bff",
+    "8c754e64d2d81ff",
+    "8c754e64d2d85ff",
+    "8c754e64d2d87ff",
+    "8c754e64d2d89ff",
+    "8c754e64d2d8dff",
+    "8c754e64d2da1ff",
+    "8c754e64d2da3ff",
+    "8c754e64d2da5ff",
+    "8c754e64d2da7ff",
+    "8c754e64d2da9ff",
+    "8c754e64d2dabff",
+    "8c754e64d2dadff",
+    "8c754e64d2dbdff",
+    "8c754e64d2dc5ff",
+    "8c754e64d2dc7ff",
+    "8c754e64d2de1ff",
+    "8c754e64d2de3ff",
+    "8c754e64d2de5ff",
+    "8c754e64d2de7ff",
+    "8c754e64d2de9ff",
+    "8c754e64d2debff",
+    "8c754e64d2dedff"
+   ]
+  },
+  {
+   "name": "antimeridian_fiji",
+   "lat": -17.7134,
+   "lng": 179.9999,
+   "cell": "8c9b43d549555ff",
+   "resolution": 12,
+   "ring_k": 2,
+   "neighbourhood": [
+    "8c9b43d549501ff",
+    "8c9b43d549503ff",
+    "8c9b43d549509ff",
+    "8c9b43d54950bff",
+    "8c9b43d54950dff",
+    "8c9b43d549519ff",
+    "8c9b43d54951dff",
+    "8c9b43d549541ff",
+    "8c9b43d549543ff",
+    "8c9b43d549547ff",
+    "8c9b43d54954bff",
+    "8c9b43d549551ff",
+    "8c9b43d549553ff",
+    "8c9b43d549555ff",
+    "8c9b43d549557ff",
+    "8c9b43d549559ff",
+    "8c9b43d54955bff",
+    "8c9b43d54955dff",
+    "8c9b43d549737ff"
+   ]
+  },
+  {
+   "name": "antimeridian_west",
+   "lat": -17.7134,
+   "lng": -179.9999,
+   "cell": "8c9b43d54950dff",
+   "resolution": 12,
+   "ring_k": 2,
+   "neighbourhood": [
+    "8c9b43d549501ff",
+    "8c9b43d549503ff",
+    "8c9b43d549505ff",
+    "8c9b43d549507ff",
+    "8c9b43d549509ff",
+    "8c9b43d54950bff",
+    "8c9b43d54950dff",
+    "8c9b43d549529ff",
+    "8c9b43d54952bff",
+    "8c9b43d549541ff",
+    "8c9b43d549543ff",
+    "8c9b43d549545ff",
+    "8c9b43d549547ff",
+    "8c9b43d549555ff",
+    "8c9b43d549561ff",
+    "8c9b43d549563ff",
+    "8c9b43d549567ff",
+    "8c9b43d549569ff",
+    "8c9b43d54956bff"
+   ]
+  },
+  {
+   "name": "high_north_tromso",
+   "lat": 69.6492,
+   "lng": 18.9553,
+   "cell": "8c08ed358990bff",
+   "resolution": 12,
+   "ring_k": 3,
+   "neighbourhood": [
+    "8c08ed3589825ff",
+    "8c08ed358982dff",
+    "8c08ed3589901ff",
+    "8c08ed3589903ff",
+    "8c08ed3589905ff",
+    "8c08ed3589907ff",
+    "8c08ed3589909ff",
+    "8c08ed358990bff",
+    "8c08ed358990dff",
+    "8c08ed3589911ff",
+    "8c08ed3589913ff",
+    "8c08ed3589915ff",
+    "8c08ed3589917ff",
+    "8c08ed3589919ff",
+    "8c08ed358991bff",
+    "8c08ed358991dff",
+    "8c08ed3589929ff",
+    "8c08ed358992bff",
+    "8c08ed3589931ff",
+    "8c08ed3589939ff",
+    "8c08ed358993bff",
+    "8c08ed358993dff",
+    "8c08ed3589941ff",
+    "8c08ed3589943ff",
+    "8c08ed3589945ff",
+    "8c08ed3589947ff",
+    "8c08ed358994bff",
+    "8c08ed3589951ff",
+    "8c08ed3589953ff",
+    "8c08ed3589955ff",
+    "8c08ed3589957ff",
+    "8c08ed3589959ff",
+    "8c08ed358995bff",
+    "8c08ed358995dff",
+    "8c08ed3589963ff",
+    "8c08ed358996bff",
+    "8c08ed3589b37ff"
+   ]
+  },
+  {
+   "name": "celo_berlin",
+   "lat": 52.520008,
+   "lng": 13.404954,
+   "cell": "8c1f1d48945d9ff",
+   "resolution": 12,
+   "ring_k": 2,
+   "neighbourhood": [
+    "8c1f1d4894431ff",
+    "8c1f1d4894433ff",
+    "8c1f1d4894435ff",
+    "8c1f1d4894437ff",
+    "8c1f1d489443bff",
+    "8c1f1d48944adff",
+    "8c1f1d48944e1ff",
+    "8c1f1d48944e5ff",
+    "8c1f1d48944e7ff",
+    "8c1f1d48944edff",
+    "8c1f1d48945c3ff",
+    "8c1f1d48945cbff",
+    "8c1f1d48945d1ff",
+    "8c1f1d48945d3ff",
+    "8c1f1d48945d5ff",
+    "8c1f1d48945d7ff",
+    "8c1f1d48945d9ff",
+    "8c1f1d48945dbff",
+    "8c1f1d48945ddff"
+   ]
+  },
+  {
+   "name": "quito",
+   "lat": -0.180653,
+   "lng": -78.467834,
+   "cell": "8c66d33abb003ff",
+   "resolution": 12,
+   "ring_k": 2,
+   "neighbourhood": [
+    "8c66d33abb001ff",
+    "8c66d33abb003ff",
+    "8c66d33abb005ff",
+    "8c66d33abb007ff",
+    "8c66d33abb009ff",
+    "8c66d33abb00bff",
+    "8c66d33abb00dff",
+    "8c66d33abb011ff",
+    "8c66d33abb015ff",
+    "8c66d33abb017ff",
+    "8c66d33abb019ff",
+    "8c66d33abb01dff",
+    "8c66d33abb02bff",
+    "8c66d33abb031ff",
+    "8c66d33abb039ff",
+    "8c66d33abb03bff",
+    "8c66d33abb03dff",
+    "8c66d33abb055ff",
+    "8c66d33abb057ff"
+   ]
+  },
+  {
+   "name": "kinshasa",
+   "lat": -4.441931,
+   "lng": 15.266293,
+   "cell": "8c838eae62815ff",
+   "resolution": 12,
+   "ring_k": 2,
+   "neighbourhood": [
+    "8c838eae62801ff",
+    "8c838eae62803ff",
+    "8c838eae62807ff",
+    "8c838eae6280bff",
+    "8c838eae62811ff",
+    "8c838eae62813ff",
+    "8c838eae62815ff",
+    "8c838eae62817ff",
+    "8c838eae62819ff",
+    "8c838eae6281bff",
+    "8c838eae6281dff",
+    "8c838eae62831ff",
+    "8c838eae62833ff",
+    "8c838eae62839ff",
+    "8c838eae6283bff",
+    "8c838eae6283dff",
+    "8c838eae62857ff",
+    "8c838eae628e9ff",
+    "8c838eae628edff"
+   ]
+  }
+ ],
+ "nullifiers": [
+  {
+   "cell": "8c7a6e42ca207ff",
+   "ordinal": 0,
+   "salt": "biorig:v1:8c7a6e42ca207ff:0",
+   "preimage": "0x08c7a6e42ca207ff62696f7269673a76313a3863376136653432636132303766663a30",
+   "nullifier": "0xff9a16ac190fa4a1a644937273b0d88bf527744ca41972b98ccd339a4372a6c1"
+  },
+  {
+   "cell": "8c7a6e42ca207ff",
+   "ordinal": 1,
+   "salt": "biorig:v1:8c7a6e42ca207ff:1",
+   "preimage": "0x08c7a6e42ca207ff62696f7269673a76313a3863376136653432636132303766663a31",
+   "nullifier": "0xf4612c21e091c028b034188930915e110398ce9dc48a2ba1515fa2076d795d4e"
+  },
+  {
+   "cell": "8c7a6e42ca207ff",
+   "ordinal": 3,
+   "salt": "biorig:v1:8c7a6e42ca207ff:3",
+   "preimage": "0x08c7a6e42ca207ff62696f7269673a76313a3863376136653432636132303766663a33",
+   "nullifier": "0x8cc7b2ccbc257f2c1f188af9a1b34213e9ee6ca5fff0bc728e437eef6545b3ea"
+  },
+  {
+   "cell": "8c7a6e42ca1cdff",
+   "ordinal": 0,
+   "salt": "biorig:v1:8c7a6e42ca1cdff:0",
+   "preimage": "0x08c7a6e42ca1cdff62696f7269673a76313a3863376136653432636131636466663a30",
+   "nullifier": "0x7ab9cdc3e1a078ab9282eaf32f266e0af2532c2bcc6a6837a0120c5061287038"
+  },
+  {
+   "cell": "8c7a6e42ca1cdff",
+   "ordinal": 1,
+   "salt": "biorig:v1:8c7a6e42ca1cdff:1",
+   "preimage": "0x08c7a6e42ca1cdff62696f7269673a76313a3863376136653432636131636466663a31",
+   "nullifier": "0x2b8001dc634f93e1a4bf12a0bf9c36e34acd591200e8112e766509302c82648e"
+  },
+  {
+   "cell": "8c7a6e42ca1cdff",
+   "ordinal": 3,
+   "salt": "biorig:v1:8c7a6e42ca1cdff:3",
+   "preimage": "0x08c7a6e42ca1cdff62696f7269673a76313a3863376136653432636131636466663a33",
+   "nullifier": "0x510c27dbea2d445c6254c0bbc09a55bff8e3824adf8b55e00ffdc452a7abba12"
+  },
+  {
+   "cell": "8c589c8b4b2adff",
+   "ordinal": 0,
+   "salt": "biorig:v1:8c589c8b4b2adff:0",
+   "preimage": "0x08c589c8b4b2adff62696f7269673a76313a3863353839633862346232616466663a30",
+   "nullifier": "0x6dbe6f0558d58fa049451bb95deb27e3924bf2958ea659e03112d9dd551fccef"
+  },
+  {
+   "cell": "8c589c8b4b2adff",
+   "ordinal": 1,
+   "salt": "biorig:v1:8c589c8b4b2adff:1",
+   "preimage": "0x08c589c8b4b2adff62696f7269673a76313a3863353839633862346232616466663a31",
+   "nullifier": "0x2ef58971a1bec10d2a145fcba09481a4681c5d20d9c81fc43c58f020a91d0515"
+  },
+  {
+   "cell": "8c589c8b4b2adff",
+   "ordinal": 3,
+   "salt": "biorig:v1:8c589c8b4b2adff:3",
+   "preimage": "0x08c589c8b4b2adff62696f7269673a76313a3863353839633862346232616466663a33",
+   "nullifier": "0xec6c38762dc3bdf1f4ec830bb09dcc93a2352b1cf103d03fd29ae32ea878614a"
+  },
+  {
+   "cell": "8ca8100c02899ff",
+   "ordinal": 0,
+   "salt": "biorig:v1:8ca8100c02899ff:0",
+   "preimage": "0x08ca8100c02899ff62696f7269673a76313a3863613831303063303238393966663a30",
+   "nullifier": "0xb9e89ba87c0f5e7af1d1840f58a0f718f34d4880d00bcaad0bd4a5288961cbb1"
+  },
+  {
+   "cell": "8ca8100c02899ff",
+   "ordinal": 1,
+   "salt": "biorig:v1:8ca8100c02899ff:1",
+   "preimage": "0x08ca8100c02899ff62696f7269673a76313a3863613831303063303238393966663a31",
+   "nullifier": "0x406eb7084c2c23e6b0b78e51581b1c30153a7518832a4c0bf3b402e4c916c256"
+  },
+  {
+   "cell": "8ca8100c02899ff",
+   "ordinal": 3,
+   "salt": "biorig:v1:8ca8100c02899ff:3",
+   "preimage": "0x08ca8100c02899ff62696f7269673a76313a3863613831303063303238393966663a33",
+   "nullifier": "0x876b61c4e2930619ea8521fcfed81078f362f4e68a5b439c1ab2472c51f16105"
+  },
+  {
+   "cell": "8c8c107836ea7ff",
+   "ordinal": 0,
+   "salt": "biorig:v1:8c8c107836ea7ff:0",
+   "preimage": "0x08c8c107836ea7ff62696f7269673a76313a3863386331303738333665613766663a30",
+   "nullifier": "0x98e7f4f06dada9d1df9dc5523dafe68db0c9e08df153532a3f6b41850ad00ae4"
+  },
+  {
+   "cell": "8c8c107836ea7ff",
+   "ordinal": 1,
+   "salt": "biorig:v1:8c8c107836ea7ff:1",
+   "preimage": "0x08c8c107836ea7ff62696f7269673a76313a3863386331303738333665613766663a31",
+   "nullifier": "0x2202ed0f4e94577176a1cd5b2d374d8ccc868ac262081a80d59bb3b8fc94072b"
+  },
+  {
+   "cell": "8c8c107836ea7ff",
+   "ordinal": 3,
+   "salt": "biorig:v1:8c8c107836ea7ff:3",
+   "preimage": "0x08c8c107836ea7ff62696f7269673a76313a3863386331303738333665613766663a33",
+   "nullifier": "0xf207d09897a87dd9d3c647f6e087658ad6090fa860a979ae041593c0aedc86b0"
+  },
+  {
+   "cell": "8c754e64d2de7ff",
+   "ordinal": 0,
+   "salt": "biorig:v1:8c754e64d2de7ff:0",
+   "preimage": "0x08c754e64d2de7ff62696f7269673a76313a3863373534653634643264653766663a30",
+   "nullifier": "0xe27170c394ac7bd5161e629021ecab84e249751ed4e44ec97a0c8ed18f0b4e14"
+  },
+  {
+   "cell": "8c754e64d2de7ff",
+   "ordinal": 1,
+   "salt": "biorig:v1:8c754e64d2de7ff:1",
+   "preimage": "0x08c754e64d2de7ff62696f7269673a76313a3863373534653634643264653766663a31",
+   "nullifier": "0x9bc3ec10db297664b4fc8c51cac92a663c5b9fabf3dcec45280cda1f27ec15ce"
+  },
+  {
+   "cell": "8c754e64d2de7ff",
+   "ordinal": 3,
+   "salt": "biorig:v1:8c754e64d2de7ff:3",
+   "preimage": "0x08c754e64d2de7ff62696f7269673a76313a3863373534653634643264653766663a33",
+   "nullifier": "0x53fe1b3ed3f28acfce75cb58b5ef1a565fc1ddd4e790c482e06db2f992e5111d"
+  }
+ ],
+ "legacy_pilot_nullifier": {
+  "cell": "8c7a6e42ca207ff",
+  "salt": "plot-1",
+  "preimage": "0x08c7a6e42ca207ff706c6f742d31",
+  "nullifier": "0xb7a55a6b1b7e4fe0fba76f303772cba7fdf3715d4030e3fcd91ed297c756d741"
+ },
+ "haversine": [
+  {
+   "lat1": 6.428093,
+   "lng1": 3.421974,
+   "lat2": 6.428093,
+   "lng2": 3.421974,
+   "metres": 0.0
+  },
+  {
+   "lat1": 6.428093,
+   "lng1": 3.421974,
+   "lat2": 6.428271964994177,
+   "lng2": 3.421974,
+   "metres": 19.900026886479985
+  },
+  {
+   "lat1": 6.428093,
+   "lng1": 3.421974,
+   "lat2": 6.428272864315756,
+   "lng2": 3.421974,
+   "metres": 20.00002702157726
+  },
+  {
+   "lat1": 6.428093,
+   "lng1": 3.421974,
+   "lat2": 6.428273763637335,
+   "lng2": 3.421974,
+   "metres": 20.100027156762952
+  },
+  {
+   "lat1": 6.428093,
+   "lng1": 3.421974,
+   "lat2": 6.428093,
+   "lng2": 3.422154,
+   "metres": 19.889282315293997
+  },
+  {
+   "lat1": 6.428093,
+   "lng1": 3.421974,
+   "lat2": 6.4282129999999995,
+   "lng2": 3.4218640000000002,
+   "metres": 18.049374194942555
+  },
+  {
+   "lat1": -1.2921,
+   "lng1": 36.8219,
+   "lat2": -1.2903,
+   "lng2": 36.8219,
+   "metres": 200.1511444203503
+  },
+  {
+   "lat1": 52.520008,
+   "lng1": 13.404954,
+   "lat2": 48.856613,
+   "lng2": 2.352222,
+   "metres": 877459.899864924
+  },
+  {
+   "lat1": -17.7134,
+   "lng1": 179.9999,
+   "lat2": -17.7134,
+   "lng2": -179.9999,
+   "metres": 21.184672072717305
+  },
+  {
+   "lat1": 0.0,
+   "lng1": 0.0001,
+   "lat2": 0.0,
+   "lng2": -0.0001,
+   "metres": 22.23901604670658
+  }
+ ],
+ "eip55": [
+  {
+   "lower": "0xd314e37fd8538fe66231ee670b74c9428d03feea",
+   "checksummed": "0xD314e37FD8538fe66231EE670B74C9428d03feEa"
+  },
+  {
+   "lower": "0x04db169ddf8abb80943161c01b2a71dc40384e64",
+   "checksummed": "0x04Db169dDF8AbB80943161C01B2a71DC40384E64"
+  },
+  {
+   "lower": "0x21ab8b36177f65ce69e04e281e4aff3db6b5f7e6",
+   "checksummed": "0x21ab8B36177F65ce69e04e281E4aFf3Db6b5f7E6"
+  },
+  {
+   "lower": "0x000000006551c19487814612e58fe06813775758",
+   "checksummed": "0x000000006551c19487814612e58FE06813775758"
+  },
+  {
+   "lower": "0x5aaeb6053f3e94c9b9a09f33669435e7ef1beaed",
+   "checksummed": "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed"
+  },
+  {
+   "lower": "0xfb6916095ca1df60bb79ce92ce3ea74c37c5d359",
+   "checksummed": "0xfB6916095ca1df60bB79Ce92cE3Ea74c37c5d359"
+  },
+  {
+   "lower": "0xdbf03b407c01e7cd3cbea99509d93f8dddc8c6fb",
+   "checksummed": "0xdbF03B407c01E7cD3CBea99509d93f8DDDC8C6FB"
+  },
+  {
+   "lower": "0xd1220a0cf47c7b9be7a2e6ba89f429762e7b9adb",
+   "checksummed": "0xD1220A0cf47c7B9Be7A2E6BA89F429762e7b9aDb"
+  }
+ ],
+ "selectors": [
+  {
+   "signature": "isNullifierActive(bytes32)",
+   "selector": "0xa8cf33a9"
+  },
+  {
+   "signature": "getTreeStats(uint256)",
+   "selector": "0x8103dddd"
+  },
+  {
+   "signature": "ownerOf(uint256)",
+   "selector": "0x6352211e"
+  }
+ ]
+}

@@ -1,0 +1,11 @@
+# Gradle and IDE state; the wrapper jar under gradle/wrapper/ is committed on purpose.
+.gradle/
+build/
+local.properties
+.idea/
+*.iml
+.kotlin/
+captures/
+# Never commit signing material: the app holds a public address only.
+*.jks
+*.keystore
