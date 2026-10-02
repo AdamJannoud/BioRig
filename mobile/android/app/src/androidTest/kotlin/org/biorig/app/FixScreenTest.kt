@@ -34,9 +34,9 @@ class FixScreenTest {
         }
     }
 
-    /** First launch with no address lands on setup, and a mistyped checksum is refused there. */
+    /** First launch with no address lands on setup, where the planter address is entered. */
     @Test
-    fun setupRefusesABadChecksum() {
+    fun firstLaunchLandsOnSetup() {
         ApplicationProvider.getApplicationContext<BioRigApp>().graph.prefs.planterAddress = null
         ActivityScenario.launch(MainActivity::class.java).use {
             compose.onNodeWithTag("planter_input").assertIsDisplayed()

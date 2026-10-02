@@ -23,6 +23,10 @@ dependencies {
 
 tasks.test {
     useJUnit()
+    // `./gradlew :core:test` is the acceptance command: it always executes and prints every test, rather than
+    // answering UP-TO-DATE or FROM-CACHE with nothing to read.
+    outputs.upToDateWhen { false }
+    outputs.cacheIf { false }
     maxHeapSize = "512m"
     testLogging {
         events("passed", "failed", "skipped")
