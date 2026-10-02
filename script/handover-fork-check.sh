@@ -17,7 +17,9 @@ set -uo pipefail
 cd "$(dirname "$0")/.."
 export HOME=/root
 CHAIN_ID=42220
-FORK_URL=$(python3 -m dashboard.config get rpc_url --chain-id 42220)
+# An exported FORK_URL wins, so a rehearsal at a past block can be pointed at an archive endpoint; otherwise the
+# chain registry. The old form assigned unconditionally, which made the archive instruction below impossible to follow.
+FORK_URL=${FORK_URL:-$(python3 -m dashboard.config get rpc_url --chain-id 42220)}
 PROXY=0x04Db169dDF8AbB80943161C01B2a71DC40384E64
 PORT=${FORK_PORT:-8549}
 LOCAL="http://127.0.0.1:$PORT"
