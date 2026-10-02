@@ -21,8 +21,9 @@ registry was already on the chain, so it was reused rather than deployed. All fo
 
 Administration and upgrade of the mainnet deployment were handed to the Celo Safe
 `0x3B36b3446fCB0729B0046520156933E56352D551` on 1 October 2026 (step 7 of `DEPLOY.md` section 8), leaving minting
-(`VERIFIER_ROLE`) with Adam Jannoud's deployer hot key `0x1DB0084Db70bF8D0E06c1785D693Fc6a95317890`, which also
-still holds `BUFFER_POOL`. The Safe's sole owner is the plain EOA
+(`VERIFIER_ROLE`) with Adam Jannoud's deployer hot key `0x1DB0084Db70bF8D0E06c1785D693Fc6a95317890`, which is also
+the address held in `bufferPool()` — the recipient of the 20% buffer split. That is an address the contract stores,
+not a role the key holds; the contract defines no `BUFFER_POOL` role. The Safe's sole owner is the plain EOA
 `0xD314e37FD8538fe66231EE670B74C9428d03feEa`, an address the hot key cannot sign for. **One tree is minted on
 mainnet**: token `1`, minted 1 October 2026 in block `78992489` to `0xD314…feEa`. That section records the broadcast,
 the handover, the mint and what each produced, address by address. Mainnet is the repository's default chain: the
