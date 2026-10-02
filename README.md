@@ -113,7 +113,7 @@ frames rather than trusting the source.
 
 ```bash
 forge test                                                    # contract suite
-pip install -r requirements.txt                               # dashboard runtime
+python3 -m venv .venv && .venv/bin/pip install -r tools/requirements.txt   # local toolchain the checks need (requirements.txt is the hosted dashboard's list)
 .venv/bin/streamlit run dashboard/app.py                      # dashboard, http://localhost:8501
 bash scripts/verify-demo.sh                                   # the full acceptance check
 .venv/bin/python scripts/check-hosted-entrypoint.py            # the deployable dashboard, as a host runs it
