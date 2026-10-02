@@ -17,7 +17,7 @@ so a hosted checkout that receives only that directory still has its icon):
   favicon.svg, favicon-16.png, favicon-32.png, favicon.ico
                                            one ring on a forest tile, drawn on the 16 px grid, not scaled down
   dashboard/brand/mark.svg, mark-reverse.svg, favicon.png
-                                           the header marks (heavier rings for 22-26 px display) and the tab icon
+                                           the header marks (heavier rings for 22-30 px display) and the tab icon
 
 Palette (Celo gold and forest): GOLD #FCFF52, GOLD_DEEP #E8EC2A, FOREST #023A24.
 Brand design and every asset: Adam Jannoud (AdamJannoud). Each SVG and PNG carries that credit.
@@ -307,8 +307,8 @@ def outputs() -> dict[Path, bytes]:
         b / "favicon-16.png": _png_bytes(render_square(favicon(), 16)),
         b / "favicon-32.png": _png_bytes(render_square(favicon(), 32)),
         b / "favicon.ico": render_ico(),
-        d / "mark.svg": svg_doc(mark(stroke=7, ground=False), label, 26).encode(),
-        d / "mark-reverse.svg": svg_doc(mark(stroke=7, inverse=True, ground=False), label, 26).encode(),
+        d / "mark.svg": svg_doc(mark(stroke=7, ground=False), label, 30).encode(),
+        d / "mark-reverse.svg": svg_doc(mark(stroke=7, inverse=True, ground=False), label, 30).encode(),
         d / "favicon.png": _png_bytes(render_square(favicon(), 64)),
     }
     return out

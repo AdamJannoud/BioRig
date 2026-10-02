@@ -1,17 +1,23 @@
 # Streamlit runtime config. Applies to `streamlit run dashboard/app.py` and to the root streamlit_app.py
 # entrypoint those platforms look for by default.
 #
-# Only the accent colour is pinned here. The dashboard paints its own light/dark palette from --app-*
-# custom properties, keyed on the background Streamlit actually painted, so pinning the surface colours
-# in this file would fight that and lose the dark theme.
+# The BioRig palette (assets/brand/README.md) for Streamlit's own widgets, one section per mode. The dashboard
+# paints everything else from --app-* custom properties keyed on the background Streamlit actually painted, so
+# these two sections and dashboard/ui.py must name the same backgrounds.
 
-# Under [theme] alone, Streamlit treats the accent as a custom theme and always paints it light, whatever the
-# viewer's system setting. Setting it per mode keeps Streamlit following the system light/dark preference.
+# Under [theme] alone, Streamlit treats a custom theme as light only, whatever the viewer's system setting.
+# Setting it per mode keeps Streamlit following the system light/dark preference.
 [theme.light]
-primaryColor = "#2456d6"
+primaryColor = "#0A5B3A"
+backgroundColor = "#F7F5EE"
+secondaryBackgroundColor = "#EFEDE4"
+textColor = "#0F1D17"
 
 [theme.dark]
-primaryColor = "#2456d6"
+primaryColor = "#FCFF52"
+backgroundColor = "#06170F"
+secondaryBackgroundColor = "#0D2318"
+textColor = "#E9F1EA"
 
 [server]
 headless = true

@@ -74,7 +74,9 @@ def _render(tmp_path, monkeypatch, key):
     monkeypatch.setattr(config, "load_settings", functools.partial(config.load_settings, tmp_path, secrets={}))
     st.cache_resource.clear()
     st.cache_data.clear()
-    at = AppTest.from_file(str(APP), default_timeout=60).run()
+    at = AppTest.from_file(str(APP), default_timeout=60)
+    at.query_params["view"] = "operator"  # the technical panel these tests read; the planter flow is the default
+    at.run()
     assert not at.exception, [e.value for e in at.exception]
     return at
 

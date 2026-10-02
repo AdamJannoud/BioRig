@@ -93,7 +93,8 @@ def render(port: int, shot: str) -> str:
     with sync_playwright() as p:
         browser = p.chromium.launch(args=["--no-sandbox"])
         page = browser.new_page(viewport={"width": 1280, "height": 1000})
-        page.goto(f"http://localhost:{port}", wait_until="domcontentloaded")
+        # The operator view: the read-only notice and the mint control these checks read live there.
+        page.goto(f"http://localhost:{port}/?view=operator", wait_until="domcontentloaded")
         page.wait_for_selector("text=Register a tree", timeout=180_000)
         page.wait_for_timeout(2500)
         body = page.inner_text("body")

@@ -1,8 +1,14 @@
-"""Drive the running Streamlit dashboard in headless Chromium: both modes, 1280 and 390 px wide.
+"""Drive the running Streamlit dashboard in headless Chromium: both modes, 1440 and 390 px wide.
 
     .venv/bin/python scripts/check_dashboard_ui.py http://localhost:8501
 
-Asserts the live proxy, chain id, getTreeStats rows and the TBA cross-check are visible, the console is clean,
+Two views per mode and width. The planter flow (the default view) is walked end to end: the branded header and the
+favicon, step 1's computed biomass, step 2 with the browser's geolocation granted (a fixed position handed to
+Chromium, since the gate has no GPS) and the plot's free/taken status, and step 3's pre-flight check. Its expected
+verdict is read from the chain at run time, like the operator checks below; the register control is never pressed.
+None of the protocol terms the planter flow replaced may appear on it.
+
+The operator view (?view=operator) asserts the live proxy, chain id, getTreeStats rows and the TBA cross-check are visible, the console is clean,
 data-app-mode follows the theme, and the verifier key is not in the page. The eth_call simulation is checked twice:
 - the untouched default form (the pilot plot) must show the verdict the chain implies: "would revert" with
   NullifierInUse once that nullifier is active, "would succeed" while it is not;
@@ -71,6 +77,67 @@ VERDICT_JS = r"""([want, nullifierHex]) => {
 }"""
 default_want = "revert" if default_active else "succeed"
 
+# The planter flow, located by the browser's geolocation at a fixed position with the default plot reference.
+GEO = {"latitude": -1.2864, "longitude": 36.8172}
+planter_plot = h3_nullifier.derive(GEO["latitude"], GEO["longitude"], "plot-1")
+planter_taken = Chain(settings).is_nullifier_active(planter_plot.nullifier)
+planter_status = "This plot already has a tree registered on it." if planter_taken else "This plot is free."
+planter_verdict = "Not this one." if planter_taken else "Ready."
+print(f"planter flow: GPS {GEO['latitude']}, {GEO['longitude']} plot-1 active={planter_taken} -> "
+      f"expect '{planter_status}' then '{planter_verdict}'")
+JARGON = ("spatialNullifier", "keccak", "eth_call", "VERIFIER_ROLE", "H3 res", "NullifierInUse", "tbaAddress",
+          "mintTree", "initialDBH", "initialBiomass", "would revert")
+TEXT_JS = "want => document.body.innerText.includes(want)"
+
+
+def planter_pass(page) -> list[str]:
+    """Walk the three steps; return what was missing or wrong."""
+    missing = []
+
+    def wait_text(text, timeout=90_000):
+        try:
+            page.wait_for_function(TEXT_JS, arg=text, timeout=timeout)
+            return True
+        except PlaywrightTimeout:
+            missing.append(text)
+            return False
+
+    if not wait_text("How thick is the trunk?"):
+        return missing
+    wait_text("Tree #1")  # the live tree badges
+    header = page.evaluate("""() => { const bar = document.querySelector('.br-appbar');
+        return bar ? [!!bar.querySelector('svg[aria-label^="BioRig brandmark"]'), bar.innerText] : null; }""")
+    if not header or not header[0] or "BioRig" not in header[1] or settings.chain_name not in header[1]:
+        missing.append(f"branded header with mark, wordmark and '{settings.chain_name}' chip: got {header}")
+    icon = page.evaluate("""async () => { const l = document.querySelector('link[rel~="icon"]');
+        if (!l) return null; const r = await fetch(l.href); return [l.href, r.status, r.headers.get('content-type')]; }""")
+    if not icon or icon[1] != 200 or "image/png" not in (icon[2] or "") or "favicon.ico" in icon[0]:
+        missing.append(f"brand favicon served as PNG: got {icon}")
+    for text in ("208", "359", "Chave et al. 2014"):
+        wait_text(text, 10_000)
+    page.get_by_role("button", name="Continue →").click()
+    if not wait_text("Where is the tree?"):
+        return missing
+    try:
+        page.frame_locator("iframe[title='dashboard.geolocate.biorig_geolocate']").get_by_role("button").click(
+            timeout=30_000)
+    except PlaywrightTimeout:
+        missing.append("geolocation button")
+        return missing
+    wait_text("Your phone's GPS", 30_000)
+    wait_text(f"{GEO['latitude']:.6f}, {GEO['longitude']:.6f}", 30_000)
+    wait_text(planter_status)
+    page.get_by_role("button", name="Continue →").click()
+    if not wait_text("Check this tree"):
+        return missing
+    page.get_by_role("button", name="Check this tree →").click()
+    wait_text(planter_verdict, 120_000)
+    body = page.evaluate("document.body.innerText")
+    if ("Ready." in body) == ("Not this one." in body):
+        missing.append("exactly one pre-flight verdict")
+    missing += [f"jargon on the planter flow: {j}" for j in JARGON if j in body]
+    return missing
+
 
 def wait_verdict(page, want: str, nullifier_hex: str) -> bool:
     try:
@@ -83,11 +150,24 @@ failures = []
 with sync_playwright() as p:
     browser = p.chromium.launch(args=["--num-raster-threads=4"])
     for scheme in ("dark", "light"):
-        for width in (1280, 390):
-            page = browser.new_page(viewport={"width": width, "height": 900}, color_scheme=scheme)
+        for width in (1440, 390):
+            context = browser.new_context(viewport={"width": width, "height": 900}, color_scheme=scheme,
+                                          geolocation=GEO, permissions=["geolocation"])
+            page = context.new_page()
             errors = []
             page.on("console", lambda m: errors.append(m.text) if m.type == "error" else None)
+            page.on("pageerror", lambda e: errors.append(str(e)))
             page.goto(url)
+            p_missing = planter_pass(page)
+            p_overflow = page.evaluate("document.documentElement.scrollWidth > window.innerWidth + 1")
+            p_mode = page.evaluate("document.documentElement.getAttribute('data-app-mode')")
+            p_status = "ok"
+            if p_missing or errors or p_mode != scheme or p_overflow:
+                p_status = "FAIL"
+                failures.append(("planter", scheme, width, p_missing, errors[:3], p_mode, p_overflow))
+            print(f"  planter  {scheme:5} {width:4}px  mode={p_mode}  missing={p_missing}  "
+                  f"console_errors={len(errors)}  h-overflow={p_overflow}  {p_status}")
+            page.goto(url.rstrip("/") + "/?view=operator")
             # The panels fill in independently (getTreeStats can land after the TBA check on a slow RPC), so wait for
             # every expected string; whatever is still absent at the timeout is reported as missing below.
             try:
@@ -116,9 +196,9 @@ with sync_playwright() as p:
             if missing or errors or mode != scheme or (key and key in html) or overflow:
                 status = "FAIL"
                 failures.append((scheme, width, missing, errors[:3], mode, overflow))
-            print(f"  {scheme:5} {width:4}px  mode={mode}  missing={missing}  console_errors={len(errors)}  "
+            print(f"  operator {scheme:5} {width:4}px  mode={mode}  missing={missing}  console_errors={len(errors)}  "
                   f"h-overflow={overflow}  key_in_page={bool(key and key in html)}  {status}")
-            page.close()
+            context.close()
     browser.close()
 if failures:
     print("UI CHECK FAILED", failures)

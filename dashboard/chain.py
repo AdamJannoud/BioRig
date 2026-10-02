@@ -198,6 +198,9 @@ class Chain:
     def get_tree_stats(self, token_id: int) -> TreeStats:
         return TreeStats.from_tuple(self.core.functions.getTreeStats(token_id).call())
 
+    def gas_price_wei(self) -> int:
+        return int(self.w3.eth.gas_price)
+
     def is_nullifier_active(self, nullifier: bytes) -> bool:
         return bool(self.core.functions.isNullifierActive(nullifier).call())
 
