@@ -85,6 +85,17 @@ planter_status = "This plot already has a tree registered on it." if planter_tak
 planter_verdict = "Not this one." if planter_taken else "Ready."
 print(f"planter flow: GPS {GEO['latitude']}, {GEO['longitude']} plot-1 active={planter_taken} -> "
       f"expect '{planter_status}' then '{planter_verdict}'")
+# Skipping "Use my location" leaves the planter on the default plot, which the dashboard picks from the chain (the
+# first free reference in the pilot cell); the status it must show is whatever the chain says about that same plot.
+from dashboard import planter_view  # noqa: E402
+default_ref = planter_view.default_reference(Chain(settings).is_nullifier_active)
+default_plot = h3_nullifier.derive(planter_view.PILOT["lat"], planter_view.PILOT["lng"], default_ref,
+                                   planter_view.SIZES["small"])
+default_plot_taken = Chain(settings).is_nullifier_active(default_plot.nullifier)
+default_plot_status = ("This plot already has a tree registered on it." if default_plot_taken
+                       else "This plot is free.")
+print(f"planter default plot: pilot cell, reference {default_ref} active={default_plot_taken} -> "
+      f"expect '{default_plot_status}' before GPS")
 JARGON = ("spatialNullifier", "keccak", "eth_call", "VERIFIER_ROLE", "H3 res", "NullifierInUse", "tbaAddress",
           "mintTree", "initialDBH", "initialBiomass", "would revert")
 TEXT_JS = "want => document.body.innerText.includes(want)"
@@ -118,6 +129,9 @@ def planter_pass(page) -> list[str]:
     page.get_by_role("button", name="Continue →").click()
     if not wait_text("Where is the tree?"):
         return missing
+    wait_text("The pilot plot (Nairobi)", 30_000)
+    wait_text(planter_view.short_hex(default_plot.nullifier_hex, 6, 4), 30_000)  # the default plot's ID
+    wait_text(default_plot_status, 30_000)
     try:
         page.frame_locator("iframe[title='dashboard.geolocate.biorig_geolocate']").get_by_role("button").click(
             timeout=30_000)
@@ -176,6 +190,16 @@ with sync_playwright() as p:
             except PlaywrightTimeout:
                 pass
             body = page.evaluate("document.body.innerText")
+            # On a cold app a panel can land (or re-render mid-rerun) just after that snapshot, so give whatever is
+            # still absent a fresh window of its own before judging; a string that never appears is still reported.
+            late = [e for e in expect if e not in body]
+            if late:
+                try:
+                    page.wait_for_function("want => want.every(e => document.body.innerText.includes(e))", arg=late,
+                                           timeout=120_000)
+                except PlaywrightTimeout:
+                    pass
+                body = page.evaluate("document.body.innerText")
             missing = [e for e in expect if e not in body]
             if not wait_verdict(page, default_want, default.nullifier_hex):
                 missing.append(f"default form: would {default_want}")

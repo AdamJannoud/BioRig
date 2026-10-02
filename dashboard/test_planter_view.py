@@ -105,9 +105,12 @@ def test_locate_step_says_whether_the_plot_is_free(tmp_path, monkeypatch):
     _click(at, "p_next1")
     page = _visible(at)
     assert "Where is the tree?" in page
-    assert "This plot already has a tree registered on it." in page  # the pilot plot, token 1
+    assert "This plot is free." in page  # the default is the first free plot in the pilot cell
     assert "-1.292100, 36.821900" in page and "≈307 m²" in _page(at)  # the map caption
     _no_jargon(at)
+    at.text_input(key="p_ref").set_value("plot-1").run()  # the pilot plot, token 1
+    _ok(at)
+    assert "This plot already has a tree registered on it." in _visible(at)
     at.text_input(key="p_ref").set_value("north field, tree 3").run()
     _ok(at)
     assert "This plot is free." in _visible(at)
@@ -127,6 +130,7 @@ def test_step_values_survive_moving_between_steps(tmp_path, monkeypatch):
 def test_check_on_a_taken_plot_reads_not_this_one(tmp_path, monkeypatch):
     at = _render(tmp_path, monkeypatch)
     _click(at, "p_next1")
+    at.text_input(key="p_ref").set_value("plot-1").run()  # the pilot plot, token 1
     _click(at, "p_next2")
     page = _visible(at)
     assert "Claim & register" in page and "nothing costs anything" in page
@@ -149,6 +153,42 @@ def test_check_on_a_free_plot_is_ready_and_the_public_demo_stops_there(tmp_path,
     assert not [b for b in at.button if b.key == "p_register"]
     assert "worked out by the check" not in page  # the tree smart wallet is now derived
     _no_jargon(at)
+
+
+def test_default_plot_is_the_first_free_one_and_its_check_reads_ready(tmp_path, monkeypatch):
+    at = _render(tmp_path, monkeypatch, allow_mint="false")
+    assert at.session_state["p_ref"] == "plot-2"  # plot-1 in the pilot cell is token 1
+    _click(at, "p_next1")
+    assert "The pilot plot (Nairobi)" in _visible(at) and "This plot is free." in _visible(at)
+    _click(at, "p_next2")
+    _click(at, "p_check_btn")
+    page = _visible(at)
+    assert "Ready." in page and "Not this one." not in page
+    assert "Registration is not enabled on this demo." in page and not [b for b in at.button if b.key == "p_register"]
+
+
+def test_default_reference_walks_the_candidates_in_order():
+    taken = {planter_view.h3_nullifier.derive(planter_view.PILOT["lat"], planter_view.PILOT["lng"], r, 12).nullifier
+             for r in ("plot-1", "plot-2", "plot-3")}
+    asked = []
+
+    def is_active(n):
+        asked.append(n)
+        return bytes(n) in taken
+
+    assert planter_view.default_reference(is_active) == "plot-4" and len(asked) == 4
+    assert planter_view.default_reference(lambda n: True) == planter_view.DEFAULT_REFERENCE  # every candidate taken
+
+
+def test_default_reference_falls_back_to_the_pilot_plot_offline(tmp_path, monkeypatch):
+    def unreachable(n):
+        raise ConnectionError("rpc down")
+
+    assert planter_view.default_reference(unreachable) == planter_view.DEFAULT_REFERENCE == "plot-1"
+    monkeypatch.setattr(PlanterChain, "is_nullifier_active", lambda self, n: unreachable(n))
+    at = _render(tmp_path, monkeypatch)  # the flow still renders, on today's pilot default
+    assert at.session_state["p_ref"] == "plot-1"
+    assert "How thick is the trunk?" in _visible(at)
 
 
 def test_register_control_only_where_minting_is_on_and_never_pressed(tmp_path, monkeypatch):

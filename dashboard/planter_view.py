@@ -32,15 +32,34 @@ DEFAULT_DBH = 24
 SIZES = {"small": 12, "medium": 11, "large": 10}  # plot size -> H3 resolution
 
 
-def _defaults(signer: str | None) -> dict:
+# Plot references tried in the pilot cell, in order, for the default plot: a visitor who never taps "Use my location"
+# lands on one that is still free, so the pre-flight check reads "Ready." rather than "Not this one."
+DEMO_REFERENCES = tuple(f"plot-{n}" for n in range(1, 9))
+
+
+def default_reference(is_active, references: tuple[str, ...] = DEMO_REFERENCES) -> str:
+    """The first reference whose plot in the pilot cell is not registered yet, asked of the chain through the same
+    is_nullifier_active read the pre-flight makes. Falls back to DEFAULT_REFERENCE when the chain cannot be read
+    (or every candidate is taken), so the flow still renders offline."""
+    try:
+        for ref in references:
+            if not is_active(h3_nullifier.derive(PILOT["lat"], PILOT["lng"], ref, SIZES["small"]).nullifier):
+                return ref
+    except Exception:
+        pass
+    return DEFAULT_REFERENCE
+
+
+def _defaults(chain: Chain, reference: str | None = None) -> dict:
     return {"p_step": 1, "p_dbh": DEFAULT_DBH, "p_lat": PILOT["lat"], "p_lng": PILOT["lng"], "p_from": "default",
-            "p_size": "small", "p_ref": DEFAULT_REFERENCE, "p_wallet": signer or "", "p_gps_ts": None,
-            "p_check": None, "p_last_mint": None}
+            "p_size": "small", "p_ref": default_reference(chain.is_nullifier_active) if reference is None else reference,
+            "p_wallet": chain.signer or "", "p_gps_ts": None, "p_check": None, "p_last_mint": None}
 
 
-def _carry(signer: str | None) -> None:
+def _carry(chain: Chain) -> None:
     ss = st.session_state
-    for k, v in _defaults(signer).items():
+    # The chain is asked for the default plot once per session, not on every rerun.
+    for k, v in _defaults(chain, ss["p_ref"] if "p_ref" in ss else None).items():
         ss[k] = ss[k] if k in ss else v
 
 
@@ -48,8 +67,8 @@ def _go(step: int) -> None:
     st.session_state["p_step"] = step
 
 
-def _start_over(signer: str | None) -> None:
-    for k, v in _defaults(signer).items():
+def _start_over(chain: Chain) -> None:
+    for k, v in _defaults(chain).items():
         st.session_state[k] = v
 
 
@@ -71,7 +90,7 @@ def steps_html(current: int) -> str:
 
 def metrics_html(e: allometry.Estimate) -> str:
     tiles = [("measure.biomass", e.biomass_kg, "kg"), ("measure.carbon", e.carbon_kg, "kg"),
-             ("measure.co2e", e.co2e_kg, "kg e")]
+             ("measure.co2e", e.co2e_kg, "kg CO₂e")]
     return '<div class="br-metrics">' + "".join(
         f'<div class="br-metric"><div class="lab">{html.escape(t(k))}</div>'
         f'<div class="num">{v:,.0f} <small>{u}</small></div></div>' for k, v, u in tiles) + "</div>"
@@ -260,7 +279,7 @@ def _claim(chain: Chain, overview: dict, key_problem: str | None) -> None:
     with st.container(horizontal=True, gap="small"):
         run = st.button(t("claim.check"), type="primary", key="p_check_btn", disabled=not signer)
         st.button(t("nav.back"), key="p_back3", on_click=_go, args=(2,))
-        st.button(t("nav.start_over"), key="p_reset", on_click=_start_over, args=(chain.signer,))
+        st.button(t("nav.start_over"), key="p_reset", on_click=_start_over, args=(chain,))
 
     if not signer:
         st.markdown(status_html("warn", "!", t("claim.no_account")), unsafe_allow_html=True)
@@ -342,7 +361,7 @@ def _trees(chain: Chain) -> None:
 
 
 def render(chain: Chain, overview: dict, key_problem: str | None) -> None:
-    _carry(chain.signer)
+    _carry(chain)
     step = st.session_state["p_step"]
     st.markdown(steps_html(step), unsafe_allow_html=True)
     with st.container(key="br-card"):
