@@ -103,9 +103,16 @@ if [ "$FORK_MODE" = reconstruct ]; then
 fi
 
 export FOUNDRY_BROADCAST=cache/handover-fork-check/broadcast
-export PRIVATE_KEY=$(cat "$KEY")
+# Either documented form of the deployer key is accepted here (64 bare hex digits, or 0x + 64 hex; see
+# dashboard/config.py validate_private_key), but forge's vm.envUint parses only the 0x form. Normalise once, here, so a
+# bare key does not fail deep inside the script with "missing hex prefix".
+PRIVATE_KEY=$(cat "$KEY")
+case "$PRIVATE_KEY" in 0x*) ;; *) PRIVATE_KEY="0x$PRIVATE_KEY" ;; esac
+export PRIVATE_KEY
 export CHAIN_ID PROXY_ADDRESS="$PROXY"
-DEPLOYER=$(cast wallet address --private-key "$PRIVATE_KEY")
+if ! DEPLOYER=$(cast wallet address --private-key "$PRIVATE_KEY" 2>&1); then
+    echo "FATAL: $KEY does not hold a usable private key: $DEPLOYER"; exit 1
+fi
 ADMIN_ROLE=0x0000000000000000000000000000000000000000000000000000000000000000
 UPGRADER_ROLE=$(cast keccak UPGRADER_ROLE)
 VERIFIER_ROLE=$(cast keccak VERIFIER_ROLE)
