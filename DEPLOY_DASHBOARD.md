@@ -47,7 +47,8 @@ The repository is public, so Streamlit's picker lists it without any extra GitHu
 reviewer following the repository link opens it directly rather than getting a 404. The running app is
 public too — reviewers need only the `*.streamlit.app` URL, not the source.
 
-This branch is `master` locally and was pushed to `main` remotely, so nothing on GitHub is named `master`.
+The local checkout sits on `main` as well, tracking `origin/main`, and no branch anywhere in the repository is
+named `master`.
 
 ## 2. Deploy on Streamlit Community Cloud
 
