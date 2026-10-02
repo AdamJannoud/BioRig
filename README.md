@@ -97,7 +97,7 @@ carrying the SVG's SHA-256, and `--check` compares that rather than pixels.
 
 ## Docs
 
-- `DEPLOY.md` - deploying and verifying the contracts.
+- `DEPLOY.md` - deploying and verifying the contracts; section 9 publishes the proposal carriers.
 - `DEMO.md` - the dashboard and the explainer video, and how to run them.
 - `DEPLOY_DASHBOARD.md` - putting the dashboard on a free public host (Streamlit Community Cloud, Hugging Face Spaces).
 - `FINDINGS.md`, `HARDENING.diff` - the audit round and the hardening change it produced.

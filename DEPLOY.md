@@ -718,3 +718,36 @@ so a dashboard started with no `CHAIN_ID` and no `.env` renders it too). `check_
 The same steps serve Celo Sepolia: `--chain-id 11142220` in steps 3 and 8, a faucet instead of step 2, and a
 `DeployAll` that sends five transactions where the registry is absent. The Celo Sepolia deployment of section 6
 predates `HardenMainnetAdmin` and still has its deployer as admin.
+
+## 9. Publishing the proposal carriers
+
+Four files are published into the workspace Files for reviewers: `proposal.pdf`, `proposal.docx`, `proposal.md` and
+`architecture.png`. Each derives from repo source: the pdf from `docs/prezenti-proposal.md` through
+`tools/render_proposal_pdf.py` (with `tools/print/proposal.css` and `assets/brand/biorig-lockup.png`), the docx from
+the same markdown through `tools/render_proposal_docx.py`, the md is the markdown itself, and the png is the committed
+`BioRig_Architecture_Pro.png` (rendered from `assets/BioRig_Architecture_v5.svg`). `docs/carriers.json` records, per
+carrier, the published copy's digest and the hash of every source it was made from, and `tools/check_carriers.py`
+(step 7 of `scripts/verify-demo.sh`) fails when a source has moved since, when a fresh render no longer matches what
+was published, or when a staged copy of the Files bytes is not what the pipeline produced.
+
+The Files are not reachable from the repo, so publishing is a hand-off with one rule: the record is written only from
+the bytes actually held in Files.
+
+1. Edit `docs/prezenti-proposal.md` (or a renderer, the stylesheet, the lockup, the diagram).
+2. Render:
+   ```bash
+   .venv/bin/python tools/render_proposal_pdf.py    # out/proposal/BioRig-Prezenti-Grant-Application-Proposal.pdf
+   .venv/bin/python tools/render_proposal_docx.py   # out/proposal/BioRig-Prezenti-Grant-Application-Proposal.docx
+   ```
+   For the diagram, regenerate and commit `BioRig_Architecture_Pro.png` first.
+3. Publish the four files into the workspace Files under the carrier names above.
+4. Stage the published bytes: download the four copies back out of Files into `cache/carriers/published/` (git-ignored;
+   never commit it), named `proposal.pdf`, `proposal.docx`, `proposal.md`, `architecture.png`.
+5. Record: `.venv/bin/python tools/check_carriers.py --record`. It re-renders and refuses (exit 1, writing nothing)
+   unless every staged copy agrees with the fresh render, so a stale or wrong upload is caught here, not by a reviewer.
+6. Commit `docs/carriers.json` with the source change.
+
+The pdf is byte-deterministic and compared by sha256. The docx is compared by a digest over its zip entries' names,
+CRC32s and sizes, because python-docx stamps the render time into every entry; the module docstring of
+`tools/check_carriers.py` carries the evidence. Without staged copies the check prints a note and still fails on any
+repo-side drift; exit status is 0 clean, 1 drift, 2 setup failure.

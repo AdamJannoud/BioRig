@@ -146,4 +146,12 @@ if hits:
 print(f"checked {len(files)} tracked files: none contain the key")
 PY
 
+step "7. proposal carriers: the published copies still match their source"
+# The pdf, docx, md and architecture raster held in the workspace Files are compared against the markdown, the two
+# renderers and the committed raster they derive from (docs/carriers.json is the publish record). On 2 October 2026
+# the markdown had moved three commits past the published render and the Files raster was a pre-brand copy, and
+# nothing noticed. Offline; re-renders the pdf with the Chromium step 4 installed. Copies staged under
+# cache/carriers/published/ are checked too; without them it notes so and still fails on repo-side drift.
+$PY tools/check_carriers.py || { echo "carriers drifted: see DEPLOY.md section 9"; exit 1; }
+
 printf '\nALL DEMO CHECKS PASSED\n'

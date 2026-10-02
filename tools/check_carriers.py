@@ -189,7 +189,7 @@ def check_sources(root: Path, carrier: Carrier, entry: dict) -> list[Line]:
             lines.append(Line(carrier.name, "sources", "drift",
                               f"source {rel} moved (recorded {short(want)}, tree {short(have)}); {REMEDY}"))
     n = len(recorded)
-    return lines or [Line(carrier.name, "sources", "ok", f"{n} source{'s' * (n != 1)} match the record")]
+    return lines or [Line(carrier.name, "sources", "ok", f"{n}/{n} sources match the record")]
 
 
 def check_derived(root: Path, carrier: Carrier, entry: dict, out_dir: Path) -> Line:
