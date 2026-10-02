@@ -121,8 +121,8 @@ bash scripts/verify-demo.sh                                   # the full accepta
 .venv/bin/python scripts/check-hosted-entrypoint.py            # the deployable dashboard, as a host runs it
 ```
 
-Without a key, `VERIFY_ALLOW_NO_KEY=1 bash scripts/verify-demo.sh` runs everything else: it skips steps 3, 4b and 6
-(each prints `SKIPPED (no key): step N`) and ends on a `PARTIAL` banner instead of `ALL DEMO CHECKS PASSED`. It is
+Without a key, `VERIFY_ALLOW_NO_KEY=1 bash scripts/verify-demo.sh` runs everything else: it skips steps 3, 4-sim, 4b
+and 6 (each prints `SKIPPED (no key): step N`) and ends on a `PARTIAL` banner instead of `ALL DEMO CHECKS PASSED`. It is
 refused when a key is configured.
 
 ## Clean-clone proof and pushing

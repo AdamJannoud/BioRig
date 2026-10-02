@@ -787,11 +787,12 @@ clone never receives the `.env`, so it runs on the repository's default chain (C
 read-only against the chain: step 3 is an `eth_call` simulation and step 4b broadcasts only to an anvil fork. A full
 proof takes about nine minutes, most of it the toolchain install and the gate's video render.
 
-**Key-free mode.** `VERIFY_ALLOW_NO_KEY=1 bash scripts/verify-demo.sh` skips the steps that need the deployer key:
-step 3 (the live mint simulation), step 4b (the two mainnet fork rehearsals) and step 6's exact-key scan of tracked
-files, which falls back to a pattern scan for key-shaped assignments. Each prints `SKIPPED (no key): step N`, and the
-run ends on `PARTIAL: DEMO CHECKS PASSED EXCEPT SKIPPED STEPS: 3 4b 6 ...`, never on `ALL DEMO CHECKS PASSED`. The flag
-is refused when a key is configured, so it cannot quietly weaken a real run.
+**Key-free mode.** `VERIFY_ALLOW_NO_KEY=1 bash scripts/verify-demo.sh` skips the steps that need the deployer key: step
+3 (the live mint simulation), step 4-sim (the dashboard's simulation verdicts: with no signer the dashboard is read-only
+by design, and the browser check asserts that state instead), step 4b (the two mainnet fork rehearsals) and step 6's
+exact-key scan of tracked files, which falls back to a pattern scan for key-shaped assignments. Each prints `SKIPPED (no
+key): step N`, and the run ends on `PARTIAL: DEMO CHECKS PASSED EXCEPT SKIPPED STEPS: 3 4-sim 4b 6 ...`, never on `ALL
+DEMO CHECKS PASSED`. The flag is refused when a key is configured, so it cannot quietly weaken a real run.
 
 **The pre-push hook.** Install it once per checkout, and again whenever `--check` says it is out of date:
 
@@ -821,6 +822,6 @@ mode; any red step fails the job, and the job summary states that the run was pa
 Its second job checks remote identity: `git ls-remote` reports the pushed sha, and a second pristine clone has the
 pushed commit's tree.
 
-**The deployer key is never used in CI.** The workflow reads no secret, and no step would use one. Steps 3, 4b and the
-exact-key scan are therefore proven only by the pre-push hook and `scripts/push-verified.sh`, on the machine where
-the key already lives. A green CI run means the key-free part of the gate passed on a fresh clone, nothing more.
+**The deployer key is never used in CI.** The workflow reads no secret, and no step would use one. Steps 3, 4-sim, 4b
+and the exact-key scan are therefore proven only by the pre-push hook and `scripts/push-verified.sh`, on the machine
+where the key already lives. A green CI run means the key-free part of the gate passed on a fresh clone, nothing more.

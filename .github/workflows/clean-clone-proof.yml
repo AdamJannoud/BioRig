@@ -3,7 +3,8 @@
 #
 # THE DEPLOYER KEY IS NEVER GIVEN TO CI. Nothing here reads secrets.PRIVATE_KEY or any other secret, and no step has a
 # path that would use one. So this workflow runs the acceptance gate in key-free mode (VERIFY_ALLOW_NO_KEY=1): step 3
-# (the live mint simulation), step 4b (the mainnet fork rehearsals) and step 6's exact-key scan are SKIPPED, and the
+# (the live mint simulation), step 4-sim (the dashboard's simulation verdicts; its read-only state is checked
+# instead), step 4b (the mainnet fork rehearsals) and step 6's exact-key scan are SKIPPED, and the
 # run is reported as PARTIAL, never as a full acceptance pass. The key-dependent steps are proven in the pre-push
 # path (scripts/git-hooks/pre-push, scripts/push-verified.sh), on the machine where the key already lives.
 name: clean-clone-proof

@@ -4,8 +4,9 @@
 #   SKIP_RENDER=1 scripts/verify-demo.sh  probe the existing mp4 instead of re-rendering
 #   VERIFY_ALLOW_NO_KEY=1 scripts/verify-demo.sh  key-free mode: a partial run, for CI and clean-clone proofs
 #
-# Key-free mode skips the steps that need the deployer key (3, the live mint simulation; 4b, the fork rehearsals;
-# 6, the exact-key scan of tracked files, replaced by a pattern scan) and prints `SKIPPED (no key): step N` for
+# Key-free mode skips the steps that need the deployer key (3, the live mint simulation; 4-sim, the dashboard's
+# simulation verdicts, replaced by its read-only state; 4b, the fork rehearsals; 6, the exact-key scan of tracked
+# files, replaced by a pattern scan) and prints `SKIPPED (no key): step N` for
 # each. Its closing banner names the skipped steps instead of ALL DEMO CHECKS PASSED, so a partial run can never
 # read as a full acceptance pass. The flag is refused when a key IS configured: it cannot weaken a real run.
 #
@@ -32,7 +33,7 @@ if [ "${VERIFY_ALLOW_NO_KEY:-0}" = 1 ]; then
         exit 1
     fi
     NO_KEY=1
-    echo "key-free mode: steps 3, 4b and 6 will be SKIPPED; this is a partial run, not a full acceptance pass"
+    echo "key-free mode: steps 3, 4-sim, 4b and 6 will be SKIPPED; this is a partial run, not a full acceptance pass"
 elif [ "${VERIFY_ALLOW_NO_KEY:-0}" != 0 ]; then
     echo "VERIFY_ALLOW_NO_KEY must be 1 or unset"; exit 1
 fi
@@ -64,6 +65,8 @@ curl -sf "localhost:$PORT/_stcore/health" >/dev/null || { echo "streamlit did no
 hdrs=$(curl -sI "localhost:$PORT/")
 if echo "$hdrs" | grep -qiE '^x-frame-options|frame-ancestors'; then echo "framing header present"; exit 1; fi
 echo "no X-Frame-Options / frame-ancestors"
+# Key-free, the dashboard is read-only by design: the UI check asserts that state in place of the simulation verdicts.
+if [ "$NO_KEY" = 1 ]; then skip 4-sim; echo "  (step 4's simulation verdicts; the read-only state is checked instead)"; fi
 $PY scripts/check_dashboard_ui.py "http://localhost:$PORT"
 kill $ST_PID 2>/dev/null || true
 

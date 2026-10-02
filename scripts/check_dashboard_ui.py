@@ -60,8 +60,17 @@ assert not Chain(settings).is_nullifier_active(fresh.nullifier), f"salt {fresh_s
 print(f"expecting {settings.chain_name} ({settings.chain_id}), proxy {settings.proxy.address}")
 print(f"default-form nullifier {default.nullifier_hex} active={default_active} -> "
       f"expect {'would revert: NullifierInUse' if default_active else 'would succeed'}; fresh salt {fresh_salt}")
+# Key-free (the gate's VERIFY_ALLOW_NO_KEY=1, as in CI): with no signer the dashboard is read-only by design, so the
+# simulation verdicts cannot render. The check then asserts the read-only state in their place and says so; the
+# gate lists step 4-sim as skipped, so the run is never reported as a full pass.
+NO_KEY = not key
+READ_ONLY_PLANTER = "Read-only — you can look, not register."
+READ_ONLY_OPERATOR = "PRIVATE_KEY is not set in .env, so the verifier account is unavailable."
 expect = [Web3.to_checksum_address(settings.proxy.address), str(settings.chain_id), "getTreeStats(1)",
-          "spatialNullifier", Web3.to_checksum_address(tba_1()), "match ✓", "VERIFIER_ROLE ✓"]
+          "spatialNullifier", Web3.to_checksum_address(tba_1()), "match ✓",
+          *(("no VERIFIER_ROLE", READ_ONLY_OPERATOR) if NO_KEY else ("VERIFIER_ROLE ✓",))]
+if NO_KEY:
+    print("no PRIVATE_KEY: the simulation verdicts are not exercised; asserting the read-only state instead")
 
 # Verdict predicates over the simulation panel's rows (each .br-panel's innerText is "key\tvalue" lines), so a
 # "tokenId" elsewhere on the page or a stale panel from the previous render cannot satisfy them.
@@ -144,6 +153,12 @@ def planter_pass(page) -> list[str]:
     page.get_by_role("button", name="Continue →").click()
     if not wait_text("Check this tree"):
         return missing
+    if NO_KEY:
+        if not page.get_by_role("button", name="Check this tree →").is_disabled():
+            missing.append("read-only: 'Check this tree' should be disabled with no signer")
+        if not wait_text(READ_ONLY_PLANTER):
+            missing.append(f"read-only notice: {READ_ONLY_PLANTER}")
+        return missing
     page.get_by_role("button", name="Check this tree →").click()
     wait_text(planter_verdict, 120_000)
     body = page.evaluate("document.body.innerText")
@@ -201,14 +216,16 @@ with sync_playwright() as p:
                     pass
                 body = page.evaluate("document.body.innerText")
             missing = [e for e in expect if e not in body]
-            if not wait_verdict(page, default_want, default.nullifier_hex):
+            if NO_KEY:
+                pass  # no signer, no simulation: the read-only notice is in `expect`
+            elif not wait_verdict(page, default_want, default.nullifier_hex):
                 missing.append(f"default form: would {default_want}")
             # A new tree in the same cell: type a fresh salt and commit it with Enter, which is when Streamlit reruns.
             try:
                 salt_box = page.get_by_label("salt", exact=True)
                 salt_box.fill(fresh_salt, timeout=30_000)
                 salt_box.press("Enter")
-                fresh_ok = wait_verdict(page, "succeed", fresh.nullifier_hex)
+                fresh_ok = NO_KEY or wait_verdict(page, "succeed", fresh.nullifier_hex)
             except PlaywrightTimeout:
                 fresh_ok = False
             if not fresh_ok:
