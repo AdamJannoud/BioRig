@@ -20,3 +20,6 @@ markdown>=3.6
 python-docx>=1.1
 pypdf>=5
 playwright>=1.63
+# scripts/verify-demo.sh step 5b reads the rendered frame back with cv2 and asserts the roadmap label is in the
+# pixels; headless because the gate runs on a server with no GUI.
+opencv-python-headless>=4.9
