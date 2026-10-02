@@ -7,12 +7,15 @@ The private key stays inside Chain; nothing here returns or logs it.
 from __future__ import annotations
 
 import json
+import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
 from eth_abi import encode as abi_encode
 from eth_utils import keccak, to_checksum_address
+from web3.exceptions import TransactionNotFound, Web3Exception
 from web3.logs import DISCARD
 
 from .config import Settings
@@ -23,6 +26,18 @@ ERC6551_ACCOUNT_INTERFACE_ID = bytes.fromhex("6faff5f1")
 # ERC-1167 proxy pieces the canonical ERC-6551 registry wraps around the implementation address.
 _ERC1167_HEADER = bytes.fromhex("3d60ad80600a3d3981f3363d3d373d3d3d363d73")
 _ERC1167_FOOTER = bytes.fromhex("5af43d82803e903d91602b57fd5bf3")
+
+# forno (Celo's public RPC) answers eth_getLogs with [] for a range that provably holds logs about a third of the
+# time, and eth_getTransactionReceipt with "not found" for a mined tx the same way. So an empty answer is unproven:
+# it is re-asked after each of these delays and only accepted when every answer was empty (~1% at a 1/3 rate).
+EMPTY_CONFIRM_DELAYS = (0.25, 0.5, 1.0, 2.0)
+# Delays between retries of a read that raised a transport or RPC error; after the last, the error is raised.
+TRANSIENT_RETRY_DELAYS = (0.25, 0.5, 1.0)
+# A whole walk can still miss the mint chunk, so a walk that finds nothing is repeated up to this many walks.
+MINT_WALKS = 3
+LOG_WORKERS = 8  # chunks read concurrently; each one may spend ~4 s confirming an empty answer
+_TRANSIENT = (OSError, Web3Exception)  # requests' ConnectionError/Timeout are OSErrors
+_sleep = time.sleep  # tests replace this to run the delays instantly
 
 
 def load_abi(name: str) -> list:
@@ -210,30 +225,94 @@ class Chain:
     def token_uri(self, token_id: int) -> str:
         return self.core.functions.tokenURI(token_id).call()
 
+    # ---- log reads that survive an RPC answering empty for a range that holds logs
+    def _rpc(self, call):
+        """call(), retried after each TRANSIENT_RETRY_DELAYS on a transport or RPC error; the last error is raised."""
+        for delay in (*TRANSIENT_RETRY_DELAYS, None):
+            try:
+                return call()
+            except TransactionNotFound:
+                raise  # an answer, not a transport fault: get_receipt confirms it
+            except _TRANSIENT:
+                if delay is None:
+                    raise
+                _sleep(delay)
+
+    def _get_logs_confirmed(self, event, lo: int, hi: int, token_id: int) -> list:
+        """event's logs for token_id in [lo, hi]. A non-empty answer is returned at once; an empty one is re-asked
+        after each EMPTY_CONFIRM_DELAYS and accepted only when every answer was empty."""
+        for delay in (*EMPTY_CONFIRM_DELAYS, None):
+            logs = self._rpc(lambda: event.get_logs(
+                from_block=lo, to_block=hi, argument_filters={"tokenId": token_id}))
+            if logs or delay is None:
+                return list(logs)
+            _sleep(delay)
+
+    def _log_ranges(self, chunk: int) -> tuple[int, int, list[tuple[int, int]]]:
+        start = self.settings.proxy.deploy_block or 0
+        head = int(self._rpc(lambda: self.w3.eth.block_number))
+        return start, head, [(lo, min(lo + chunk - 1, head)) for lo in range(start, head + 1, chunk)]
+
+    def _walk(self, event, token_id: int, ranges: list[tuple[int, int]], first_only: bool) -> list:
+        """Confirmed reads of every range, LOG_WORKERS at a time, consumed in block order. With first_only the
+        lowest range holding logs wins and the reads still queued are cancelled. A read error is raised."""
+        pool = ThreadPoolExecutor(max_workers=LOG_WORKERS)
+        futures = [pool.submit(self._get_logs_confirmed, event, lo, hi, token_id) for lo, hi in ranges]
+        out = []
+        try:
+            for fut in futures:
+                logs = fut.result()
+                out.extend(logs)
+                if logs and first_only:
+                    break
+        finally:
+            pool.shutdown(wait=False, cancel_futures=True)
+        return out
+
+    def token_logs(self, event, token_id: int, chunk: int = 5_000) -> list:
+        """Every log of event for token_id since the proxy's deploy block, in block order, read in chunks."""
+        return self._walk(event, token_id, self._log_ranges(chunk)[2], first_only=False)
+
+    def get_receipt(self, tx_hash):
+        """The receipt of a tx a log already named. 'Not found' is re-asked like an empty log answer, since forno
+        returns it for mined txs too; if it persists the error says the RPC withheld a receipt it should have."""
+        for delay in (*EMPTY_CONFIRM_DELAYS, None):
+            try:
+                receipt = self._rpc(lambda: self.w3.eth.get_transaction_receipt(tx_hash))
+                if receipt is not None:
+                    return receipt
+            except TransactionNotFound:
+                pass
+            if delay is None:
+                h = tx_hash if isinstance(tx_hash, str) else "0x" + bytes(tx_hash).hex()
+                raise RuntimeError(f"the RPC did not return the receipt for tx {h} after "
+                                   f"{len(EMPTY_CONFIRM_DELAYS) + 1} asks, though it returned that tx's log")
+            _sleep(delay)
+
     def find_mint(self, token_id: int, chunk: int = 5_000) -> MintRecord:
         """Locate the TreeMinted event for token_id and read the planter from the mint's Transfer log.
 
-        Chunked at 5,000 blocks: Celo mainnet's forno rejects a wider eth_getLogs ("max block range 5000")."""
-        start = self.settings.proxy.deploy_block or 0
-        head = int(self.w3.eth.block_number)
+        Chunked at 5,000 blocks: Celo mainnet's forno rejects a wider eth_getLogs ("max block range 5000"). Every
+        chunk read is confirmed (see _get_logs_confirmed), and a walk that finds nothing is repeated up to MINT_WALKS
+        times before the token is declared absent."""
         event = self.core.events.TreeMinted()
-        lo = start
-        while lo <= head:
-            hi = min(lo + chunk - 1, head)
-            logs = event.get_logs(from_block=lo, to_block=hi, argument_filters={"tokenId": token_id})
+        for _ in range(MINT_WALKS):
+            start, head, ranges = self._log_ranges(chunk)
+            logs = self._walk(event, token_id, ranges, first_only=True)
             if logs:
-                log = logs[0]
-                receipt = self.w3.eth.get_transaction_receipt(log.transactionHash)
-                planter = None
-                for t in self.core.events.Transfer().process_receipt(receipt, errors=DISCARD):
-                    if int(t.args.tokenId) == token_id and int(t.args["from"], 16) == 0:
-                        planter = t.args.to
-                if planter is None:
-                    raise RuntimeError(f"mint tx for token {token_id} has no Transfer from 0x0")
-                return MintRecord(token_id, "0x" + log.transactionHash.hex().removeprefix("0x"),
-                                  int(log.blockNumber), planter, bytes(log.args.spatialNullifier), log.args.tba)
-            lo = hi + 1
-        raise LookupError(f"no TreeMinted event for token {token_id} between blocks {start} and {head}")
+                break
+        else:
+            raise LookupError(f"no TreeMinted event for token {token_id} between blocks {start} and {head}")
+        log = logs[0]
+        receipt = self.get_receipt(log.transactionHash)
+        planter = None
+        for t in self.core.events.Transfer().process_receipt(receipt, errors=DISCARD):
+            if int(t.args.tokenId) == token_id and int(t.args["from"], 16) == 0:
+                planter = t.args.to
+        if planter is None:
+            raise RuntimeError(f"mint tx for token {token_id} has no Transfer from 0x0")
+        return MintRecord(token_id, "0x" + log.transactionHash.hex().removeprefix("0x"),
+                          int(log.blockNumber), planter, bytes(log.args.spatialNullifier), log.args.tba)
 
     def check_tba(self, token_id: int, record: MintRecord | None = None) -> TbaCheck:
         """Derive the TBA from (registry, implementation, chainId, proxy, tokenId, salt) three ways."""

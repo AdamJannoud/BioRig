@@ -65,9 +65,8 @@ def refresh_facts(token_id: int = 1) -> dict:
     tba = chain.check_tba(token_id, record)
     if not tba.ok:
         raise RuntimeError("TBA derivations disagree; refusing to put them in the video")
-    receipt = chain.w3.eth.get_transaction_receipt(record.tx_hash)
-    growth = chain.core.events.GrowthUpdated().get_logs(from_block=settings.proxy.deploy_block or 0,
-                                                       to_block="latest", argument_filters={"tokenId": token_id})
+    receipt = chain.get_receipt(record.tx_hash)
+    growth = chain.token_logs(chain.core.events.GrowthUpdated(), token_id)
     d = h3_nullifier.derive(-1.2921, 36.8219, "plot-1")
     facts = {
         "chain_id": settings.chain_id,

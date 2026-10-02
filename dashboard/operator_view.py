@@ -16,10 +16,23 @@ from dashboard.strings import t
 from dashboard.ui import pill, rows_html
 
 
+TBA_CHECK_ATTEMPTS = 3
+
+
 @st.cache_data(ttl=600, show_spinner=False)
 def cached_tba_check(_chain: Chain, chain_id: int, proxy: str, token_id: int, block_hint: int):
-    record = _chain.find_mint(token_id)
-    return record, _chain.check_tba(token_id, record)
+    """Retried here so a cold render that hits a flaky RPC read still draws the cross-check. st.cache_data does not
+    memoise a raised exception (the next call recomputes), so only a success is cached. LookupError is find_mint's
+    own verdict after MINT_WALKS confirmed walks and is not retried."""
+    for attempt in range(TBA_CHECK_ATTEMPTS):
+        try:
+            record = _chain.find_mint(token_id)
+            return record, _chain.check_tba(token_id, record)
+        except LookupError:
+            raise
+        except Exception:
+            if attempt == TBA_CHECK_ATTEMPTS - 1:
+                raise
 
 
 def render(chain: Chain, rpc_chain: int, overview: dict, is_verifier: bool, key_problem: str | None) -> None:
