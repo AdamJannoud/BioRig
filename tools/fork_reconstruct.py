@@ -10,7 +10,11 @@ public Celo RPCs do not serve. Tip state they do serve, and the operations are o
 itself: it takes a tip fork and inverts the executed transactions on it.
 
   1. The executed tx hashes are read from the committed broadcast records (MANIFEST), never transcribed.
-  2. Each receipt is fetched and its logs inverted, newest first: RemovedOwner(o) puts o back, AddedOwner(o) drops
+  2. Their receipts come from those same records, logs included, so the reconstruction rests on committed evidence.
+     The chain is asked only to CHECK the record, never to supply the reconstruction: these receipts now sit tens of
+     thousands of blocks behind the tip and the public Celo endpoints serve history that far back only intermittently,
+     so a reconstruction that waits on them is a coin toss. A record the chain contradicts is a gap.
+     The logs are inverted, newest first: RemovedOwner(o) puts o back, AddedOwner(o) drops
      it, each ExecutionSuccess/ExecutionFailure on the Safe takes one off its nonce, RoleGranted(r, a) revokes and
      RoleRevoked(r, a) grants. A ChangedThreshold log leaves the old threshold unrecoverable from the log alone, so it
      is a reconstruction gap, not a guess.
@@ -34,6 +38,7 @@ import argparse
 import json
 import re
 import sys
+import time
 import urllib.request
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -97,6 +102,18 @@ TARGET = {
         (role, account): account == DEPLOYER for role in ROLES.values() for account in ACCOUNTS.values()
     },
 }
+
+
+# The public Celo RPC in front of the fork omits receipts for mined transactions intermittently: asked directly, 6 of
+# 10 identical eth_getTransactionReceipt calls for the swap tx raised TransactionNotFound, and through an anvil fork
+# one ask in 15 came back null - for a tx that is mined, permanent, and confirmed by a second provider. So a falsey
+# receipt is re-asked and never believed on the first answer; only a tx never answered for is a gap.
+RECEIPT_ASKS = 5
+RECEIPT_DELAYS = (0.5, 1.0, 2.0, 4.0)  # sleep before ask 2..RECEIPT_ASKS
+CROSS_ASKS = 3                         # asks spent checking a committed receipt against the chain, not on needing it
+TRANSPORT_ATTEMPTS = 3                 # retries for a fault below the node (HTTP error, timeout, unreadable body)
+TRANSPORT_DELAY = 1.0
+_sleep = time.sleep                    # tests replace this to run the delays instantly
 
 
 class Gap(Exception):
@@ -235,18 +252,28 @@ class Rpc:
         self.url = url
         self._id = 0
 
-    def __call__(self, method: str, *params):
-        self._id += 1
-        body = json.dumps({"jsonrpc": "2.0", "id": self._id, "method": method, "params": list(params)}).encode()
-        req = urllib.request.Request(self.url, body, {"Content-Type": "application/json"})
-        try:
-            with urllib.request.urlopen(req, timeout=60) as resp:
-                reply = json.loads(resp.read())
-        except (OSError, ValueError) as exc:
-            raise Gap(f"RPC {method} to {self.url} failed: {exc}") from exc
-        if "error" in reply:
-            raise Gap(f"RPC {method} to {self.url} returned an error: {reply['error']}")
-        return reply.get("result")
+    def __call__(self, method: str, *params, attempts: int = TRANSPORT_ATTEMPTS):
+        """A reply from the node is returned as it stands. A fault below the node (HTTP error, timeout, unreadable
+        body) is retried first: the public RPC in front of the fork fails those intermittently, and a request that
+        never reached a node says nothing about the chain. A node-level error reply is never retried, because that is
+        an answer about the request itself."""
+        last: Exception | None = None
+        for attempt in range(attempts):
+            self._id += 1
+            body = json.dumps({"jsonrpc": "2.0", "id": self._id, "method": method, "params": list(params)}).encode()
+            req = urllib.request.Request(self.url, body, {"Content-Type": "application/json"})
+            try:
+                with urllib.request.urlopen(req, timeout=60) as resp:
+                    reply = json.loads(resp.read())
+            except (OSError, ValueError) as exc:
+                last = exc
+                if attempt + 1 < attempts:
+                    _sleep(TRANSPORT_DELAY)
+                continue
+            if "error" in reply:
+                raise Gap(f"RPC {method} to {self.url} returned an error: {reply['error']}")
+            return reply.get("result")
+        raise Gap(f"RPC {method} to {self.url} failed {attempts} times: {last}")
 
 
 def _call(rpc, to: str, sig: str, types: list[str], args: list, out: list[str]):
@@ -270,12 +297,78 @@ def storage(rpc, address: str, slot: int) -> int:
     return int(rpc("eth_getStorageAt", address, hex(slot), "latest"), 16)
 
 
-def fetch_logs(rpc, hashes: list[str]) -> list[dict]:
+def _confirmed_receipt(rpc, tx: str, asks: int = RECEIPT_ASKS) -> dict:
+    """The receipt of a transaction, re-asked until a node answers it.
+
+    The upstream omits receipts intermittently (see RECEIPT_ASKS), so a falsey answer is not evidence that the tx has
+    no receipt. These asks own the retrying, so each one is a single Rpc attempt rather than a nested retry."""
+    last: Gap | None = None
+    for i in range(asks):
+        try:
+            receipt = rpc("eth_getTransactionReceipt", tx, attempts=1)
+        except Gap as exc:
+            receipt, last = None, exc
+        if receipt:
+            return receipt
+        if i + 1 < asks:
+            _sleep(RECEIPT_DELAYS[min(i, len(RECEIPT_DELAYS) - 1)])
+    raise Gap(f"no receipt for executed tx {tx} after {asks} asks via the fork's upstream"
+              + (f"; the last fault was: {last}" if last else ""))
+
+
+def read_receipts(root: Path = ROOT) -> dict[str, dict]:
+    """Every executed tx's receipt, keyed by hash, from the committed broadcast records.
+
+    forge writes each receipt into the record as it broadcasts, logs included, so the evidence the inversion needs is
+    committed right beside the hashes. That matters because these receipts now sit tens of thousands of blocks behind
+    the tip, and the public Celo endpoints serve history that far back only intermittently."""
+    receipts: dict[str, dict] = {}
+    for rel in MANIFEST:
+        path = root / rel
+        try:
+            record = json.loads(path.read_text())
+        except (OSError, ValueError) as exc:
+            raise Gap(f"broadcast record {rel} is missing or unreadable: {exc}") from exc
+        for receipt in record.get("receipts") or []:
+            if receipt.get("transactionHash"):
+                receipts[receipt["transactionHash"].lower()] = receipt
+    return receipts
+
+
+def _log_key(log: dict) -> tuple:
+    """A log's identity across the record's and the node's spellings: address, topics and data, case-folded."""
+    return (log["address"].lower(), tuple(t.lower() for t in log["topics"]), log.get("data", "").lower())
+
+
+def cross_check(rpc, hashes: list[str], receipts: dict[str, dict]) -> dict:
+    """Check the committed receipts against the chain, best effort: the record stands whether or not it answers.
+
+    Only a contradiction is fatal. An upstream that never answers for a tx - the usual case this far behind the tip -
+    is reported as unavailable rather than treated as a missing receipt, because the receipt is already committed and
+    a reconstruction that waits on a node to remember it is the flake this replaces."""
+    agreed, unavailable = 0, []
+    for h in hashes:
+        try:
+            chain = _confirmed_receipt(rpc, h, asks=CROSS_ASKS)
+        except Gap:
+            chain = None
+        if not chain:
+            unavailable.append(h)
+            continue
+        if {_log_key(log) for log in chain["logs"]} != {_log_key(log) for log in receipts[h]["logs"]}:
+            raise Gap(f"the committed record and the chain disagree about tx {h}: the record holds "
+                      f"{len(receipts[h]['logs'])} logs, the chain {len(chain['logs'])}")
+        agreed += 1
+    return {"agreed": agreed, "unavailable": unavailable}
+
+
+def fetch_logs(rpc, hashes: list[str], receipts: dict[str, dict]) -> list[dict]:
+    """The logs of every executed tx, from the committed records, and the status each receipt must carry."""
     logs: list[dict] = []
     for h in hashes:
-        receipt = rpc("eth_getTransactionReceipt", h)
-        if not receipt:
-            raise Gap(f"no receipt for executed tx {h} via the fork's upstream")
+        receipt = receipts.get(h)
+        if receipt is None:
+            raise Gap(f"the committed broadcast records hold no receipt for executed tx {h}")
         if int(receipt.get("status", "0x0"), 16) != 1:
             raise Gap(f"executed tx {h} has receipt status {receipt.get('status')}; nothing to invert")
         logs += receipt["logs"]
@@ -297,7 +390,9 @@ def plan(rpc, root: Path = ROOT) -> dict:
     """Derive the pre-op snapshot and the storage writes that set it, from the record, the receipts and the tip."""
     hashes = read_manifest(root)
     base = roles_base_slot(root / OZ_ACCESS_CONTROL.relative_to(ROOT))
-    logs = fetch_logs(rpc, hashes)
+    receipts = read_receipts(root)
+    logs = fetch_logs(rpc, hashes, receipts)
+    chain_check = cross_check(rpc, hashes, receipts)
 
     tip_owners, tip_threshold, tip_nonce = read_safe(rpc)
     tip_count = storage(rpc, SAFE, SAFE_OWNER_COUNT_SLOT)
@@ -330,7 +425,7 @@ def plan(rpc, root: Path = ROOT) -> dict:
         held = inv.roles[(role, account)]
         writes.append((PROXY, role_member_slot(role, account, base), int(held),
                        f"proxy hasRole[{_label(role, account)}] = {str(held).lower()}"))
-    return {"hashes": hashes, "inversion": inv, "writes": writes, "base": base}
+    return {"hashes": hashes, "receipts": chain_check, "inversion": inv, "writes": writes, "base": base}
 
 
 def check_target(inv: Inversion) -> None:
@@ -370,6 +465,7 @@ def report(p: dict, dry_run: bool, as_json: bool) -> None:
         print(json.dumps({
             "dry_run": dry_run,
             "transactions": p["hashes"],
+            "chain_check": p["receipts"],
             "roles_base_slot": _word(p["base"]),
             "writes": [{"address": a, "slot": _word(s), "value": _word(v), "label": l} for a, s, v, l in p["writes"]],
             "snapshot": {"owners": inv.owners, "threshold": inv.threshold, "nonce": inv.nonce,
@@ -380,6 +476,9 @@ def report(p: dict, dry_run: bool, as_json: bool) -> None:
     print(f"reconstruct: {len(p['hashes'])} executed txs from the broadcast records, inverted newest first")
     for h in p["hashes"]:
         print(f"  tx {h}")
+    check = p["receipts"]
+    print(f"  receipts from the committed records: {check['agreed']} of {len(p['hashes'])} confirmed against the "
+          f"fork's upstream, {len(check['unavailable'])} it did not answer for")
     for s in inv.skipped:
         print(f"  skipped unrecognised log {s}")
     print(f"  AccessControl ERC-7201 base {_word(p['base'])} (read from the OpenZeppelin source)")

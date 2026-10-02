@@ -95,7 +95,8 @@ def test_changed_threshold_is_a_gap_not_a_guess(capsys, monkeypatch):
         fr.invert(logs, [NEW_OWNER], 1, 1, {})
     # and through the CLI path: exit 2, one FATAL line, no writes reported
     monkeypatch.setattr(fr, "read_manifest", lambda root=fr.ROOT: ["0xaa"])
-    monkeypatch.setattr(fr, "fetch_logs", lambda rpc, hashes: logs)
+    monkeypatch.setattr(fr, "fetch_logs", lambda rpc, hashes, receipts: logs)
+    monkeypatch.setattr(fr, "cross_check", lambda rpc, hashes, receipts: {"agreed": 0, "unavailable": []})
     monkeypatch.setattr(fr, "read_safe", lambda rpc: ([NEW_OWNER], 1, 1))
     monkeypatch.setattr(fr, "storage", lambda rpc, address, slot: 1)
     monkeypatch.setattr(fr, "read_role", lambda rpc, role, account: True)
@@ -135,3 +136,135 @@ def test_manifest_hashes_come_from_the_broadcast_records():
 def test_missing_record_is_a_gap(tmp_path):
     with pytest.raises(fr.Gap, match="SafeOwnerSwap"):
         fr.read_manifest(tmp_path)
+
+
+# ------------------------------------------------- the receipts the reconstruction inverts
+
+
+class _Reply:
+    """The bare context manager urllib.request.urlopen hands back, for the Rpc-level tests."""
+
+    def __init__(self, payload: bytes):
+        self._payload = payload
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def read(self) -> bytes:
+        return self._payload
+
+
+def _receipt(logs: list[dict] | None = None) -> dict:
+    return {"status": "0x1", "logs": [{"address": fr.SAFE, "topics": []}] if logs is None else logs}
+
+
+def test_an_omitted_receipt_is_re_asked_and_used(monkeypatch):
+    """The upstream answers null for a mined tx (measured); one null is not evidence there is no receipt."""
+    sleeps: list[float] = []
+    monkeypatch.setattr(fr, "_sleep", sleeps.append)
+    answers = [None, _receipt()]
+    asked: list[str] = []
+
+    def rpc(method, *params, attempts=fr.TRANSPORT_ATTEMPTS):
+        asked.append(params[0])
+        return answers.pop(0)
+
+    receipt = fr._confirmed_receipt(rpc, "0xaa")
+    assert receipt["logs"] and asked == ["0xaa", "0xaa"] and sleeps == [fr.RECEIPT_DELAYS[0]]
+
+
+def test_a_receipt_that_never_arrives_is_a_gap_naming_the_asks(monkeypatch):
+    monkeypatch.setattr(fr, "_sleep", lambda _: None)
+    with pytest.raises(fr.Gap, match=f"after {fr.RECEIPT_ASKS} asks"):
+        fr._confirmed_receipt(lambda method, *params, attempts=1: None, "0xaa")
+
+
+def test_a_receipt_that_stays_unreachable_reports_the_last_fault(monkeypatch):
+    monkeypatch.setattr(fr, "_sleep", lambda _: None)
+
+    def rpc(method, *params, attempts=1):
+        raise fr.Gap("HTTP Error 403: Forbidden")
+
+    with pytest.raises(fr.Gap, match="last fault was: HTTP Error 403"):
+        fr._confirmed_receipt(rpc, "0xaa")
+
+
+# ------------------------------------ where the reconstruction now gets its receipts from
+
+
+def test_receipts_come_from_the_broadcast_records():
+    """The logs the inversion needs are committed beside the hashes, so no historical state is asked of a node."""
+    receipts = fr.read_receipts()
+    hashes = fr.read_manifest()
+    assert sorted(receipts) == sorted(hashes)
+    for h in hashes:
+        assert int(receipts[h]["status"], 16) == 1 and receipts[h]["logs"], f"{h} carries no logs in its record"
+    assert sum(len(receipts[h]["logs"]) for h in hashes) == 8  # the swap's 4, then the handover's 4 x 1
+
+
+def test_a_record_without_a_receipt_is_a_gap():
+    with pytest.raises(fr.Gap, match="hold no receipt for executed tx 0xaa"):
+        fr.fetch_logs(None, ["0xaa"], {})
+
+
+def test_a_record_whose_receipt_failed_is_a_gap():
+    with pytest.raises(fr.Gap, match="receipt status 0x0"):
+        fr.fetch_logs(None, ["0xaa"], {"0xaa": {"status": "0x0", "logs": []}})
+
+
+def test_a_record_the_chain_agrees_with_is_confirmed(monkeypatch):
+    log = {"address": fr.SAFE, "topics": ["0x" + "11" * 32], "data": "0x00"}
+    monkeypatch.setattr(fr, "_confirmed_receipt", lambda rpc, tx, asks=fr.RECEIPT_ASKS: {"logs": [dict(log)]})
+    assert fr.cross_check(None, ["0xaa"], {"0xaa": {"logs": [dict(log)]}}) == {"agreed": 1, "unavailable": []}
+
+
+def test_a_record_the_chain_contradicts_is_a_gap(monkeypatch):
+    mine = {"address": fr.SAFE, "topics": ["0x" + "11" * 32], "data": "0x00"}
+    theirs = {"address": fr.SAFE, "topics": ["0x" + "22" * 32], "data": "0x00"}
+    monkeypatch.setattr(fr, "_confirmed_receipt", lambda rpc, tx, asks=fr.RECEIPT_ASKS: {"logs": [theirs]})
+    with pytest.raises(fr.Gap, match="disagree about tx 0xaa"):
+        fr.cross_check(None, ["0xaa"], {"0xaa": {"logs": [mine]}})
+
+
+def test_a_chain_that_never_answers_leaves_the_record_standing(monkeypatch):
+    """The usual case this far behind the tip: the node does not answer, and the committed receipt stands."""
+    def never(rpc, tx, asks=fr.RECEIPT_ASKS):
+        raise fr.Gap("no receipt for executed tx 0xaa after 3 asks")
+
+    monkeypatch.setattr(fr, "_confirmed_receipt", never)
+    assert fr.cross_check(None, ["0xaa"], {"0xaa": {"logs": []}}) == {"agreed": 0, "unavailable": ["0xaa"]}
+
+
+def test_a_node_error_reply_is_not_retried(monkeypatch):
+    """An error reply is the node's answer about the request itself; re-asking would only repeat it."""
+    monkeypatch.setattr(fr, "_sleep", lambda _: None)
+    calls: list[object] = []
+
+    def urlopen(req, timeout=None):
+        calls.append(req)
+        return _Reply(b'{"jsonrpc":"2.0","id":1,"error":{"code":-32602,"message":"invalid argument"}}')
+
+    monkeypatch.setattr(fr.urllib.request, "urlopen", urlopen)
+    with pytest.raises(fr.Gap, match="returned an error"):
+        fr.Rpc("http://127.0.0.1:1")("eth_getTransactionReceipt", "0xaa")
+    assert len(calls) == 1
+
+
+def test_a_fault_below_the_node_is_retried(monkeypatch):
+    """The edge in front of the RPC fails whole requests (403, timeout); those never reached a node."""
+    delays: list[float] = []
+    monkeypatch.setattr(fr, "_sleep", delays.append)
+    calls: list[object] = []
+
+    def urlopen(req, timeout=None):
+        calls.append(req)
+        if len(calls) < fr.TRANSPORT_ATTEMPTS:
+            raise OSError("HTTP Error 502: Bad Gateway")
+        return _Reply(b'{"jsonrpc":"2.0","id":1,"result":"0x2a"}')
+
+    monkeypatch.setattr(fr.urllib.request, "urlopen", urlopen)
+    assert fr.Rpc("http://127.0.0.1:1")("eth_blockNumber") == "0x2a"
+    assert len(calls) == fr.TRANSPORT_ATTEMPTS and delays == [fr.TRANSPORT_DELAY] * (fr.TRANSPORT_ATTEMPTS - 1)
