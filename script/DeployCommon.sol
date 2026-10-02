@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {Script, console} from "forge-std/Script.sol";
+import {console} from "forge-std/Script.sol";
+import {PrivateKeyEnv} from "./PrivateKeyEnv.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {ERC1967Utils} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Utils.sol";
 import {BioRigCoreV5} from "../src/BioRigCoreV5.sol";
@@ -11,7 +12,7 @@ import {ERC6551Registry} from "../src/vendor/ERC6551Registry.sol";
 /// registry deployment, the BioRig proxy deployment, the VERIFIER_ROLE grant and the read-back assertions.
 /// DeployBioRig (contract only) and DeployAll (registry + account + contract in one command) both inherit this, so
 /// the two entry points cannot drift apart.
-abstract contract DeployBase is Script {
+abstract contract DeployBase is PrivateKeyEnv {
     /// Nick's CREATE2 factory, present on most chains including both Celo networks.
     address internal constant NICKS_FACTORY = 0x4e59b44847b379578588920cA78FbF26c0B4956C;
     /// The address EIP-6551's registry occupies wherever the canonical deployment has been replayed.
@@ -40,7 +41,7 @@ abstract contract DeployBase is Script {
     /// @dev The fields every entry point needs. Registry and account implementation are absent by design: DeployBioRig
     /// reads them from the environment, DeployAll takes them from the deployments it just made.
     function _loadBaseConfig() internal view returns (Config memory cfg) {
-        cfg.deployerKey = vm.envUint("PRIVATE_KEY");
+        cfg.deployerKey = _deployerKey();
         cfg.deployer = vm.addr(cfg.deployerKey);
         cfg.admin = vm.envAddress("ADMIN");
         cfg.chainId = vm.envUint("CHAIN_ID");

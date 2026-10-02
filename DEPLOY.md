@@ -540,6 +540,7 @@ disagree or if a variable a deploy script requires is missing — so do not hand
 ```bash
 cp .env.mainnet.example .env.mainnet && chmod 600 .env.mainnet                 # .env.mainnet is gitignored by .env.*
 # PRIVATE_KEY through this sed rather than retyping it; ADMIN, BUFFER_POOL, NEW_ADMIN, VERIFIER_ADDRESS by hand
+# (PRIVATE_KEY is accepted in either documented form - 0x + 64 hex digits, or the 64 digits bare)
 sed -i "s|^PRIVATE_KEY=.*|PRIVATE_KEY=$(jq -r '(.data // .)[0].private_key' .deploy/mainnet-deployer.json)|" .env.mainnet
 sed -i "s|^ADMIN=.*|ADMIN=$DEPLOYER|" .env.mainnet
 unset PROXY_ADDRESS PROXY_DEPLOY_BLOCK

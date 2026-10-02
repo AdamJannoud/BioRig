@@ -1,15 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {Script, console} from "forge-std/Script.sol";
+import {console} from "forge-std/Script.sol";
+import {PrivateKeyEnv} from "./PrivateKeyEnv.sol";
 import {ERC6551Account} from "../src/vendor/ERC6551Account.sol";
 
 /// @notice OPTIONAL. Deploys the EIP-6551 reference *example* account (src/vendor/ERC6551Account.sol) for use as
 /// ERC6551_IMPLEMENTATION on chains with no account implementation. It is unaudited; prefer an audited
 /// implementation (e.g. Tokenbound's) wherever one is deployed.
-contract DeployERC6551Account is Script {
+contract DeployERC6551Account is PrivateKeyEnv {
     function run() external returns (address account) {
-        uint256 deployerKey = vm.envUint("PRIVATE_KEY");
+        uint256 deployerKey = _deployerKey();
         uint256 chainId = vm.envUint("CHAIN_ID");
         require(
             chainId == block.chainid,

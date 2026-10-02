@@ -103,11 +103,10 @@ if [ "$FORK_MODE" = reconstruct ]; then
 fi
 
 export FOUNDRY_BROADCAST=cache/handover-fork-check/broadcast
-# Either documented form of the deployer key is accepted here (64 bare hex digits, or 0x + 64 hex; see
-# dashboard/config.py validate_private_key), but forge's vm.envUint parses only the 0x form. Normalise once, here, so a
-# bare key does not fail deep inside the script with "missing hex prefix".
+# Both documented forms of the deployer key are accepted here (64 bare hex digits, or 0x + 64 hex): the Forge scripts
+# read it through script/PrivateKeyEnv.sol, which takes either. The check below only proves the key derives to the
+# deployer.
 PRIVATE_KEY=$(cat "$KEY")
-case "$PRIVATE_KEY" in 0x*) ;; *) PRIVATE_KEY="0x$PRIVATE_KEY" ;; esac
 export PRIVATE_KEY
 export CHAIN_ID PROXY_ADDRESS="$PROXY"
 if ! DEPLOYER=$(cast wallet address --private-key "$PRIVATE_KEY" 2>&1); then

@@ -16,7 +16,7 @@ import {ERC6551Registry} from "../src/vendor/ERC6551Registry.sol";
 /// CREATE address. Use only where Nick's factory is absent; you then set ERC6551_REGISTRY to the printed address.
 contract DeployERC6551Registry is DeployBase {
     function run() external returns (address registry) {
-        uint256 deployerKey = vm.envUint("PRIVATE_KEY");
+        uint256 deployerKey = _deployerKey();
         _checkChainId(vm.envUint("CHAIN_ID"));
         string memory mode = vm.envOr("ERC6551_REGISTRY_MODE", string("canonical"));
 

@@ -81,7 +81,8 @@ PROXY_ADDRESS = ""                 # empty is fine: dashboard/deployment.json is
 ALLOW_MINT = false                 # false = read-only; true = visitors can broadcast a real mintTree
 ```
 
-`PRIVATE_KEY`, when set, must be a 32-byte hex key: `0x` plus 64 hex digits, or the 64 digits bare. Paste the
+`PRIVATE_KEY`, when set, must be a 32-byte hex key: `0x` plus 64 hex digits, or the 64 digits bare — and the deploy
+scripts and both fork rehearsals accept either form too, so one copy of the key serves every consumer. Paste the
 key itself, not the JSON a secret store wraps it in. A malformed value does not take the page down: the app drops
 to read-only and shows one warning naming the length and the index of the first invalid character, never the value.
 

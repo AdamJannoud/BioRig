@@ -97,7 +97,7 @@ contract SafeOwnerSwap is DeployBase, SafeOwnershipGuard {
     // ---------------------------------------------------------------- configuration
 
     function _loadSwapConfig() internal view returns (Swap memory s) {
-        s.deployerKey = vm.envUint("PRIVATE_KEY");
+        s.deployerKey = _deployerKey();
         s.deployer = vm.addr(s.deployerKey);
         s.chainId = vm.envUint("CHAIN_ID");
         s.safe = vm.envAddress("SAFE_ADDRESS");

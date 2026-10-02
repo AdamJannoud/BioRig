@@ -71,7 +71,7 @@ contract HardenMainnetAdmin is DeployBase, SafeOwnershipGuard {
     // ---------------------------------------------------------------- configuration
 
     function _loadHandoverConfig() internal view returns (Handover memory h) {
-        h.deployerKey = vm.envUint("PRIVATE_KEY");
+        h.deployerKey = _deployerKey();
         h.deployer = vm.addr(h.deployerKey);
         h.chainId = vm.envUint("CHAIN_ID");
         h.core = BioRigCoreV5(vm.envAddress("PROXY_ADDRESS"));
