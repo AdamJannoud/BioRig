@@ -112,6 +112,7 @@ frames rather than trusting the source.
 ## Quick start
 
 ```bash
+export PRIVATE_KEY=<verifier key>                             # step 3 signs a mint simulation as the verifier; a .env file at the repo root works too
 forge test                                                    # contract suite
 python3 -m venv .venv && .venv/bin/pip install -r tools/requirements.txt   # local toolchain the checks need (requirements.txt is the hosted dashboard's list)
 .venv/bin/streamlit run dashboard/app.py                      # dashboard, http://localhost:8501
