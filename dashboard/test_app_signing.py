@@ -10,13 +10,19 @@ import streamlit as st
 from streamlit.testing.v1 import AppTest
 
 from dashboard import chain as chain_mod
-from dashboard import config
+from dashboard import config, h3_nullifier
 from dashboard.chain import MintRecord, TbaCheck, TreeStats
 from dashboard.test_config import BAD_KEYS, HEX64, MAINNET, _key_env
 
 APP = Path(__file__).resolve().parent / "app.py"
 BLOCK = 31_337_421
 ZERO = "0x" + "00" * 20
+# The app's own form defaults: lat -1.2921, lng 36.8219, salt "plot-1". That plot is the tree live on Celo
+# mainnet as token 1, minted 1 October 2026, so its nullifier is active and minting it again reverts. The
+# offline chain below models that state, and not the pre-mint one: an alive tree whose nullifier is inactive
+# is a state the contract cannot reach (mintTree sets both, only reportMortality clears the nullifier), so
+# asserting against it would test a world that does not exist and would hide the verdict the live app shows.
+PILOT = h3_nullifier.derive(-1.2921, 36.8219, "plot-1", h3_nullifier.DEFAULT_RESOLUTION).nullifier
 
 
 class OfflineChain(chain_mod.Chain):
@@ -36,10 +42,10 @@ class OfflineChain(chain_mod.Chain):
         return ZERO
 
     def is_nullifier_active(self, nullifier):
-        return False
+        return bytes(nullifier) == PILOT
 
     def get_tree_stats(self, token_id):
-        return TreeStats(24, 312, 1_700_000_000, ZERO, True, b"\x01" * 32)
+        return TreeStats(10, 20, 1_790_893_247, ZERO, True, PILOT)
 
     def find_mint(self, token_id, chunk=5_000):
         return MintRecord(token_id, "0x" + "11" * 32, BLOCK - 10, ZERO, b"\x01" * 32, ZERO)
@@ -54,6 +60,9 @@ class OfflineChain(chain_mod.Chain):
         return ""
 
     def simulate_mint(self, planter, nullifier, dbh, biomass):
+        """mintTree's own rule (src/BioRigCoreV5.sol): an active nullifier reverts, any other one succeeds."""
+        if bytes(nullifier) == PILOT:
+            return chain_mod.Simulation(False, None, None, "NullifierInUse()", self.signer, "0x")
         return chain_mod.Simulation(True, 2, 210_000, None, self.signer, "0x")
 
 
@@ -99,7 +108,19 @@ def test_valid_key_signs(tmp_path, monkeypatch, key):
     _assert_telemetry(at)
     assert not at.warning
     page = "\n".join(_rendered(at))
-    assert "VERIFIER_ROLE ✓" in page and "would succeed" in page and HEX64 not in page.lower()
+    assert "VERIFIER_ROLE ✓" in page and "would revert" in page and "NullifierInUse()" in page
+    assert HEX64 not in page.lower()
+
+
+def test_fresh_salt_in_the_pilot_cell_still_simulates(tmp_path, monkeypatch):
+    """The other half of the same live rule: a salt the chain has not seen is a nullifier it will accept."""
+    at = _render(tmp_path, monkeypatch, HEX64)
+    labels = [w.label for w in at.text_input]
+    assert labels == ["planter", "salt"], labels
+    at.text_input[1].set_value("offline-fresh-salt").run()
+    assert not at.exception, [e.value for e in at.exception]
+    page = "\n".join(_rendered(at))
+    assert "would succeed" in page and "would revert" not in page
 
 
 @pytest.mark.parametrize("label,raw,length,index", BAD_KEYS, ids=[b[0] for b in BAD_KEYS])

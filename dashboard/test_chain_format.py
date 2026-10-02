@@ -77,7 +77,7 @@ def test_dead_tree_formatting():
 
 def test_decode_revert_known_errors():
     sel = error_selectors(load_abi("BioRigCoreV5"))
-    assert decode_revert("0xf0352c1b", sel) == "InvalidTree()"  # what getTreeStats(2) returns live today
+    assert decode_revert("0xf0352c1b", sel) == "InvalidTree()"  # what reading an unminted token id returns
     assert decode_revert(bytes.fromhex("f0352c1b"), sel) == "InvalidTree()"
     assert "NullifierInUse()" in sel.values() and "InvalidNullifier()" in sel.values()
     assert "AccessControlUnauthorizedAccount(address,bytes32)" in sel.values()
