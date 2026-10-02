@@ -33,6 +33,15 @@ body {
 
 /* ---------------------------------------------------------------- title block */
 
+.cover-lockup {
+  margin: 0 0 12px;
+}
+
+.cover-lockup img {
+  display: block;
+  height: 12.5mm;
+}
+
 .title-block {
   border-top: 3px solid var(--accent);
   padding-top: 12px;

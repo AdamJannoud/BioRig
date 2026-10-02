@@ -21,6 +21,9 @@ the SVG without an SVG rasteriser. None of the usable ones exist here (cairosvg,
 not installed, and ImageMagick's built-in MSVG delegate ignores dash arrays and substitutes fonts), so there
 is deliberately no fallback to `convert`. Fonts are the DejaVu faces vendored in assets/fonts/, which keeps the
 output byte-identical from run to run and independent of the host's font set. No network access is needed.
+
+The BioRig brandmark beside the title is not redrawn here: it is tools/generate_brand.py's mark() geometry, written
+and painted by that module's own _svg_prims and _paint, so the diagram's mark cannot drift from the brand kit.
 """
 from __future__ import annotations
 
@@ -43,6 +46,7 @@ from PIL.PngImagePlugin import PngInfo
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from dashboard.config import ChainSelectionError, chain_config, recorded_deployment  # noqa: E402
+from tools import generate_brand as brand  # noqa: E402
 
 DEPLOYMENT_JSON = ROOT / "dashboard" / "deployment.json"
 BROADCAST_DIR = ROOT / "broadcast" / "DeployAll.s.sol"
@@ -213,6 +217,15 @@ class Path:
     arrow: bool = True
 
 
+@dataclass(frozen=True)
+class Mark:
+    """A brand-kit primitive list (tools/generate_brand.py, 96-unit grid) placed in a size x size square."""
+    x: float
+    y: float
+    size: float
+    prims: tuple[tuple, ...]
+
+
 @dataclass
 class Scene:
     w: float
@@ -356,6 +369,10 @@ def render_svg(scene: Scene, scale: int = SVG_SCALE, title: str = "") -> str:
             out.append(f'<text x="{_n(it.x)}" y="{_n(it.y)}" font-family="{SVG_FAMILY[face]}" '
                        f'font-size="{_n(size)}"{weight}{spacing}{anchor} fill="{it.fill or fill}">'
                        f"{html.escape(it.text, quote=False)}</text>")
+        elif isinstance(it, Mark):
+            out.append('<g id="biorig-mark" aria-label="BioRig brandmark">')
+            out += brand._svg_prims(list(it.prims), it.size / brand.GRID, it.x, it.y)
+            out.append("</g>")
     out.append("</svg>")
     return "\n".join(out) + "\n"
 
@@ -425,6 +442,13 @@ def render_png(scene: Scene, scale: int = PNG_SCALE, supersample: int = SUPERSAM
             for ch in it.text:
                 dr.text((x, it.y * k), ch, font=font, fill=color, anchor="ls")
                 x += font.getlength(ch) + ls * k
+        elif isinstance(it, Mark):
+            # brand._paint composites one full-canvas RGBA layer per primitive, so it is given only the mark's
+            # own square (a few hundred px) rather than the supersampled diagram, and the result is pasted back.
+            box = (round(it.x * k), round(it.y * k), round((it.x + it.size) * k), round((it.y + it.size) * k))
+            tile = im.crop(box).convert("RGBA")
+            brand._paint(tile, list(it.prims), (box[2] - box[0]) / brand.GRID)
+            im.paste(tile.convert("RGB"), box[:2])
     im = im.resize((round(scene.w * scale), round(scene.h * scale)), Image.LANCZOS)
     info = None
     if source_svg_sha256 is not None:
@@ -441,6 +465,7 @@ def render_png(scene: Scene, scale: int = PNG_SCALE, supersample: int = SUPERSAM
 COL_W = 320
 COL_A, COL_B, COL_C = 56, 440, 824  # three columns, 64-unit gutters, 32-unit margins inside the bands
 ROW_H = 112
+MARK_X, MARK_Y, MARK_SIZE = 28, 12, 54  # header brandmark: top aligned with the legend, clear of band 1 at y 90
 KINDS = {  # box kind -> (fill, stroke, stroke width, dash)
     "live": (LIVE_BG, LIVE, 1.6, None),
     "plain": ("#ffffff", BOX_STROKE, 1.4, None),
@@ -488,9 +513,13 @@ def build_scene(f: Facts) -> Scene:
     sc = Scene(GRID_W, GRID_H)
     A, B, C, W = COL_A, COL_B, COL_C, COL_W
 
-    # ---- title + legend
-    sc.items.append(Text(28, 38, "BioRig — end-to-end system architecture", "title"))
-    _label(sc, 28, 60, f"{f.chain_name} · chain id {f.chain_id} · deployed {f.deployed_on.day} "
+    # ---- brandmark + title + legend
+    # The header is white, where the light mark's GOLD_DEEP rings wash out, so it is the reverse (gold) mark on a
+    # forest tile: the same treatment as the lockup and the favicon.
+    sc.items.append(Mark(MARK_X, MARK_Y, MARK_SIZE, (("tile", 20, brand.FOREST), *brand.mark(inverse=True))))
+    tx = MARK_X + MARK_SIZE + 14
+    sc.items.append(Text(tx, 38, "BioRig — end-to-end system architecture", "title"))
+    _label(sc, tx, 60, f"{f.chain_name} · chain id {f.chain_id} · deployed {f.deployed_on.day} "
                        f"{f.deployed_on:%b %Y} · all four contracts verified on Blockscout")
     sc.boxes["legend"] = Rect(862, 12, 310, 66, "#f5f7fa", "#d8dde5", 1.0, 8)
     sc.items.append(sc.boxes["legend"])

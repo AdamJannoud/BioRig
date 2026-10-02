@@ -167,6 +167,39 @@ def test_dashboard_is_marked_live_and_prints_its_public_url(scene):
     assert G.DASHBOARD_URL in svg_text and "://" not in svg_text
 
 
+def test_brandmark_sits_in_the_header_clear_of_every_text(scene):
+    marks = [i for i in scene.items if isinstance(i, G.Mark)]
+    assert len(marks) == 1
+    m = marks[0]
+    assert m.prims[1:] == tuple(G.brand.mark(inverse=True))  # the brand kit's geometry, not a copy of it
+    for t in scene.texts():
+        face, size, _, _ = G.STYLES[t.style]
+        w = G.text_width(t.text, t.style)
+        left = t.x - {"start": 0, "middle": w / 2, "end": w}[t.anchor]
+        clear = left >= m.x + m.size or left + w <= m.x or t.y - size >= m.y + m.size or t.y + size * 0.3 <= m.y
+        assert clear, f"{t.text!r} overlaps the brandmark"
+
+
+def test_committed_svg_and_png_carry_the_brandmark(scene):
+    svg = G.SVG_OUT.read_text()
+    group = re.search(r'<g id="biorig-mark"[^>]*>(.*?)</g>', svg, re.S)
+    assert group, "no brandmark group in the SVG"
+    assert G.brand.FOREST in group.group(1) and group.group(1).count(G.brand.GOLD) == 5
+    m = next(i for i in scene.items if isinstance(i, G.Mark))
+    k = G.PNG_SCALE
+    im = Image.open(G.PNG_OUT).convert("RGB")
+
+    def px(gx, gy):  # grid units inside the mark's 96-unit square -> PNG pixel
+        return im.getpixel((round((m.x + gx * m.size / 96) * k), round((m.y + gy * m.size / 96) * k)))
+
+    def near(rgb, hex_):
+        return sum(abs(a - int(hex_[i:i + 2], 16)) for a, i in zip(rgb, (1, 3, 5))) <= 60
+
+    assert near(px(8, 48), G.brand.FOREST)   # the tile, left of the rings
+    assert near(px(20, 41), G.brand.GOLD)    # the left ring's stroke (centre 37, radius 17)
+    assert near(px(48, 72), G.brand.GOLD)    # the trunk
+
+
 def test_no_v4_name_survives(scene):
     everything = " ".join(t.text for t in scene.texts())
     assert "V4" not in everything
