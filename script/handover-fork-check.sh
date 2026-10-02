@@ -1,7 +1,18 @@
 #!/usr/bin/env bash
-# Rehearse the PENDING Celo mainnet role handover against a fork of the LIVE chain, using the live proxy and the real
+# Rehearse the Celo mainnet role handover against a fork of the chain at $FORK_BLOCK, using the live proxy and the real
 # deployer key as the local sender. Nothing is broadcast: anvil is forked, the handover runs on the fork, anvil stops.
 # Only the fork's own stand-ins (VERIFIER_ADDRESS, NEW_ADMIN Safe) are anvil accounts.
+#
+# This no longer rehearses something pending: mode B EXECUTED on mainnet on 1 October 2026 (four transactions, blocks
+# 78991473-78991482), so the tip holds a proxy the deployer can no longer hand over (it has neither admin nor upgrader)
+# and a Safe owned by 0xD314e37FD8538fe66231EE670B74C9428d03feEa. Forking the tip would fail the guards below instead
+# of exercising them, so the fork is pinned to the block the handover was rehearsed from and run at. Override FORK_BLOCK
+# to rehearse against another state.
+#
+# FORK_URL must be an ARCHIVE endpoint. A fork at a historical block makes anvil fetch chain state at that block, and
+# the public Celo RPCs serve historical state only intermittently (measured 2 October 2026, see the gate below), so a
+# pinned fork cannot be built from them. Without an archive endpoint this script exits 2 before asserting anything.
+# FORK_BLOCK=tip forks the tip instead, where the checks below FAIL by design: the handover has already run.
 set -uo pipefail
 cd "$(dirname "$0")/.."
 export HOME=/root
@@ -12,10 +23,36 @@ PORT=${FORK_PORT:-8549}
 LOCAL="http://127.0.0.1:$PORT"
 KEY=${KEY_FILE:-/tmp/biorig-audit/deployer.key}
 
-anvil --fork-url "$FORK_URL" --port "$PORT" --silent &
+FORK_BLOCK=${FORK_BLOCK-78991456}   # the block the handover was rehearsed from and run at (txs 78991473-78991482)
+FORK_LABEL="block $FORK_BLOCK"
+FORK_ARGS=(--fork-block-number "$FORK_BLOCK")
+case "$FORK_BLOCK" in
+    "" | tip | latest)   # an unpinned anvil forks the tip; anvil rejects a literal "latest" as a block number
+        FORK_BLOCK=tip; FORK_LABEL="the chain tip"; FORK_ARGS=() ;;
+esac
+
+anvil --fork-url "$FORK_URL" --port "$PORT" "${FORK_ARGS[@]}" --silent &
 ANVIL_PID=$!
 trap 'kill $ANVIL_PID 2>/dev/null; wait $ANVIL_PID 2>/dev/null; echo "[anvil stopped]"' EXIT
-for _ in $(seq 1 120); do cast chain-id --rpc-url "$LOCAL" >/dev/null 2>&1 && break; sleep 0.5; done
+# Anvil builds a pinned fork's genesis from ~28 consecutive historical-state reads at $FORK_BLOCK. The public Celo RPCs
+# answer those only intermittently (forno about half the time, 1rpc/blockpi/thirdweb/onfinality none of the time), so a
+# fork at a past block needs an archive endpoint. Fail with that reason here, rather than letting the checks below
+# blame the fork's contents for a fork that never came up.
+FORK_UP=0
+for _ in $(seq 1 60); do
+    if cast chain-id --rpc-url "$LOCAL" >/dev/null 2>&1; then FORK_UP=1; break; fi
+    kill -0 "$ANVIL_PID" 2>/dev/null || break   # anvil is gone; waiting out the rest of the loop would prove nothing
+    sleep 0.5
+done
+if [ "$FORK_UP" -eq 0 ]; then
+    echo "FATAL: no fork of Celo mainnet at $FORK_LABEL; anvil could not build one from $FORK_URL"
+    if [ "$FORK_BLOCK" != tip ]; then
+        echo "       Historical chain state is what anvil needs at a past block and what the public Celo RPCs do not serve."
+        echo "       Set FORK_URL to an archive endpoint to rehearse against a past block."
+    fi
+    echo "       Nothing was asserted: this is an environment gap, not a mismatch in the on-chain facts."
+    exit 2
+fi
 
 export FOUNDRY_BROADCAST=cache/handover-fork-check/broadcast
 export PRIVATE_KEY=$(cat "$KEY")
@@ -60,9 +97,13 @@ who() { # who <label> <address>
 
 echo "### fork facts"
 echo "fork chain id: $(cast chain-id --rpc-url "$LOCAL")   fork block: $(cast block-number --rpc-url "$LOCAL")"
+case "$FORK_BLOCK" in
+    *[!0-9]*) echo "  SKIP  fork pinned to the pre-handover block (FORK_BLOCK=$FORK_BLOCK is not a block number)" ;;
+    *) check "fork pinned to the pre-handover block" "$(cast block-number --rpc-url "$LOCAL")" "$FORK_BLOCK" ;;
+esac
 echo "live proxy $PROXY  code size $(cast codesize "$PROXY" --rpc-url "$LOCAL")"
 echo "sender (real deployer key, local only) $DEPLOYER  balance $(cast balance "$DEPLOYER" --rpc-url "$LOCAL")"
-echo "### BEFORE, against live mainnet state"
+echo "### BEFORE, against the chain at block $FORK_BLOCK"
 who deployer "$DEPLOYER"
 
 MNEMONIC="test test test test test test test test test test test junk"
@@ -142,7 +183,7 @@ fi
 
 echo
 echo "### preflight guards, against the values about to be used (each must refuse; nothing is broadcast)"
-ADAM_SAFE=0x3B36b3446fCB0729B0046520156933E56352D551   # Adam's Celo Safe: real, and owned by the deployer alone
+ADAM_SAFE=0x3B36b3446fCB0729B0046520156933E56352D551   # Adam's Celo Safe: real, and at the pinned block still the deployer's
 SALT_NONCE=${SALT_NONCE:-$(date +%s)}
 
 guard "NEW_ADMIN owned by the deployer" "the deployer is an owner of the NEW_ADMIN Safe" \

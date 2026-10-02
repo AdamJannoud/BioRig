@@ -451,8 +451,14 @@ derives from `salt = keccak256(abi.encodePacked(uint256(1), planter, nullifier))
 path is proven on mainnet as it is on Sepolia: it reports ERC-165 `0x6faff5f1`, and its `token()` returns
 `(42220, 0x04Db169dDF8AbB80943161C01B2a71DC40384E64, 1)`.
 Mode B was the choice recorded on 1 October 2026. `script/handover-fork-check.sh` and
-`script/safe-owner-swap-fork-check.sh` rehearse exactly that against live mainnet state on a fork, and both were
-green before anything was broadcast.
+`script/safe-owner-swap-fork-check.sh` rehearsed exactly that against a fork of mainnet, and both were green before
+anything was broadcast. Both operations have since run on the real chain, so both harnesses now fork block `78991456` —
+the state they were rehearsed from — instead of the tip, which no longer holds it: the Safe is owned by the plain EOA,
+and the deployer holds neither `DEFAULT_ADMIN_ROLE` nor `UPGRADER_ROLE`. A fork at a past block makes anvil read chain
+state at that block, and the public Celo RPCs serve historical state only intermittently, so `FORK_URL` must be an
+archive endpoint. With the default RPC each harness stops before asserting anything, prints one
+`FATAL: no fork of Celo mainnet at block 78991456` line and exits 2. `FORK_BLOCK=tip` forks the tip instead, where
+their facts and guards fail by design.
 
 One broadcast, four transactions, 4,015,198 gas, **0.803044 CELO** at 200.0011 gwei, all in block `78935900`, every
 receipt status `0x1`. The canonical registry was reused rather than deployed, so `DeployAll` sent four transactions and
@@ -616,10 +622,15 @@ The preflight runs before anything is signed and refuses, saying what to do:
 | `NEW_OWNER is a contract this script cannot inspect` | a contract that does not answer `getOwners()`; accepted only with `ALLOW_UNINSPECTED_OWNER=true` after a human has checked it |
 
 The ownership walk is the same code the handover runs (`script/SafeOwnershipGuard.sol`). Rehearse it all first:
-`bash script/safe-owner-swap-fork-check.sh` forks live mainnet, makes every refusal above fire on its own fixture,
-swaps the live Safe to a fresh stand-in EOA, proves the deployer's signature is then refused by the Safe (`GS026`) and
-the stand-in's accepted, and then, on the same fork, runs this step 7 in mode B with `NEW_ADMIN` set to the swapped
-Safe and asserts the end state with `hasRole`. It must print `REHEARSAL PASSED` and exit 0.
+`bash script/safe-owner-swap-fork-check.sh` forks mainnet at block `78991456`, the pre-swap state the rehearsal rests on
+now that both steps have run for real. It makes every refusal above fire on its own fixture, swaps the live Safe to a
+fresh stand-in EOA, proves the deployer's signature is then refused by the Safe (`GS026`) and the stand-in's accepted,
+and then, on the same fork, runs this step 7 in mode B with `NEW_ADMIN` set to the swapped Safe and asserts the end
+state with `hasRole`. It must print `REHEARSAL PASSED` and exit 0.
+
+That fork needs an archive `FORK_URL`: at a past block anvil reads chain state there, and the public Celo RPCs serve
+historical state only intermittently. With the default RPC the script prints one `FATAL: no fork of Celo mainnet at
+block 78991456` line and exits 2 without asserting anything.
 
 **7b. Hand the roles over**, with `NEW_ADMIN` set to the Safe swapped in 7a. Simulate first; the broadcast reads every transition back and reverts on the first
 surprise. Then read the roles from the chain itself, and sweep what is left of the deployer's CELO.

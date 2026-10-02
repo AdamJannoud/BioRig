@@ -1,9 +1,19 @@
 #!/usr/bin/env bash
-# Rehearse the Safe owner swap (script/SafeOwnerSwap.s.sol) and the role handover it unblocks, against a fork of the
-# LIVE Celo mainnet, with the real deployer key as the local sender. Nothing is broadcast to the real chain: anvil is
-# forked, every --broadcast goes to the fork, anvil stops.
+# Rehearse the Safe owner swap (script/SafeOwnerSwap.s.sol) and the role handover it unblocks, against a fork of Celo
+# mainnet at $FORK_BLOCK, with the real deployer key as the local sender. Nothing is broadcast to the real chain: anvil
+# is forked, every --broadcast goes to the fork, anvil stops.
 #
-#   a) fork facts, asserted: the live Safe is SafeL2 1.5.0, 1-of-1, owned by the deployer alone, nonce 0
+# Forked at $FORK_BLOCK, not at the tip: both operations EXECUTED on mainnet on 1 October 2026 (swap tx 0x7a99f809…,
+# block 78991457), so the tip no longer holds the state this rehearsal rests on: the Safe is owned by
+# 0xD314e37FD8538fe66231EE670B74C9428d03feEa and the deployer holds neither admin nor upgrader. Override FORK_BLOCK to
+# rehearse against another state.
+#
+# FORK_URL must be an ARCHIVE endpoint. A fork at a historical block makes anvil fetch chain state at that block, and
+# the public Celo RPCs serve historical state only intermittently (measured 2 October 2026, see the gate below), so a
+# pinned fork cannot be built from them. Without an archive endpoint this script exits 2 before asserting anything.
+# FORK_BLOCK=tip forks the tip instead, where the fork facts below FAIL by design: the swap has already run.
+#
+#   a) fork facts, asserted: at that block the Safe is SafeL2 1.5.0, 1-of-1, owned by the deployer alone, nonce 0
 #   b) the swap preflight: every guard must refuse, each on its own fixture
 #   c) the real swap on the forked live Safe, NEW_OWNER = a fresh stand-in EOA
 #   d) read-backs: owners, threshold, nonce, deployer gone
@@ -17,18 +27,43 @@ export HOME=/root
 CHAIN_ID=42220
 FORK_URL=$(python3 -m dashboard.config get rpc_url --chain-id 42220)
 PROXY=0x04Db169dDF8AbB80943161C01B2a71DC40384E64
-LIVE_SAFE=0x3B36b3446fCB0729B0046520156933E56352D551       # the Safe to swap: SafeL2 1.5.0, sole owner the deployer
+LIVE_SAFE=0x3B36b3446fCB0729B0046520156933E56352D551       # the Safe to swap: at the pinned block, sole owner the deployer
 DEPLOYER_OWNED_SAFE=0xe7042bC31A13E4FD2D5C4176ec52D28907E1311E  # the other 1 October Safe, same shape, a fixture here
 EXPECTED_DEPLOYER=0x1DB0084Db70bF8D0E06c1785D693Fc6a95317890
 EXPECTED_MASTER_COPY=0xEdd160fEBBD92E350D4D398fb636302fccd67C7e
 PORT=${FORK_PORT:-8551}
 LOCAL="http://127.0.0.1:$PORT"
 KEY=${KEY_FILE:-/tmp/biorig-audit/deployer.key}
+FORK_BLOCK=${FORK_BLOCK-78991456}   # the block before the swap executed (78991457); see the header
+FORK_LABEL="block $FORK_BLOCK"
+FORK_ARGS=(--fork-block-number "$FORK_BLOCK")
+case "$FORK_BLOCK" in
+    "" | tip | latest)   # an unpinned anvil forks the tip; anvil rejects a literal "latest" as a block number
+        FORK_BLOCK=tip; FORK_LABEL="the chain tip"; FORK_ARGS=() ;;
+esac
 
-anvil --fork-url "$FORK_URL" --port "$PORT" --silent &
+anvil --fork-url "$FORK_URL" --port "$PORT" "${FORK_ARGS[@]}" --silent &
 ANVIL_PID=$!
 trap 'kill $ANVIL_PID 2>/dev/null; wait $ANVIL_PID 2>/dev/null; echo "[anvil stopped]"' EXIT
-for _ in $(seq 1 120); do cast chain-id --rpc-url "$LOCAL" >/dev/null 2>&1 && break; sleep 0.5; done
+# Anvil builds a pinned fork's genesis from ~28 consecutive historical-state reads at $FORK_BLOCK. The public Celo RPCs
+# answer those only intermittently (forno about half the time, 1rpc/blockpi/thirdweb/onfinality none of the time), so a
+# fork at a past block needs an archive endpoint. Fail with that reason here, rather than letting the facts gate below
+# blame the fork's contents for a fork that never came up.
+FORK_UP=0
+for _ in $(seq 1 60); do
+    if cast chain-id --rpc-url "$LOCAL" >/dev/null 2>&1; then FORK_UP=1; break; fi
+    kill -0 "$ANVIL_PID" 2>/dev/null || break   # anvil is gone; waiting out the rest of the loop would prove nothing
+    sleep 0.5
+done
+if [ "$FORK_UP" -eq 0 ]; then
+    echo "FATAL: no fork of Celo mainnet at $FORK_LABEL; anvil could not build one from $FORK_URL"
+    if [ "$FORK_BLOCK" != tip ]; then
+        echo "       Historical chain state is what anvil needs at a past block and what the public Celo RPCs do not serve."
+        echo "       Set FORK_URL to an archive endpoint to rehearse against a past block."
+    fi
+    echo "       Nothing was asserted: this is an environment gap, not a mismatch in the on-chain facts."
+    exit 2
+fi
 
 export FOUNDRY_BROADCAST=cache/safe-owner-swap-fork-check/broadcast
 export PRIVATE_KEY=$(cat "$KEY")
@@ -95,8 +130,13 @@ safe_self_tx() { # safe_self_tx <safe> <signer-key> <calldata>: a Safe transacti
 echo "### a) fork facts"
 echo "fork chain id: $(cast chain-id --rpc-url "$LOCAL")   fork block: $(cast block-number --rpc-url "$LOCAL")"
 check "fork chain id" "$(cast chain-id --rpc-url "$LOCAL")" 42220
-check "live Safe $LIVE_SAFE has code (size > 0)" "$([ "$(cast codesize "$LIVE_SAFE" --rpc-url "$LOCAL")" -gt 0 ] && echo yes)" yes
-echo "        live Safe code size: $(cast codesize "$LIVE_SAFE" --rpc-url "$LOCAL")"
+case "$FORK_BLOCK" in
+    *[!0-9]*) echo "  SKIP  fork pinned to the pre-swap block (FORK_BLOCK=$FORK_BLOCK is not a block number)" ;;
+    *) check "fork pinned to the pre-swap block" "$(cast block-number --rpc-url "$LOCAL")" "$FORK_BLOCK" ;;
+esac
+SAFE_CODE_SIZE=$(cast codesize "$LIVE_SAFE" --rpc-url "$LOCAL" 2>/dev/null)
+check "live Safe $LIVE_SAFE has code (size > 0)" "$([ "${SAFE_CODE_SIZE:-0}" -gt 0 ] && echo yes)" yes
+echo "        live Safe code size: $SAFE_CODE_SIZE"
 check "live Safe VERSION()" "$(rd "$LIVE_SAFE" "VERSION()(string)")" 1.5.0
 check "live Safe masterCopy (slot 0)" "0x$(cast storage "$LIVE_SAFE" 0 --rpc-url "$LOCAL" | cut -c27-66)" "$(echo "$EXPECTED_MASTER_COPY" | lc)"
 check "live Safe getThreshold()" "$(rd "$LIVE_SAFE" "getThreshold()(uint256)")" 1
