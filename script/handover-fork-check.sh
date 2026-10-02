@@ -1,18 +1,28 @@
 #!/usr/bin/env bash
-# Rehearse the Celo mainnet role handover against a fork of the chain at $FORK_BLOCK, using the live proxy and the real
-# deployer key as the local sender. Nothing is broadcast: anvil is forked, the handover runs on the fork, anvil stops.
-# Only the fork's own stand-ins (VERIFIER_ADDRESS, NEW_ADMIN Safe) are anvil accounts.
+# Rehearse the Celo mainnet role handover against a fork of the chain, using the live proxy and the real deployer key
+# as the local sender. Nothing is broadcast: anvil is forked, the handover runs on the fork, anvil stops. Only the
+# fork's own stand-ins (VERIFIER_ADDRESS, NEW_ADMIN Safe) are anvil accounts.
 #
 # This no longer rehearses something pending: mode B EXECUTED on mainnet on 1 October 2026 (four transactions, blocks
 # 78991473-78991482), so the tip holds a proxy the deployer can no longer hand over (it has neither admin nor upgrader)
-# and a Safe owned by 0xD314e37FD8538fe66231EE670B74C9428d03feEa. Forking the tip would fail the guards below instead
-# of exercising them, so the fork is pinned to the block the handover was rehearsed from and run at. Override FORK_BLOCK
-# to rehearse against another state.
+# and a Safe owned by 0xD314e37FD8538fe66231EE670B74C9428d03feEa. The rehearsal needs the state BEFORE that, and
+# FORK_MODE says how it gets it:
 #
-# FORK_URL must be an ARCHIVE endpoint. A fork at a historical block makes anvil fetch chain state at that block, and
-# the public Celo RPCs serve historical state only intermittently (measured 2 October 2026, see the gate below), so a
-# pinned fork cannot be built from them. Without an archive endpoint this script exits 2 before asserting anything.
-# FORK_BLOCK=tip forks the tip instead, where the checks below FAIL by design: the handover has already run.
+#   reconstruct (default)  fork the TIP, then tools/fork_reconstruct.py sets the pre-op snapshot on it by inverting
+#                          the executed transactions (hashes read from broadcast/*/42220/run-latest.json) and asserts
+#                          it by read-back. No archive endpoint needed. It does NOT read historical state: the
+#                          handover is proven against a state matching the snapshot at block 78991456, not that block's
+#                          exact contents, and unrelated later activity at the tip is still present (the pilot mint at
+#                          block 78992489 is not rewound). The run says so in its output too.
+#   pin                    fork at FORK_BLOCK (default 78991456, the block the handover was rehearsed from and run at):
+#                          the archival-exact mode. FORK_URL must be an ARCHIVE endpoint: anvil fetches chain state at
+#                          that block, and the public Celo RPCs serve historical state only intermittently (measured
+#                          2 October 2026, see the gate below). Without one this script exits 2 before asserting.
+#   raw                    fork the tip with no reconstruction, where the checks below FAIL by design (exit 1): the
+#                          handover has already run.
+#
+# FORK_MODE unset keeps the old FORK_BLOCK contract: FORK_BLOCK unset -> reconstruct, a number -> pin, tip -> raw.
+# Exit: 0 green, 1 a real check failed, 2 an environment gap (no fork, no reconstruction) before anything is asserted.
 set -uo pipefail
 cd "$(dirname "$0")/.."
 export HOME=/root
@@ -25,13 +35,33 @@ PORT=${FORK_PORT:-8549}
 LOCAL="http://127.0.0.1:$PORT"
 KEY=${KEY_FILE:-/tmp/biorig-audit/deployer.key}
 
-FORK_BLOCK=${FORK_BLOCK-78991456}   # the block the handover was rehearsed from and run at (txs 78991473-78991482)
-FORK_LABEL="block $FORK_BLOCK"
-FORK_ARGS=(--fork-block-number "$FORK_BLOCK")
-case "$FORK_BLOCK" in
-    "" | tip | latest)   # an unpinned anvil forks the tip; anvil rejects a literal "latest" as a block number
+# FORK_MODE picks how the fork gets its pre-operation state; see the header. Unset, it follows FORK_BLOCK as before:
+# FORK_BLOCK unset -> reconstruct, a block number -> pin, tip/latest/empty -> raw.
+if [ -z "${FORK_MODE:-}" ]; then
+    if [ -z "${FORK_BLOCK+set}" ]; then FORK_MODE=reconstruct
+    else case "$FORK_BLOCK" in "" | tip | latest) FORK_MODE=raw ;; *) FORK_MODE=pin ;; esac
+    fi
+fi
+case "$FORK_MODE" in
+    pin)
+        FORK_BLOCK=${FORK_BLOCK:-78991456}   # the block the handover was rehearsed from and run at (txs 78991473-78991482)
+        case "$FORK_BLOCK" in *[!0-9]*)
+            echo "FATAL: FORK_MODE=pin needs a block number, not FORK_BLOCK=$FORK_BLOCK"; exit 2 ;; esac
+        FORK_LABEL="block $FORK_BLOCK"; FORK_ARGS=(--fork-block-number "$FORK_BLOCK") ;;
+    raw)   # an unpinned anvil forks the tip; anvil rejects a literal "latest" as a block number
         FORK_BLOCK=tip; FORK_LABEL="the chain tip"; FORK_ARGS=() ;;
+    reconstruct)
+        FORK_BLOCK=tip; FORK_LABEL="the chain tip (for reconstruction)"; FORK_ARGS=() ;;
+    *) echo "FATAL: FORK_MODE=$FORK_MODE is not one of reconstruct, pin, raw"; exit 2 ;;
 esac
+if [ "$FORK_MODE" = reconstruct ]; then   # the repo's interpreter convention, then whatever python3 is on PATH
+    PY=.venv/bin/python; [ -x "$PY" ] || PY=python3
+    if ! "$PY" -c 'import eth_utils, eth_abi' >/dev/null 2>&1; then
+        echo "FATAL: $PY cannot import eth_utils/eth_abi; install tools/requirements.txt (pip install -r tools/requirements.txt)"
+        echo "       Nothing was asserted: this is an environment gap, not a mismatch in the on-chain facts."
+        exit 2
+    fi
+fi
 
 anvil --fork-url "$FORK_URL" --port "$PORT" "${FORK_ARGS[@]}" --silent &
 ANVIL_PID=$!
@@ -54,6 +84,22 @@ if [ "$FORK_UP" -eq 0 ]; then
     fi
     echo "       Nothing was asserted: this is an environment gap, not a mismatch in the on-chain facts."
     exit 2
+fi
+if [ "$FORK_MODE" = reconstruct ]; then
+    echo "### reconstruct: pre-op snapshot set on a tip fork from the executed transactions"
+    RECON=$("$PY" tools/fork_reconstruct.py --rpc-url "$LOCAL" 2>&1); RECON_RC=$?
+    if [ $RECON_RC -ne 0 ]; then
+        printf '%s\n' "$RECON" | grep -m1 '^FATAL' \
+            || { echo "FATAL: tools/fork_reconstruct.py exited $RECON_RC"; printf '%s\n' "$RECON" | tail -3; }
+        echo "       Nothing was asserted: the pre-op state could not be set on the tip fork."
+        exit 2
+    fi
+    printf '%s\n' "$RECON" | sed 's/^/    /'
+    echo "    NOTE: this fork is the chain TIP with the pre-op snapshot written into storage, derived by inverting the"
+    echo "          executed transactions. No historical state was read: the operations are proven against a state"
+    echo "          matching the snapshot at block 78991456, not that block's exact contents, and unrelated later"
+    echo "          activity at the tip is still present (the pilot mint at block 78992489 is not rewound)."
+    echo "          FORK_MODE=pin is the archival-exact mode."
 fi
 
 export FOUNDRY_BROADCAST=cache/handover-fork-check/broadcast
@@ -99,13 +145,14 @@ who() { # who <label> <address>
 
 echo "### fork facts"
 echo "fork chain id: $(cast chain-id --rpc-url "$LOCAL")   fork block: $(cast block-number --rpc-url "$LOCAL")"
-case "$FORK_BLOCK" in
-    *[!0-9]*) echo "  SKIP  fork pinned to the pre-handover block (FORK_BLOCK=$FORK_BLOCK is not a block number)" ;;
+case "$FORK_MODE" in
+    reconstruct) echo "  MODE  reconstruct: a tip fork with the pre-handover snapshot set by tools/fork_reconstruct.py, whose own read-back is the gate" ;;
+    raw) echo "  SKIP  fork pinned to the pre-handover block (FORK_MODE=raw forks the tip, nothing reconstructed)" ;;
     *) check "fork pinned to the pre-handover block" "$(cast block-number --rpc-url "$LOCAL")" "$FORK_BLOCK" ;;
 esac
 echo "live proxy $PROXY  code size $(cast codesize "$PROXY" --rpc-url "$LOCAL")"
 echo "sender (real deployer key, local only) $DEPLOYER  balance $(cast balance "$DEPLOYER" --rpc-url "$LOCAL")"
-echo "### BEFORE, against the chain at block $FORK_BLOCK"
+echo "### BEFORE, against $([ "$FORK_MODE" = reconstruct ] && echo "the pre-handover snapshot reconstructed at the tip" || echo "the chain at $FORK_LABEL")"
 who deployer "$DEPLOYER"
 
 MNEMONIC="test test test test test test test test test test test junk"
@@ -185,7 +232,7 @@ fi
 
 echo
 echo "### preflight guards, against the values about to be used (each must refuse; nothing is broadcast)"
-ADAM_SAFE=0x3B36b3446fCB0729B0046520156933E56352D551   # Adam's Celo Safe: real, and at the pinned block still the deployer's
+ADAM_SAFE=0x3B36b3446fCB0729B0046520156933E56352D551   # Adam's Celo Safe: real, and in the pre-op state still the deployer's
 SALT_NONCE=${SALT_NONCE:-$(date +%s)}
 
 guard "NEW_ADMIN owned by the deployer" "the deployer is an owner of the NEW_ADMIN Safe" \
@@ -297,4 +344,5 @@ if [ $SRC -ne 0 ]; then echo "  PASS  refused (exit $SRC)"; else echo "  FAIL  a
 
 echo
 if [ "$FAILED" -eq 0 ]; then echo "REHEARSAL PASSED: mode $MODE, 0 failures"; else echo "REHEARSAL FAILED: $FAILED check(s)"; fi
-exit $FAILED
+# 1, not the count: a count of 2 would read as the environment-gap exit (2) the gates above reserve.
+exit $((FAILED > 0 ? 1 : 0))
