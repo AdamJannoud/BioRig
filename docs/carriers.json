@@ -1,0 +1,48 @@
+{
+  "about": "Written by tools/check_carriers.py --record; checked by tools/check_carriers.py.",
+  "carriers": [
+    {
+      "algorithm": "sha256",
+      "digest": "7c0e11d1d5d4809681dac0ea32bfb95a36ce8539de87c690821ef434f5701162",
+      "name": "proposal.pdf",
+      "size": 553754,
+      "sources": {
+        "assets/brand/biorig-lockup.png": "1bc2eebb87ed135926457e75bc144160bb4f6a11132659e8fa6ccc8fbdca4cfe",
+        "docs/prezenti-proposal.md": "8c6d8eb4ecb349523818229de89d0aec9238151b248bd69f574f824790deb8f9",
+        "tools/print/proposal.css": "d3afad305e1d92ff5209674630c6a82171740020eb01c65a89d4776d8c9baacc",
+        "tools/render_proposal_pdf.py": "10987f5d7b93c08a89e79b90d4c97a9bfec7925414e7d607f08cd1c2e6b74d07"
+      }
+    },
+    {
+      "algorithm": "sha256-zip-entries",
+      "digest": "1a4c43eb11b7dd4c66135d66eb7d96b64dcf81f8f88a6650f546feb869f93aa3",
+      "name": "proposal.docx",
+      "size": 87852,
+      "sources": {
+        "assets/brand/biorig-lockup.png": "1bc2eebb87ed135926457e75bc144160bb4f6a11132659e8fa6ccc8fbdca4cfe",
+        "docs/prezenti-proposal.md": "8c6d8eb4ecb349523818229de89d0aec9238151b248bd69f574f824790deb8f9",
+        "tools/render_proposal_docx.py": "37a32b8a8c32380afbffc8019d4d8abbeafd8560be5785aed27d213df8b77bbe"
+      }
+    },
+    {
+      "algorithm": "sha256",
+      "digest": "8c6d8eb4ecb349523818229de89d0aec9238151b248bd69f574f824790deb8f9",
+      "name": "proposal.md",
+      "size": 34435,
+      "sources": {
+        "docs/prezenti-proposal.md": "8c6d8eb4ecb349523818229de89d0aec9238151b248bd69f574f824790deb8f9"
+      }
+    },
+    {
+      "algorithm": "sha256",
+      "digest": "ae7044cef45bd6144ad082e5df25adabf529182085cb8a1abdf51ce70241ea5c",
+      "name": "architecture.png",
+      "size": 1796369,
+      "sources": {
+        "BioRig_Architecture_Pro.png": "ae7044cef45bd6144ad082e5df25adabf529182085cb8a1abdf51ce70241ea5c",
+        "assets/BioRig_Architecture_v5.svg": "9e893e08e4ef9e53bc060e072f2a14af79f9401048b54bcc5585cca25586f181"
+      }
+    }
+  ],
+  "location": "the published copy in the workspace Files"
+}
