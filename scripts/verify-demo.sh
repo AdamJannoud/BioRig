@@ -19,8 +19,8 @@ step "1. contract sources untouched (src/ and test/ match HEAD)"
 git diff --quiet HEAD -- src test || { echo "src/ or test/ has local changes"; exit 1; }
 echo "clean"
 
-step "2. unit tests (dashboard pure logic + video timing)"
-out=$($PY -m pytest -q dashboard tools 2>&1) || { echo "$out"; exit 1; }
+step "2. unit tests (dashboard pure logic + video timing + relay)"
+out=$($PY -m pytest -q dashboard tools relay 2>&1) || { echo "$out"; exit 1; }
 echo "$out" | tail -2
 passed=$(echo "$out" | grep -oE '[0-9]+ passed' | grep -oE '[0-9]+')
 [ "${passed:-0}" -gt 0 ] || { echo "no tests ran"; exit 1; }
