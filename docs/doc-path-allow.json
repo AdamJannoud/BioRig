@@ -1,0 +1,45 @@
+{
+  "entries": [
+    {
+      "kind": "path",
+      "value": "web3.py",
+      "reason": "the name of the web3.py Python library (\"Streamlit + web3.py\"), not a file in the repository"
+    },
+    {
+      "kind": "path",
+      "value": "src/ERC6551Registry.sol",
+      "doc": "DEPLOY.md",
+      "reason": "quotes the source path Blockscout's bytecode database records for the canonical registry (the upstream reference layout); the vendored copy in this repo is src/vendor/ERC6551Registry.sol"
+    },
+    {
+      "kind": "path",
+      "value": "proposal.pdf",
+      "doc": "DEPLOY.md",
+      "reason": "carrier name in the workspace Files (staged under the git-ignored cache/carriers/published/), not a repo path"
+    },
+    {
+      "kind": "path",
+      "value": "proposal.docx",
+      "doc": "DEPLOY.md",
+      "reason": "carrier name in the workspace Files (staged under the git-ignored cache/carriers/published/), not a repo path"
+    },
+    {
+      "kind": "path",
+      "value": "proposal.md",
+      "doc": "DEPLOY.md",
+      "reason": "carrier name in the workspace Files (staged under the git-ignored cache/carriers/published/), not a repo path; the source is docs/prezenti-proposal.md"
+    },
+    {
+      "kind": "path",
+      "value": "architecture.png",
+      "doc": "DEPLOY.md",
+      "reason": "carrier name in the workspace Files (staged under the git-ignored cache/carriers/published/), not a repo path; the source is BioRig_Architecture_Pro.png"
+    },
+    {
+      "kind": "path",
+      "value": "demo_90s_voiceover.mp4",
+      "doc": "DEMO.md",
+      "reason": "written by generate_demo.py --voiceover beside assets/media/demo_90s.mp4, a generated file .gitignore covers (assets/media/*.mp4); the comment names it by basename"
+    }
+  ]
+}

@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# BioRig pre-push gate: a push to main must first pass the clean-clone proof of the exact commit being pushed.
+# Installed by `python3 tools/install_git_hooks.py`; source-controlled at scripts/git-hooks/pre-push.
+#
+# Git hands the hook one line per ref on stdin: <local ref> <local sha> <remote ref> <remote sha>. Only a push to
+# refs/heads/main is gated; every other branch passes untouched. For main, tools/clean_clone_proof.py clones this
+# checkout at <local sha> (a plain clone, as a reader gets it), runs the README quick start and the whole acceptance
+# gate with the deployer key, and the push is refused unless the verdict is a complete PASS. A PARTIAL (something
+# skipped, e.g. no key here) is refused too: it is not a full acceptance pass.
+#
+# A PASS record for the same commit and tree under <git dir>/clean-clone-proof/ (scripts/push-verified.sh writes it
+# just before pushing) is reused instead of proving the same commit twice.
+#
+# Bypass only on purpose: `git push --no-verify` (git skips the hook), or CLEAN_CLONE_PROOF_SKIP=1, which pushes
+# with a loud warning that the commit is unverified.
+set -u
+repo=$(git rev-parse --show-toplevel)
+records="$(git rev-parse --path-format=absolute --git-common-dir)/clean-clone-proof"
+zero=0000000000000000000000000000000000000000
+mkdir -p "$records"
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+    [ "$remote_ref" = refs/heads/main ] || continue
+    if [ "$local_sha" = "$zero" ]; then
+        echo "pre-push: refusing to delete main on $1" >&2
+        exit 1
+    fi
+    if [ "${CLEAN_CLONE_PROOF_SKIP:-0}" = 1 ]; then
+        cat >&2 <<WARN
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!! CLEAN_CLONE_PROOF_SKIP=1: pushing $local_sha to main UNVERIFIED.
+!! No clean-clone proof ran. Nothing shows a fresh clone of this commit builds or passes the gate.
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+WARN
+        continue
+    fi
+    record="$records/$local_sha.json"
+    if python3 - "$record" "$local_sha" "$(git rev-parse "$local_sha^{tree}")" <<'PY' 2>/dev/null; then
+import json, sys
+r = json.load(open(sys.argv[1]))
+ok = (r.get("verdict") == "PASS" and r.get("source") == "local" and r.get("source_sha") == sys.argv[2]
+      and r.get("clone_tree") == sys.argv[3] and r.get("identity_ok") is True)
+sys.exit(0 if ok else 1)
+PY
+        echo "pre-push: $local_sha already proven: PASS record $record"
+        continue
+    fi
+    echo "pre-push: proving $local_sha (push to main on $1) from a clean clone; this takes several minutes"
+    rc=0
+    python3 "$repo/tools/clean_clone_proof.py" --source local --commit "$local_sha" --repo-root "$repo" \
+        --json "$record.tmp" < /dev/null || rc=$?
+    if [ "$rc" -ne 0 ]; then
+        step=$(python3 -c 'import json,sys; r=json.load(open(sys.argv[1])); sk=r.get("skipped"); print(r.get("failing_step") or ("PARTIAL, skipped: " + "; ".join(sk) if sk else None) or r.get("error") or r.get("verdict"))' "$record.tmp" 2>/dev/null || echo "the proof did not produce a record")
+        rm -f "$record.tmp"
+        echo >&2
+        echo "pre-push: PUSH REFUSED: the clean-clone proof of $local_sha exited $rc" >&2
+        echo "pre-push: failing step: $step" >&2
+        echo "pre-push: fix it and push again; bypass only on purpose with --no-verify or CLEAN_CLONE_PROOF_SKIP=1" >&2
+        exit 1
+    fi
+    mv "$record.tmp" "$record"
+    echo "pre-push: $local_sha proven (PASS); record $record"
+done
+exit 0

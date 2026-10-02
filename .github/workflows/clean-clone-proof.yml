@@ -1,0 +1,119 @@
+# The repo-side half of the clean-clone proof, for pushes made from anywhere (the pre-push hook only guards pushes
+# from a checkout that installed it; see DEPLOY.md section 10).
+#
+# THE DEPLOYER KEY IS NEVER GIVEN TO CI. Nothing here reads secrets.PRIVATE_KEY or any other secret, and no step has a
+# path that would use one. So this workflow runs the acceptance gate in key-free mode (VERIFY_ALLOW_NO_KEY=1): step 3
+# (the live mint simulation), step 4b (the mainnet fork rehearsals) and step 6's exact-key scan are SKIPPED, and the
+# run is reported as PARTIAL, never as a full acceptance pass. The key-dependent steps are proven in the pre-push
+# path (scripts/git-hooks/pre-push, scripts/push-verified.sh), on the machine where the key already lives.
+name: clean-clone-proof
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: clean-clone-proof-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  acceptance-key-free:
+    name: acceptance gate, key-free (PARTIAL by design)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      VERIFY_ALLOW_NO_KEY: "1"
+    steps:
+      # A fresh checkout of the pushed commit is a clean clone from GitHub. Submodules are deliberately NOT fetched
+      # by the action: the README's quick start initialises them, and the next step follows it.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          submodules: false
+          persist-credentials: false
+
+      - name: initialise submodules, as the README quick start does
+        run: git submodule update --init --recursive
+
+      - uses: foundry-rs/foundry-toolchain@v1
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: system tools the gate needs (ffmpeg/ffprobe for step 5, tesseract for the diagram OCR test)
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg tesseract-ocr
+
+      - name: toolchain from tools/requirements.txt, and playwright chromium
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install -r tools/requirements.txt
+          .venv/bin/python -m playwright install --with-deps chromium
+
+      - name: contract suite (forge test)
+        run: forge test
+
+      - name: acceptance gate, key-free (scripts/verify-demo.sh with VERIFY_ALLOW_NO_KEY=1)
+        run: |
+          set -o pipefail
+          bash scripts/verify-demo.sh 2>&1 | tee gate.log
+
+      - name: state plainly that this run was partial
+        if: always()
+        run: |
+          {
+            echo "## clean-clone proof (CI, key-free)"
+            echo
+            if grep -q '^ALL DEMO CHECKS PASSED$' gate.log; then
+              echo "Unexpected: a key-free run printed the full banner. Treat this run as broken."
+              exit_code=1
+            elif grep -q '^PARTIAL: ' gate.log; then
+              echo "**PARTIAL, not a full acceptance pass.** $(grep '^PARTIAL: ' gate.log)"
+              echo
+              echo "Skipped here: $(grep -c '^SKIPPED (no key)' gate.log) step(s):"
+              grep '^SKIPPED (no key)' gate.log | sed 's/^/- /'
+              echo
+              echo "The deployer key is never given to CI; the skipped steps are proven by the pre-push hook."
+              exit_code=0
+            else
+              echo "**FAILED.** Last gate step started: $(grep '^== ' gate.log | tail -1)"
+              exit_code=1
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "${exit_code:-1}"
+
+  remote-identity:
+    name: remote identity (ls-remote sha and pristine-clone tree)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: the remote's ref is the pushed commit, and a second pristine clone has the same tree
+        env:
+          URL: https://github.com/${{ github.repository }}
+          REF: ${{ github.ref }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          remote_sha=$(git ls-remote "$URL" "$REF" | cut -f1)
+          echo "pushed  $SHA"
+          echo "remote  $remote_sha  ($REF)"
+          # A newer push landing in between fails this honestly; that newer push gets its own run.
+          [ "$remote_sha" = "$SHA" ] || { echo "the remote's $REF is not the pushed commit"; exit 1; }
+          checkout_tree=$(git rev-parse "$SHA^{tree}")
+          git clone --quiet "$URL" "$RUNNER_TEMP/pristine"
+          git -C "$RUNNER_TEMP/pristine" checkout --quiet --detach "$SHA"
+          clone_tree=$(git -C "$RUNNER_TEMP/pristine" rev-parse "HEAD^{tree}")
+          echo "checkout tree $checkout_tree"
+          echo "clone tree    $clone_tree"
+          [ "$clone_tree" = "$checkout_tree" ] || { echo "tree mismatch"; exit 1; }
+          [ -z "$(git -C "$RUNNER_TEMP/pristine" status --porcelain)" ] || { echo "pristine clone is not clean"; exit 1; }
+          echo "identity OK: $SHA, tree $clone_tree" | tee -a "$GITHUB_STEP_SUMMARY"

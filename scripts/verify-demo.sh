@@ -188,6 +188,9 @@ step "7. proposal carriers: the published copies still match their source"
 # cache/carriers/published/ are checked too; without them it notes so and still fails on repo-side drift.
 $PY tools/check_carriers.py || { echo "carriers drifted: see DEPLOY.md section 9"; exit 1; }
 
+step "8. documentation: every path, link, command, port and env var the docs name is real"
+$PY tools/check_docs_paths.py || { echo "the docs name something that does not exist: see the findings above"; exit 1; }
+
 if [ "${#SKIPPED[@]}" -gt 0 ]; then
     printf '\nPARTIAL: DEMO CHECKS PASSED EXCEPT SKIPPED STEPS: %s (key-free mode, not a full acceptance pass)\n' \
         "${SKIPPED[*]}"

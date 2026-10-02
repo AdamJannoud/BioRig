@@ -57,6 +57,6 @@ What the video deliberately labels as not live, because the deployed contract do
 ## Verify everything
 
 ```bash
-scripts/verify-demo.sh                 # unit tests, live chain smoke, browser check, mainnet fork rehearsals, render + ffprobe, secret scan
+scripts/verify-demo.sh                 # unit tests, live chain smoke, browser check, mainnet fork rehearsals, render + ffprobe, secret scan, carriers, docs sweep
 SKIP_RENDER=1 scripts/verify-demo.sh   # same, probing the existing mp4 instead of re-rendering
 ```

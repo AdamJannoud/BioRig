@@ -752,3 +752,75 @@ The pdf is byte-deterministic and compared by sha256. The docx is compared by a 
 CRC32s and sizes, because python-docx stamps the render time into every entry; the module docstring of
 `tools/check_carriers.py` carries the evidence. Without staged copies the check prints a note and still fails on any
 repo-side drift; exit status is 0 clean, 1 drift, 2 setup failure.
+
+## 10. Clean-clone proof, the pre-push gate and CI
+
+A checkout that has been worked in for weeks passes things a fresh clone does not: initialised submodules, a built
+`.venv`, a `.env`, a downloaded Chromium. The proof below removes that advantage. It is the answer to "does the
+README actually work", run against the exact commit being shipped.
+
+**What the proof does.** `tools/clean_clone_proof.py` clones the repository with a plain `git clone` (no
+`--recurse-submodules`) into a temp directory outside the checkout (`/var/tmp` by default, or
+`$CLEAN_CLONE_PROOF_WORKDIR`; a clone with its `.venv` needs about 2 GB), checks it out at the source commit and
+asserts the clone's commit and tree equal the source's. It parses the `## Quick start` bash fence out of the clone's
+`README.md` and runs every line in order, stopping at the first failure; a fence it cannot find or parse is a FAIL.
+Exports and `cd` carry from line to line as in a terminal. The `PRIVATE_KEY=<verifier key>` placeholder is filled
+from the key without printing it or writing it anywhere; the `streamlit run` line must answer its health endpoint
+and is then stopped; the `scripts/verify-demo.sh` line is the acceptance gate itself. It prints a per-line table
+(exit code, status, notes), the skipped steps and a verdict:
+
+| verdict | exit | meaning |
+| --- | --- | --- |
+| `PASS` | 0 | every quick start line and every gate step ran and passed; the clone is the source commit |
+| `FAIL` | 1 | a line or a gate step failed, or the identity check did not hold; the failing step is named |
+| `ERROR` | 2 | it could not start: an unknown commit, a malformed key, or `CLEAN_CLONE_PROOF=1` already set |
+| `PARTIAL` | 3 | green, but something was skipped (no key): never reported as a pass |
+
+```bash
+python3 tools/clean_clone_proof.py                                    # GitHub's main tip
+python3 tools/clean_clone_proof.py --source local --commit HEAD --json /var/tmp/proof.json
+python3 tools/clean_clone_proof.py --no-key                           # key-free: PARTIAL at best
+```
+
+The key comes from `--key-file`, else `PRIVATE_KEY` in the environment, else the checkout's gitignored `.env`; the
+clone never receives the `.env`, so it runs on the repository's default chain (Celo mainnet). Everything it runs is
+read-only against the chain: step 3 is an `eth_call` simulation and step 4b broadcasts only to an anvil fork. A full
+proof takes about nine minutes, most of it the toolchain install and the gate's video render.
+
+**Key-free mode.** `VERIFY_ALLOW_NO_KEY=1 bash scripts/verify-demo.sh` skips the steps that need the deployer key:
+step 3 (the live mint simulation), step 4b (the two mainnet fork rehearsals) and step 6's exact-key scan of tracked
+files, which falls back to a pattern scan for key-shaped assignments. Each prints `SKIPPED (no key): step N`, and the
+run ends on `PARTIAL: DEMO CHECKS PASSED EXCEPT SKIPPED STEPS: 3 4b 6 ...`, never on `ALL DEMO CHECKS PASSED`. The flag
+is refused when a key is configured, so it cannot quietly weaken a real run.
+
+**The pre-push hook.** Install it once per checkout, and again whenever `--check` says it is out of date:
+
+```bash
+python3 tools/install_git_hooks.py           # copies scripts/git-hooks/pre-push into .git/hooks/
+python3 tools/install_git_hooks.py --check   # exit 1 unless the installed hook matches the committed one
+```
+
+On a push that updates `refs/heads/main` it proves the exact local commit being pushed (`--source local`) and refuses
+the push unless the verdict is `PASS`, naming the failing step. Pushes to any other branch are not gated. A PASS
+record for the same commit and tree under `.git/clean-clone-proof/` is reused rather than proving twice. Bypass only on
+purpose: `git push --no-verify`, or `CLEAN_CLONE_PROOF_SKIP=1 git push ...`, which prints a loud warning that the
+commit went up unverified.
+
+**Pushing.** `scripts/push-verified.sh` is the way to push `main`. It proves the local commit, pushes it, then
+confirms what landed: `git ls-remote` must report the local sha as the remote's `main`, and a `--source github` proof
+clones the pushed tip back and runs everything again. It exits nonzero naming the stage that failed.
+
+```bash
+scripts/push-verified.sh            # HEAD to origin's main
+```
+
+**CI.** `.github/workflows/clean-clone-proof.yml` runs on every push to `main` and on demand. Its first job checks out
+the pushed commit (a clean clone from GitHub), initialises the submodules as the quick start does, installs Foundry,
+Python, `tools/requirements.txt` and Playwright's Chromium, runs `forge test`, then the acceptance gate in key-free
+mode; any red step fails the job, and the job summary states that the run was partial and lists the skipped steps.
+Its second job checks remote identity: `git ls-remote` reports the pushed sha, and a second pristine clone has the
+pushed commit's tree.
+
+**The deployer key is never used in CI.** The workflow reads no secret, and no step would use one. Steps 3, 4b and the
+exact-key scan are therefore proven only by the pre-push hook and `scripts/push-verified.sh`, on the machine where
+the key already lives. A green CI run means the key-free part of the gate passed on a fresh clone, nothing more.

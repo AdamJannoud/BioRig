@@ -302,9 +302,10 @@ def source_identity(args, env: dict) -> tuple[str, str, str]:
     if args.source == "local":
         sha = git("rev-parse", "--verify", f"{args.commit or 'HEAD'}^{{commit}}", cwd=repo, env=env)
         return sha, git("rev-parse", f"{sha}^{{tree}}", cwd=repo, env=env), f"file://{repo}"
-    out = git("ls-remote", GITHUB_URL, f"refs/heads/{args.ref}", env=env)
+    url = args.remote_url
+    out = git("ls-remote", url, f"refs/heads/{args.ref}", env=env)
     if not out:
-        raise Refusal(f"{GITHUB_URL} has no refs/heads/{args.ref}")
+        raise Refusal(f"{url} has no refs/heads/{args.ref}")
     sha = out.split()[0]
     if args.commit and not sha.startswith(args.commit):
         raise Refusal(f"GitHub's {args.ref} tip is {sha}, not the expected {args.commit}")
@@ -312,10 +313,12 @@ def source_identity(args, env: dict) -> tuple[str, str, str]:
     # otherwise GitHub's API.
     if run(["git", "cat-file", "-e", f"{sha}^{{commit}}"], cwd=repo, env=env).returncode == 0:
         tree = git("rev-parse", f"{sha}^{{tree}}", cwd=repo, env=env)
-    else:
+    elif url == GITHUB_URL:
         with urllib.request.urlopen(GITHUB_API + sha, timeout=20) as resp:
             tree = json.load(resp)["tree"]["sha"]
-    return sha, tree, GITHUB_URL
+    else:
+        raise Refusal(f"{sha} is in neither the local object store nor GitHub's API: no independent tree to compare")
+    return sha, tree, url
 
 
 def default_workdir() -> str | None:
@@ -462,6 +465,7 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--source", choices=("github", "local"), default="github")
     ap.add_argument("--ref", default="main", help="branch to resolve on GitHub (github source)")
+    ap.add_argument("--remote-url", default=GITHUB_URL, help=f"the remote the github source clones (default {GITHUB_URL})")
     ap.add_argument("--commit", help="commit to prove (local source; default HEAD). With github: the expected tip")
     ap.add_argument("--no-key", action="store_true", help="key-free: skip the key steps; the verdict is PARTIAL")
     ap.add_argument("--key-file", help="file holding the deployer key (64 hex digits, 0x optional)")

@@ -113,9 +113,28 @@ frames rather than trusting the source.
 
 ```bash
 export PRIVATE_KEY=<verifier key>                             # step 3 signs a mint simulation as the verifier; a .env file at the repo root works too
+git submodule update --init --recursive                       # lib/forge-std and the two OpenZeppelin trees: a plain clone leaves lib/ empty
 forge test                                                    # contract suite
 python3 -m venv .venv && .venv/bin/pip install -r tools/requirements.txt   # local toolchain the checks need (requirements.txt is the hosted dashboard's list)
 .venv/bin/streamlit run dashboard/app.py                      # dashboard, http://localhost:8501
 bash scripts/verify-demo.sh                                   # the full acceptance check
 .venv/bin/python scripts/check-hosted-entrypoint.py            # the deployable dashboard, as a host runs it
 ```
+
+Without a key, `VERIFY_ALLOW_NO_KEY=1 bash scripts/verify-demo.sh` runs everything else: it skips steps 3, 4b and 6
+(each prints `SKIPPED (no key): step N`) and ends on a `PARTIAL` banner instead of `ALL DEMO CHECKS PASSED`. It is
+refused when a key is configured.
+
+## Clean-clone proof and pushing
+
+`python3 tools/clean_clone_proof.py` proves that this README is enough: it makes a plain `git clone` (no submodule
+recursion, exactly what a reader gets), runs the quick start above line by line in it, then the acceptance gate, and
+prints a per-line table, the commit and tree it checked, and every skipped step. Only a run with nothing skipped is a
+`PASS` (exit 0); `--source local --commit <sha>` proves a local commit, `--json PATH` writes the record.
+
+Push `main` with `scripts/push-verified.sh`: it proves the local commit, pushes it, then checks the remote's `main`
+is that commit and proves it again from the remote. `python3 tools/install_git_hooks.py` installs the pre-push hook
+(`scripts/git-hooks/pre-push`) that refuses a push to `main` whose commit fails the proof; `--check` reports whether
+the installed copy is current. CI (`.github/workflows/clean-clone-proof.yml`) repeats the gate on every push to `main`
+in key-free mode, so its runs are partial by design: **the deployer key is never given to CI**, and the steps that
+need it are proven by the pre-push path. `DEPLOY.md` section 10 has the details.
