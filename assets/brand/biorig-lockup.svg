@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="152.23" height="60" viewBox="0 0 152.23 60" role="img" aria-label="BioRig">
+  <title>BioRig</title>
+  <desc>BioRig brand. Design and artwork: Adam Jannoud (AdamJannoud). All rights reserved.</desc>
+  <rect width="152.23" height="60" rx="12" fill="#023A24"/>
+  <path d="M21.67 41.33 Q33 37.08 44.33 41.33" fill="none" stroke="#FCFF52" stroke-width="1.06" stroke-linecap="round" opacity="0.55"/>
+  <path d="M33 41.33 L33 32.12" fill="none" stroke="#FCFF52" stroke-width="1.77" stroke-linecap="round"/>
+  <path d="M33.5 22.56 A6.02 6.02 0 1 1 33.5 32.48" fill="none" stroke="#FCFF52" stroke-width="2.12" stroke-linecap="round"/>
+  <circle cx="29.1" cy="27.52" r="6.02" fill="none" stroke="#FCFF52" stroke-width="2.12"/>
+  <circle cx="33" cy="34.6" r="1.77" fill="#FCFF52"/>
+  <text x="56" y="37.56" font-family="DejaVu Sans, -apple-system, 'Segoe UI', sans-serif" font-size="21" font-weight="700" letter-spacing="-0.63" fill="#FFFFFF"><tspan textLength="72.88">BioRig</tspan><tspan fill="#E8EC2A">.</tspan></text>
+</svg>

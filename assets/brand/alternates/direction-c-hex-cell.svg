@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96" role="img" aria-label="Hexagonal growth rings with a central node">
+  <desc>BioRig brand. Design and artwork: Adam Jannoud (AdamJannoud). All rights reserved.</desc>
+  <polygon points="48,12 79.2,30 79.2,66 48,84 16.8,66 16.8,30" fill="none" stroke="#E8EC2A" stroke-width="6" stroke-linejoin="round"/>
+  <polygon points="48,26 67,37 67,59 48,70 29,59 29,37" fill="none" stroke="#023A24" stroke-width="3.5" opacity=".8" stroke-linejoin="round"/>
+  <circle cx="48" cy="48" r="7" fill="none" stroke="#023A24" stroke-width="4"/>
+  <circle cx="48" cy="48" r="3" fill="#E8EC2A"/>
+</svg>
