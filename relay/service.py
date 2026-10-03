@@ -30,6 +30,8 @@ from .validate import Refusal, parse_submission
 
 log = logging.getLogger("relay.service")
 MAX_BODY_BYTES = 16 * 1024
+MAX_LINE_BYTES = 1024
+MAX_TRAILERS = 32
 HOUR_S = 3_600
 _JOB_ID = r"(?P<job_id>[0-9a-f]{32})"
 _CELL = r"(?P<cell>[0-9a-fA-F]{15,16})"
@@ -187,7 +189,7 @@ class Relay:
 
     @staticmethod
     def _bearer(req: Request) -> str | None:
-        value = req.headers.get("authorization", "")
+        value = req.headers.get("x-sandbox-forwarded-authorization") or req.headers.get("authorization", "")
         return value[7:].strip() if value[:7].lower() == "bearer " else None
 
     def _authorise(self, route: Route, req: Request) -> dict:
@@ -446,24 +448,71 @@ class Relay:
 
 
 # ---------------------------------------------------------------------- HTTP adapter
+def _too_large() -> Refusal:
+    return Refusal(413, "body_too_large", f"bodies are limited to {MAX_BODY_BYTES} bytes")
+
+
+def _malformed(what: str) -> Refusal:
+    return Refusal(400, "invalid_body", f"malformed chunked body: {what}")
+
+
+def _line(rfile) -> bytes:
+    line = rfile.readline(MAX_LINE_BYTES + 1)
+    if not line.endswith(b"\n") or len(line) > MAX_LINE_BYTES:
+        raise _malformed("a framing line is truncated or too long")
+    return line
+
+
+def read_chunked(rfile, limit: int) -> bytes:
+    """Decode a chunked request body, refusing once the decoded bytes would exceed `limit`."""
+    body = bytearray()
+    while True:
+        size = _line(rfile).split(b";", 1)[0].strip()
+        if not re.fullmatch(rb"[0-9a-fA-F]{1,16}", size):
+            raise _malformed("a chunk size is not hex")
+        n = int(size, 16)
+        if n == 0:
+            break
+        if len(body) + n > limit:
+            raise _too_large()
+        data = rfile.read(n)
+        if len(data) != n or rfile.read(2) != b"\r\n":
+            raise _malformed("a chunk does not match its size")
+        body += data
+    for _ in range(MAX_TRAILERS + 1):
+        if _line(rfile).strip() == b"":
+            return bytes(body)
+    raise _malformed("too many trailers")
+
+
 def make_handler(relay: Relay):
     class Handler(BaseHTTPRequestHandler):
         server_version = "biorig-relay"
         sys_version = ""
         protocol_version = "HTTP/1.1"
 
-        def _dispatch(self):
+        def _read_body(self) -> bytes:
+            coding = self.headers.get("Transfer-Encoding")
+            if coding:
+                if coding.split(",")[-1].strip().lower() != "chunked":
+                    raise Refusal(400, "invalid_body", "Transfer-Encoding must end in chunked")
+                return read_chunked(self.rfile, MAX_BODY_BYTES)
             length = self.headers.get("Content-Length")
             try:
                 n = int(length) if length else 0
             except ValueError:
                 n = -1
             if n < 0 or n > MAX_BODY_BYTES:
-                resp = Response(413, {"error": {"code": "body_too_large",
-                                                "message": f"bodies are limited to {MAX_BODY_BYTES} bytes"}})
+                raise _too_large()
+            return self.rfile.read(n) if n else b""
+
+        def _dispatch(self):
+            try:
+                body = self._read_body()
+            except Refusal as exc:
                 self.close_connection = True
+                resp = Response(exc.status, exc.body())
             else:
-                body = self.rfile.read(n) if n else b""
                 req = Request(self.command, self.path, {k.lower(): v for k, v in self.headers.items()}, body,
                               self.client_address[0])
                 resp = relay.handle(req)
@@ -474,6 +523,8 @@ def make_handler(relay: Relay):
             self.send_header("Cache-Control", "no-store")
             for k, v in resp.headers.items():
                 self.send_header(k, v)
+            if self.close_connection:
+                self.send_header("Connection", "close")
             self.end_headers()
             self.wfile.write(data)
 

@@ -32,9 +32,20 @@ limits below are the guard.
 
 | Surface | Credential | How to get it |
 | --- | --- | --- |
-| `POST /v1/registrations` | `Authorization: Bearer <session_token>` | `POST /v1/sessions`, no credential needed |
+| `POST /v1/registrations` | `Authorization: Bearer <session_token>` (or `X-Sandbox-Forwarded-Authorization`, below) | `POST /v1/sessions`, no credential needed |
 | `GET /v1/registrations/{job_id}`, `GET /v1/plots/{cell}`, `GET /healthz` | none | — |
-| `/v1/admin/*` | `Authorization: Bearer <RELAY_ADMIN_TOKEN>` | the operator's secret; when unset the admin surface answers `404` |
+| `/v1/admin/*` | `Authorization: Bearer <RELAY_ADMIN_TOKEN>` (or `X-Sandbox-Forwarded-Authorization`, below) | the operator's secret; when unset the admin surface answers `404` |
+
+The relay reads the bearer credential from `X-Sandbox-Forwarded-Authorization` first and falls back to
+`Authorization`. Behind Bolter's public URL the platform edge renames a client's `Authorization` header to
+`X-Sandbox-Forwarded-Authorization`, value and `Bearer ` scheme intact, so a client always sends the standard
+`Authorization: Bearer <token>` and the relay accepts it under either name: renamed through the edge, as sent when
+reached directly (loopback, an emulator). The second name grants nothing the first does not; an invalid token is
+refused the same way under both.
+
+Request bodies may be framed by `Content-Length` or `Transfer-Encoding: chunked` (the edge re-frames every body as
+chunked). The 16 384-byte limit applies to the decoded body; malformed chunked framing is `400 invalid_body`. Either
+refusal answers with `Connection: close`, since the rest of the body is left unread.
 
 A session token is the key the per-session limit is counted on. It is 43 URL-safe characters, returned once, stored
 by the relay only as its SHA-256, and valid for `SESSION_TTL_S` (24 h). A session is not an identity: it carries no
@@ -254,6 +265,7 @@ environment still holds the worker until the process is restarted without it.
 | 400 | `missing_field` | a required field is absent |
 | 400 | `unknown_field` | a field the contract does not define |
 | 400 | `forbidden_field` | the client sent a nullifier, reference, salt, cell, ordinal, biomass or token id |
+| 400 | `invalid_body` | malformed chunked framing, or a `Transfer-Encoding` that does not end in `chunked` |
 | 400 | `invalid_cell` | not a resolution-12 H3 cell |
 | 401 | `session_required` | no bearer token on `POST /v1/registrations` |
 | 401 | `session_invalid` | unknown session token |
