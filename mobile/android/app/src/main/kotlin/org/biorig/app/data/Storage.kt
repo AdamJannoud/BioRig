@@ -12,6 +12,7 @@ import org.biorig.core.queue.CaptureEntity
 import org.biorig.core.queue.CaptureStore
 import org.biorig.core.queue.Session
 import org.biorig.core.queue.SessionStore
+import org.biorig.core.relay.InstallIdStore
 
 @Dao
 interface CaptureDao {
@@ -46,15 +47,23 @@ class RoomCaptureStore(private val dao: CaptureDao) : CaptureStore {
 }
 
 /**
- * Plain preferences: the planter's PUBLIC address and the relay session token. The token is a rate-limit key that
- * expires in 24 h, not a credential to anything; there is no private key, mnemonic or keystore in this app.
+ * Plain preferences: the planter's PUBLIC address, the relay session token and the install id. The token is a
+ * rate-limit key that expires in 24 h and the install id a random rate-limit key that never does; neither is a
+ * credential to anything, and there is no private key, mnemonic or keystore in this app.
  */
-class Prefs(context: Context) : SessionStore {
+class Prefs(context: Context) : SessionStore, InstallIdStore {
     private val sp = context.getSharedPreferences("biorig", Context.MODE_PRIVATE)
 
     var planterAddress: String?
         get() = sp.getString("planter_address", null)
         set(value) = sp.edit().putString("planter_address", value).apply()
+
+    override fun loadInstallId(): String? = sp.getString("install_id", null)
+
+    // commit, not apply: the id is written once, and it must be on disk before the first request carries it.
+    override fun saveInstallId(id: String) {
+        sp.edit().putString("install_id", id).commit()
+    }
 
     override suspend fun load(): Session? {
         val token = sp.getString("session_token", null) ?: return null

@@ -19,6 +19,7 @@ import org.biorig.core.chain.Nullifier
 import org.biorig.core.geo.FixGate
 import org.biorig.core.geo.H3Index
 import org.biorig.core.queue.SubmissionQueue
+import org.biorig.core.relay.InstallId
 import org.biorig.core.relay.RelayClient
 
 /** Manual constructor injection: the whole object graph, built once. */
@@ -26,7 +27,7 @@ class AppGraph(app: Application) {
     val db = AppDatabase.open(app)
     val prefs = Prefs(app)
     val captures = RoomCaptureStore(db.captures())
-    val relay = RelayClient(BuildConfig.RELAY_URL)
+    val relay = RelayClient(BuildConfig.RELAY_URL, installId = InstallId(prefs))
     val queue = SubmissionQueue(relay, captures, prefs, { System.currentTimeMillis() / 1000 })
     // jniLibs, not the jar's resource extraction: see extractH3Natives in app/build.gradle.kts
     val h3 = H3Index(H3Core.newSystemInstance())

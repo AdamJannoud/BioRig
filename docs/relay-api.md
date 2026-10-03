@@ -49,8 +49,33 @@ refusal answers with `Connection: close`, since the rest of the body is left unr
 
 A session token is the key the per-session limit is counted on. It is 43 URL-safe characters, returned once, stored
 by the relay only as its SHA-256, and valid for `SESSION_TTL_S` (24 h). A session is not an identity: it carries no
-wallet, no account and no privilege beyond submitting under its own limit. Session creation is itself limited per IP,
-so a script cannot mint fresh sessions to dodge the per-session limit.
+wallet, no account and no privilege beyond submitting under its own limit. Session creation is itself limited per
+caller and across the whole relay, so a script cannot mint fresh sessions to dodge the per-session limit.
+
+### The install identifier: `X-BioRig-Install-Id`
+
+Every outside caller reaches the relay from the platform edge's one address, so a limit counted on the address is one
+bucket shared by the whole internet. The app therefore sends an identifier of its own on every request:
+
+```
+X-BioRig-Install-Id: 7f3c0000000000000000000000004a01
+```
+
+- **Optional.** A request without it is served exactly as before and counted under the caller's address (an older
+  APK, loopback, the test suite). Nothing is refused for lacking it.
+- **Format.** 16 random bytes as 32 hex characters, generated once per install and kept in the app's private
+  preferences beside the session token. The header name and the value are read case-insensitively. A value that is
+  not 32 hex characters is ignored, and the request is counted under the address as if the header were absent.
+- **What it keys.** The per-caller limits: sessions per hour, registrations per hour and per day, and plot reads per
+  hour (the table below). Each device gets the allowance the address used to give everyone. The per-session and
+  per-planter limits already count something the relay holds (its own token, the wallet) and are unchanged.
+- **What bounds it.** Clearing the app's data buys a fresh identifier, and with it a fresh per-device allowance. The
+  relay-wide ceiling on session minting (30 / hour, whatever the identifier) is what rotation cannot lift, and every
+  registration still needs a session.
+- It is pseudonymous: a random value naming nothing but the install, stored by the relay only as a rate-limit key.
+
+The refusal names the family that counted it: `..._per_device_...` when the identifier keyed the request,
+`..._per_ip_...` when the address did, `sessions_global_hour` for the ceiling. The values are the same either way.
 
 ## Limits
 
@@ -59,14 +84,18 @@ All config-driven; the defaults are the spec's.
 | Limit | Default | Counted on | Variable |
 | --- | --- | --- | --- |
 | per session token | 3 | registrations created under the session, over its lifetime | `LIMIT_PER_SESSION` |
-| per IP | 5 / hour, 20 / day | every `POST /v1/registrations` that reaches the limiter (validation refusals included) | `LIMIT_PER_IP_HOUR`, `LIMIT_PER_IP_DAY` |
+| per device (or IP) | 5 / hour, 20 / day | every `POST /v1/registrations` that reaches the limiter (validation refusals included) | `LIMIT_PER_IP_HOUR`, `LIMIT_PER_IP_DAY` |
 | per planter address | 10 / day | registrations created for the address | `LIMIT_PER_PLANTER_DAY` |
 | per cell | 4 active | non-rejected registrations in the H3 cell; beyond it `cell_full` | `MAX_TREES_PER_CELL` |
 | global | 200 / day | mints this relay broadcast in the last 24 h (minted rows, not submissions) | `LIMIT_GLOBAL_PER_DAY` |
-| sessions per IP | 4 / hour | `POST /v1/sessions` | `SESSIONS_PER_IP_HOUR` |
-| plot reads per IP | 120 / hour | `GET /v1/plots/{cell}` | `PLOT_READS_PER_IP_HOUR` |
+| sessions per device (or IP) | 4 / hour | `POST /v1/sessions` | `SESSIONS_PER_IP_HOUR` |
+| sessions, whole relay | 30 / hour | every `POST /v1/sessions` served, with or without an identifier | `SESSIONS_GLOBAL_HOUR` |
+| plot reads per device (or IP) | 120 / hour | `GET /v1/plots/{cell}` | `PLOT_READS_PER_IP_HOUR` |
 
-The IP is the TCP peer; `X-Forwarded-For` is honoured only with `TRUST_FORWARDED_FOR=1` (behind a proxy you run).
+"Device" is the `X-BioRig-Install-Id` value when present and well-formed; otherwise the limit counts the IP, which is
+the TCP peer. The variables keep their `_IP_` names and set the one value both keys use. `X-Forwarded-For` is honoured
+only with `TRUST_FORWARDED_FOR=1`, and is off by default because behind the platform edge it is whatever the caller
+wrote; turn it on only behind a proxy you run that overwrites it.
 The global cap is enforced twice: intake refuses with `429` once it is reached, and the worker defers any
 `verified` job rather than broadcast past it.
 
@@ -142,7 +171,8 @@ Bootstrap a session token. No body, no credential.
 {"session_token": "q3V...43 chars", "created_at": 1800000000, "expires_at": 1800086400, "registrations_allowed": 3}
 ```
 
-Refusals: `429 rate_limited` (`limit: "sessions_per_ip_hour"`).
+Refusals: `429 rate_limited` (`limit: "sessions_per_device_hour"`, `"sessions_per_ip_hour"` without an install id,
+or `"sessions_global_hour"` at the relay-wide ceiling).
 
 ### POST /v1/registrations
 
@@ -187,7 +217,8 @@ Refusals: `400 invalid_json`, `invalid_field`, `missing_field`, `unknown_field`,
 `401 session_required`, `session_invalid`, `session_expired`; `409 submission_conflict`, `collision`;
 `415 unsupported_media_type`; `422 out_of_range`, `accuracy_too_coarse`, `fix_stale`, `fix_in_future`,
 `species_not_allowed`, `dbh_out_of_bounds`, `estimate_mismatch`, `denylisted_area`, `cell_full`;
-`429 rate_limited` (`per_ip_hour`, `per_ip_day`, `per_session`, `per_planter_day`, `global_per_day`);
+`429 rate_limited` (`per_device_hour`, `per_device_day` — `per_ip_hour`, `per_ip_day` without an install id —
+`per_session`, `per_planter_day`, `global_per_day`);
 `503 chain_unavailable`, `recovery_pending`, `index_inconsistent`.
 
 ### GET /v1/registrations/{job_id}
@@ -210,7 +241,8 @@ resolution-12 H3 index in hex.
 ```
 
 `neighbourhood_active` counts active registrations in the cell's k-ring, the set the collision test searches.
-Refusals: `400 invalid_cell`; `429 rate_limited` (`plot_reads_per_ip_hour`).
+Refusals: `400 invalid_cell`; `429 rate_limited` (`plot_reads_per_device_hour`, or `plot_reads_per_ip_hour` without an
+install id).
 
 ### GET /healthz
 
