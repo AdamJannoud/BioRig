@@ -1,8 +1,8 @@
 """The published carriers in the workspace Files must still be what their repo source produces, and the gate that says
 so must be able to fail.
 
-The negative controls run against a small tree in tmp_path: the markdown, both renderers, the stylesheet, the lockup
-and a stand-in diagram svg, a stand-in raster of a few bytes (the real one is 1.8 MB and the gate only hashes it), a
+The negative controls run against a small tree in tmp_path: the proposal and report markdown, the three renderers, the
+stylesheet, the lockup, the deployment plan and FINDINGS.md, a stand-in diagram svg, a stand-in raster of a few bytes (the real one is 1.8 MB and the gate only hashes it), a
 small stand-in slide raster carrying the same tEXt provenance the generator writes, a stand-in app source under
 mobile/android in a git repo, and a stand-in apk (a zip with the two entries that make one). The tree is recorded once
 per module from its own fresh renders, and each test gets its own copy, shown to pass before it is broken, so a red
@@ -34,7 +34,8 @@ if C.diagram is None:  # the provenance keys live in the generator, which needs 
 
 ROOT = Path(__file__).resolve().parent.parent
 CLI = ROOT / "tools" / "check_carriers.py"
-COPIED = (C.MARKDOWN, C.PDF_RENDERER, C.DOCX_RENDERER, C.STYLESHEET, C.LOCKUP, C.ARCH_GENERATOR)
+COPIED = (C.MARKDOWN, C.PDF_RENDERER, C.DOCX_RENDERER, C.STYLESHEET, C.LOCKUP, C.ARCH_GENERATOR,
+          C.REPORT_MARKDOWN, C.REPORT_RENDERER, C.DEPLOYMENT_PLAN, C.FINDINGS)
 STAND_IN_SVG = ('<svg xmlns="http://www.w3.org/2000/svg" width="8" height="5" viewBox="0 0 8 5">'
                 '<rect width="8" height="5" fill="#ffffff"/></svg>')
 STAND_IN_RASTER = b"\x89PNG\r\n\x1a\n stand-in raster for the carrier gate tests\n"
@@ -170,7 +171,8 @@ def test_committed_record_matches_the_tree(tmp_path):
         n = len(carrier.sources)
         if n:
             assert f"ok: {carrier.name}: {n}/{n} sources match the record" in out
-    for name in ("proposal.docx", "proposal.md", "architecture.png", "architecture.svg"):
+    for name in ("proposal.docx", "proposal.md", "architecture.png", "architecture.svg", "milestone-report.docx",
+                 "celo-mainnet-deployment-plan.md", "findings.md"):
         assert any(l.startswith(f"ok: {name}: ") and "matches the published" in l for l in out)
     assert any(l.startswith(f"ok: {C.APK}: the app source mobile/android is the tree ") for l in out)
     assert [l for l in out if not l.startswith("ok: ")] == [l for l in out if l.startswith("note: ")]
@@ -593,3 +595,54 @@ def test_record_refuses_a_dirty_app_source(tree, capsys):
     assert run(tree, "--record") == 2
     assert capsys.readouterr().err.startswith(
         f"setup: --record cannot pin {C.APK}: mobile/android has uncommitted changes")
+
+
+# ---- the milestone report and the two markdown copies: one flipped byte each
+
+def test_flipped_byte_in_the_staged_report_docx_is_caught(tree, capsys):
+    """The middle of a docx is deflate data, which the entries digest alone never reads (its CRCs live in the central
+    directory): the entry that no longer inflates to its CRC is what turns this into drift."""
+    path = tree / C.STAGED / "milestone-report.docx"
+    raw = path.read_bytes()
+    path.write_bytes(flip(raw, len(raw) // 2))
+    assert C.zip_entries_digest(path) == C.load_record(tree)["milestone-report.docx"]["digest"]
+    assert run(tree) == 1
+    lines = drift(capsys)
+    assert len(lines) == 1, lines
+    assert lines[0].startswith("drift: milestone-report.docx: the copy in cache/carriers/published/milestone-report.docx "
+                               "is not the published artifact (sha256-zip-entries damaged:")
+
+
+def test_flipped_byte_in_the_staged_deployment_plan_is_caught(tree, capsys):
+    path = tree / C.STAGED / "celo-mainnet-deployment-plan.md"
+    raw = path.read_bytes()
+    path.write_bytes(flip(raw, len(raw) // 2))
+    assert run(tree) == 1
+    lines = drift(capsys)
+    assert len(lines) == 1, lines
+    assert lines[0].startswith("drift: celo-mainnet-deployment-plan.md: the copy in "
+                               "cache/carriers/published/celo-mainnet-deployment-plan.md is not the published artifact "
+                               "(sha256 ")
+
+
+def test_flipped_byte_in_the_staged_findings_is_caught(tree, capsys):
+    path = tree / C.STAGED / "findings.md"
+    raw = path.read_bytes()
+    path.write_bytes(flip(raw, len(raw) // 2))
+    assert run(tree) == 1
+    lines = drift(capsys)
+    assert len(lines) == 1, lines
+    assert lines[0].startswith("drift: findings.md: the copy in cache/carriers/published/findings.md is not the "
+                               "published artifact (sha256 ")
+
+
+def test_edited_report_markdown_is_caught_on_the_report_alone(tree, capsys):
+    """Each renderer runs over its own carrier's markdown: the report's edit reaches the report and no proposal row."""
+    with (tree / C.REPORT_MARKDOWN).open("a") as f:
+        f.write("\nA sentence added after the report was published.\n")
+    assert run(tree) == 1
+    lines = drift(capsys)
+    assert any(l.startswith("drift: milestone-report.docx: source docs/milestone-roadmap-report.md moved")
+               for l in lines)
+    assert any(l.startswith("drift: milestone-report.docx: a fresh render is sha256-zip-entries ") for l in lines)
+    assert not any(l.startswith("drift: proposal.") for l in lines)
