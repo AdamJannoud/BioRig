@@ -771,6 +771,11 @@ committed contract, or when a staged copy of the Files bytes is not what the pip
 `ffprobe` and `ffmpeg` (the same ones step 5 uses): with a video staged and either missing, the check stops with a
 setup failure, exit 2, rather than passing the video unread.
 
+Step 7 also holds the record to a floor of thirteen carriers, counted by distinct name, so a record that has quietly
+lost a row cannot read green even if `tools/check_carriers.py`'s own list were trimmed to match it, or if two rows
+shared one name. Adding a carrier means raising that floor in `scripts/verify-demo.sh`; lowering it drops a published
+carrier from the record, which is the decision the floor exists to force.
+
 The Files are not reachable from the repo, so publishing is a hand-off with one rule: the record is written only from
 the bytes actually held in Files.
 
