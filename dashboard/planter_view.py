@@ -24,7 +24,7 @@ from dashboard import allometry, h3_nullifier
 from dashboard.chain import Chain, compute_tba_address, short_hex, tba_salt
 from dashboard.geolocate import geolocate
 from dashboard.strings import t
-from dashboard.ui import rows_html
+from dashboard.ui import rows_html, slider_thumb_css
 
 PILOT = dict(lat=-1.2921, lng=36.8219)  # the pilot plot, token 1 on Celo mainnet
 DEFAULT_REFERENCE = "plot-1"
@@ -169,6 +169,7 @@ def _measure() -> None:
     st.markdown(f'<div class="br-h">{html.escape(t("measure.title"))}</div>'
                 f'<p class="br-lede">{html.escape(t("measure.lede"))}</p>', unsafe_allow_html=True)
     dbh = st.slider(t("measure.slider"), allometry.DBH_MIN_CM, allometry.DBH_MAX_CM, format="%d cm", key="p_dbh")
+    st.markdown(slider_thumb_css(int(dbh), allometry.DBH_MIN_CM, allometry.DBH_MAX_CM), unsafe_allow_html=True)
     e = allometry.estimate(int(dbh))
     st.markdown(metrics_html(e) + f'<p class="br-note">'
                 f'{html.escape(t("measure.assumes", height=e.height_m, density=allometry.DEFAULT_WOOD_DENSITY))}</p>',

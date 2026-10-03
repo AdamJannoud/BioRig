@@ -296,3 +296,29 @@ def pill(ok: bool, yes: str, no: str) -> str:
 
 def credit() -> None:
     st.caption(t("credit"))
+
+
+def slider_thumb_css(value: int, minimum: int, maximum: int) -> str:
+    """Style block that keeps a slider's thumb sitting on its own filled track.
+
+    Streamlit paints the filled track from the widget's value as a percentage, while the thumb
+    element can still carry the geometry of an earlier state: a drag released away from the thumb,
+    or a container that was a different width when the widget first rendered. The thumb then sits
+    where a previous value was, disconnected from the green fill. Both are derived from the one
+    value the app holds, so pinning the thumb's left edge to it whenever the pointer is off the
+    widget brings them back together; while the pointer is down or over the widget the native drag
+    is left alone, so dragging still feels like dragging.
+    """
+    pct = (value - minimum) / (maximum - minimum) * 100
+    return (
+        '<style id="br-slider-pin">'
+        '[data-testid="stSlider"] { direction: ltr; }'
+        # Only the thumb carries an absolute position + touch-action, so the track's own container
+        # (position: relative) is left alone.
+        '[data-testid="stSlider"] div[style*="position: absolute"][style*="touch-action: none"]'
+        ":not(:active):not(:hover) {"
+        f" left: {pct:.4f}% !important; right: auto !important;"
+        " transform: translate(-50%, -50%) !important;"
+        " }"
+        "</style>"
+    )
