@@ -48,7 +48,9 @@ def _render(tmp_path, monkeypatch, key=HEX64, allow_mint=None):
     monkeypatch.setattr(config, "load_settings", functools.partial(config.load_settings, tmp_path, secrets={}))
     st.cache_resource.clear()
     st.cache_data.clear()
-    at = AppTest.from_file(str(APP), default_timeout=60).run()
+    at = AppTest.from_file(str(APP), default_timeout=60)
+    at.query_params["view"] = "register"  # the bare URL opens home (dashboard/test_home_view.py)
+    at.run()
     _ok(at)
     return at
 
@@ -82,14 +84,14 @@ def _no_jargon(at):
     assert not found, found
 
 
-def test_default_view_is_step_one_with_the_computed_biomass(tmp_path, monkeypatch):
+def test_register_view_opens_on_step_one_with_the_computed_biomass(tmp_path, monkeypatch):
     at = _render(tmp_path, monkeypatch)
     page = _visible(at)
     assert "How thick is the trunk?" in page and "Measure tree" in page and "Celo mainnet" in page
     assert at.slider(key="p_dbh").value == 24
     assert "208" in page and "98" in page and "359" in page  # biomass, carbon, CO2e for 24 cm
     assert "Chave et al. 2014" in page
-    assert "Register a tree" not in page  # the operator panel is one click away, not on this view
+    assert "Register a tree" not in page  # the protocol panel and home are one click away, not on this view
     _no_jargon(at)
 
 
@@ -226,9 +228,9 @@ def test_live_tree_badges(tmp_path, monkeypatch):
     assert "Tree #1" in page and "10 cm · 20 kg" in page and "/instance/1" in page and "Tree #2" not in page
 
 
-def test_operator_view_is_one_click_away(tmp_path, monkeypatch):
+def test_protocol_view_is_one_click_away(tmp_path, monkeypatch):
     at = _render(tmp_path, monkeypatch)
-    at.button_group(key="br-view").set_value("operator").run()
+    at.button_group(key="br-view").set_value("protocol").run()
     _ok(at)
     page = _page(at)
     assert "Register a tree" in page and "spatialNullifier" in page and "How thick is the trunk?" not in page

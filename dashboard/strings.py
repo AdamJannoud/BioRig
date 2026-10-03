@@ -19,11 +19,49 @@ EN: dict[str, str] = {
     "page.title_chain": "BioRig · {chain} demo",
     "brand.alt": "BioRig brandmark",
     "view.label": "Viewing as",
-    "view.planter": "Planter",
-    "view.operator": "Operator",
+    "view.home": "Home",
+    "view.register": "Register",
+    "view.protocol": "Protocol",
     "credit": "BioRig — project lead, author and sole deployer: Adam Jannoud",
     "connecting": "Connecting to the chain…",
     "chain.unreachable": "Could not reach the chain: {error}",
+
+    # ------------------------------------------------------------------ home (the only marketing register)
+    "home.kicker": "Verifiable climate action, on Celo",
+    "home.title": "Every tree measured, **proven on-chain.**",
+    "home.sub": "A planter measures the trunk, marks the plot and registers the tree from a phone. The stored "
+                "biomass is worked out with the standard pantropical formula rather than typed in, and the record "
+                "is public the moment it lands.",
+    "home.cta_register": "Register a tree  →",
+    "home.cta_protocol": "See the live on-chain assets",
+    "home.kpi.network": "Network",
+    "home.kpi.network_value": "Celo · {chain_id}",
+    "home.kpi.trees": "Trees registered",
+    "home.kpi.pilot": "Pilot registration",
+    "home.kpi.pilot_value": "{fee} CELO",
+    "home.kpi.contract": "Contract",
+    "home.why.title": "Why this runs on Celo",
+    "home.why.1.title": "Built for the phone in the planter's hand",
+    "home.why.1.body": "Celo was designed around mobile access, and a phone is the only device at the tree. The "
+                       "planter never handles a key: the verifier's account signs, so registering needs a browser "
+                       "and nothing else.",
+    "home.why.2.title": "A ledger that does not undo the tree",
+    "home.why.2.body": "Celo is an eco-friendly, climate-aligned L1/L2 with automated carbon offsetting, so the "
+                       "chain that records the carbon saving is built to keep its own footprint in check.",
+    "home.why.3.title": "Cheap enough to charge per tree",
+    "home.why.3.body": "The pilot registration on mainnet cost {fee} CELO in fees, so a per-tree model "
+                       "survives at field scale instead of being eaten by gas.",
+    "home.why.3.figure": "{gas:,} gas · {fee} CELO",
+    "home.how.title": "How a tree gets registered",
+    "home.how.1.title": "1. Measure",
+    "home.how.1.body": "Trunk diameter, taken with a tape or the slider if there is no tape. The biomass and the "
+                       "CO₂ come out of that number.",
+    "home.how.2.title": "2. Locate",
+    "home.how.2.body": "One tap for the position. The plot is checked against the trees already registered before "
+                       "anything is sent.",
+    "home.how.3.title": "3. Register",
+    "home.how.3.body": "A pre-flight check names the verdict in plain words, then the tree is registered on Celo "
+                       "with a smart wallet attached.",
 
     # ------------------------------------------------------------------ planter: steps
     "step.1": "Measure tree",
@@ -47,7 +85,7 @@ EN: dict[str, str] = {
     "measure.assumes": "Assumes a tree about {height:.1f} m tall (from its diameter) with wood density "
                        "{density} g/cm³.",
     "measure.note": "Worked out with the standard pantropical formula (Chave et al. 2014), so the number is one a "
-                    "reviewer can check — not a number you typed. **Operator view** still has the manual override "
+                    "reviewer can check — not a number you typed. **Protocol view** still has the manual override "
                     "box.",
 
     # step 2
@@ -118,7 +156,7 @@ EN: dict[str, str] = {
     "claim.reason.EnforcedPause": "Registrations are paused on BioRig right now.",
     "claim.reason.AccessControlUnauthorizedAccount": "This demo's account is not allowed to register trees.",
     "claim.reason.wallet": "That wallet address doesn't look right. It should start with 0x and be 42 characters.",
-    "claim.reason.other": "The chain would refuse this registration. Operator view shows the technical reason.",
+    "claim.reason.other": "The chain would refuse this registration. Protocol view shows the technical reason.",
     "claim.no_account": "**Read-only — you can look, not register.** This demo has no registration account set up, "
                         "so the pre-flight check can't run here.",
     "claim.demo_readonly": "**Registration is not enabled on this demo.** Everything above is exactly what would be "

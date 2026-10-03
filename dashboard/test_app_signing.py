@@ -59,6 +59,10 @@ class OfflineChain(chain_mod.Chain):
     def token_uri(self, token_id):
         return ""
 
+    def get_receipt(self, tx_hash):
+        """The pilot registration's receipt (DEPLOY.md: 270,077 gas at 200.0011 gwei), read by the home view."""
+        return {"gasUsed": 270_077, "effectiveGasPrice": 200_001_100_000}
+
     def simulate_mint(self, planter, nullifier, dbh, biomass):
         """mintTree's own rule (src/BioRigCoreV5.sol): an active nullifier reverts, any other one succeeds."""
         if bytes(nullifier) == PILOT:
@@ -75,7 +79,7 @@ def _render(tmp_path, monkeypatch, key):
     st.cache_resource.clear()
     st.cache_data.clear()
     at = AppTest.from_file(str(APP), default_timeout=60)
-    at.query_params["view"] = "operator"  # the technical panel these tests read; the planter flow is the default
+    at.query_params["view"] = "operator"  # the published alias of protocol, the panel these tests read
     at.run()
     assert not at.exception, [e.value for e in at.exception]
     return at

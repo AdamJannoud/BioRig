@@ -1,6 +1,8 @@
 """Check the deployable dashboard itself, the way the hosts run it.
 
-Three boots of `streamlit run streamlit_app.py`, each driven by a real Chromium:
+Three boots of `streamlit run streamlit_app.py`, each driven by a real Chromium the way a reviewer arrives: the bare
+URL must open the home screen (its hero and its "See the live on-chain assets" call to action), and pressing that
+call to action opens the operator view, where the mint form and the read-only notice these checks read live:
 
   1. a minimal checkout holding only what a hosting platform receives (no .env, no broadcast artifacts,
      no secrets) -> the proxy must come from the committed dashboard/deployment.json
@@ -87,20 +89,34 @@ def boot(root: Path, port: int, env_overrides: dict[str, str]) -> subprocess.Pop
     sys.exit("streamlit never answered /_stcore/health")
 
 
-def render(port: int, shot: str) -> str:
-    from playwright.sync_api import sync_playwright
+HOME_HERO = "Every tree measured,"
+HOME_CTA = "See the live on-chain assets"
+
+
+def render(port: int, shot: str) -> tuple[bool, str]:
+    """(the bare URL opened home with its call to action, the operator view's text after pressing it)."""
+    from playwright.sync_api import TimeoutError as PlaywrightTimeout, sync_playwright
 
     with sync_playwright() as p:
         browser = p.chromium.launch(args=["--no-sandbox"])
         page = browser.new_page(viewport={"width": 1280, "height": 1000})
+        # The public first screen is home; the operator view is one press away.
+        page.goto(f"http://localhost:{port}/", wait_until="domcontentloaded")
+        try:
+            page.wait_for_selector(f"text={HOME_HERO}", timeout=180_000)
+            cta = page.get_by_role("button", name=HOME_CTA)
+            home = cta.is_visible()
+            cta.click()
+        except PlaywrightTimeout:
+            home = False
+            page.goto(f"http://localhost:{port}/?view=protocol", wait_until="domcontentloaded")
         # The operator view: the read-only notice and the mint control these checks read live there.
-        page.goto(f"http://localhost:{port}/?view=operator", wait_until="domcontentloaded")
-        page.wait_for_selector("text=Register a tree", timeout=180_000)
+        page.wait_for_selector("text=Mint tree", timeout=180_000)
         page.wait_for_timeout(2500)
         body = page.inner_text("body")
         page.screenshot(path=shot, full_page=True)
         browser.close()
-    return body
+    return home, body
 
 
 def report(label: str, checks: list[tuple[str, bool]], shot: str, body: str) -> bool:
@@ -121,11 +137,12 @@ def main() -> int:
     print("minimal checkout:", sorted(p.name for p in root.iterdir()))
     proc = boot(root, 8631, chain_env)
     try:
-        body = render(8631, "/tmp/hosted-static.png")
+        home, body = render(8631, "/tmp/hosted-static.png")
     finally:
         os.killpg(proc.pid, signal.SIGTERM)
         proc.wait(timeout=20)
     healthy.append(report("fresh checkout, no secrets: renders from the static record", [
+        ("home is the first screen, its call to action opens the operator view", home),
         ("proxy from dashboard/deployment.json", "dashboard/deployment.json (static fallback)" in body),
         ("live proxy address shown", proxy in body.lower()),
         ("chain id shown", str(chain_id) in body),
@@ -141,11 +158,12 @@ def main() -> int:
         shot = f"/tmp/hosted-{'off' if expect_readonly else 'on'}.png"
         proc = boot(REPO, port, env)
         try:
-            body = render(port, shot)
+            home, body = render(port, shot)
         finally:
             os.killpg(proc.pid, signal.SIGTERM)
             proc.wait(timeout=20)
         healthy.append(report(label, [
+            ("home is the first screen, its call to action opens the operator view", home),
             ("read-only notice", ("Read-only deployment" in body) == expect_readonly),
             ("mint form rendered", "Register a tree" in body),
             ("Mint tree control present", "Mint tree" in body),

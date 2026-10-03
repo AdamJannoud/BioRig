@@ -2,13 +2,20 @@
 
     .venv/bin/python scripts/check_dashboard_ui.py http://localhost:8501
 
-Two views per mode and width. The planter flow (the default view) is walked end to end: the branded header and the
-favicon, step 1's computed biomass, step 2 with the browser's geolocation granted (a fixed position handed to
+Three views per mode and width, twelve renders in all, each reached the way a visitor reaches it: from the bare URL.
+
+Home (the default view) is asserted first: the branded header and the favicon, the hero, both calls to action, the
+three Why-Celo cards and the live strip (the chain id, the tree count, the pilot registration's cost and the proxy),
+and none of the protocol terms. In light mode no text on any screen may be painted in the lime (#35D07F measures
+1.9:1 on white, so there it is a fill or a rule only).
+
+The planter flow is entered from home's "Register a tree" call to action and walked end to end: the header, step 1's
+computed biomass, step 2 with the browser's geolocation granted (a fixed position handed to
 Chromium, since the gate has no GPS) and the plot's free/taken status, and step 3's pre-flight check. Its expected
 verdict is read from the chain at run time, like the operator checks below; the register control is never pressed.
 None of the protocol terms the planter flow replaced may appear on it.
 
-The operator view (?view=operator) asserts the live proxy, chain id, getTreeStats rows and the TBA cross-check are visible, the console is clean,
+The operator view, entered from home's "See the live on-chain assets" call to action, asserts the live proxy, chain id, getTreeStats rows and the TBA cross-check are visible, the console is clean,
 data-app-mode follows the theme, and the verifier key is not in the page. The eth_call simulation is checked twice:
 - the untouched default form (the pilot plot) must show the verdict the chain implies: "would revert" with
   NullifierInUse once that nullifier is active, "would succeed" while it is not;
@@ -18,6 +25,9 @@ data-app-mode follows the theme, and the verifier key is not in the page. The et
 The expected chain and proxy are the dashboard's own configuration (CHAIN_ID from the environment or .env, else the
 repo default), so run it with the same CHAIN_ID the dashboard was started with. Token #1's token-bound account is
 pinned where a deployment's real value is known; on any other chain it is read from getTreeStats(1) directly.
+
+The published ?view=planter and ?view=operator links are opened once at the end: they must still land on the planter
+flow and the operator view (they are aliases of ?view=register and ?view=protocol).
 """
 import sys
 import time
@@ -108,11 +118,84 @@ print(f"planter default plot: pilot cell, reference {default_ref} active={defaul
 JARGON = ("spatialNullifier", "keccak", "eth_call", "VERIFIER_ROLE", "H3 res", "NullifierInUse", "tbaAddress",
           "mintTree", "initialDBH", "initialBiomass", "would revert")
 TEXT_JS = "want => document.body.innerText.includes(want)"
+HERO = "Every tree measured,"
+CTA_REGISTER = "Register a tree"
+CTA_PROTOCOL = "See the live on-chain assets"
+HOME_EXPECT = [HERO, "Verifiable climate action, on Celo", "Why this runs on Celo",
+               "Built for the phone in the planter's hand", "A ledger that does not undo the tree",
+               "Cheap enough to charge per tree", "How a tree gets registered", "Trees registered",
+               f"Celo · {settings.chain_id}", planter_view.short_hex(Web3.to_checksum_address(settings.proxy.address), 4, 5),
+               " CELO"]
+# Every element whose own text is painted in the lime; in light mode the list must be empty.
+LIME_TEXT_JS = r"""() => Array.from(document.querySelectorAll('body *')).filter(e =>
+    getComputedStyle(e).color === 'rgb(53, 208, 127)'
+    && Array.from(e.childNodes).some(n => n.nodeType === 3 && n.textContent.trim()))
+  .map(e => e.tagName + ':' + e.textContent.trim().slice(0, 40)).slice(0, 5)"""
 
 
-def planter_pass(page) -> list[str]:
-    """Walk the three steps; return what was missing or wrong."""
+def header_and_icon(page) -> list[str]:
     missing = []
+    header = page.evaluate("""() => { const bar = document.querySelector('.br-appbar');
+        return bar ? [!!bar.querySelector('svg[aria-label^="BioRig brandmark"]'), bar.innerText] : null; }""")
+    if not header or not header[0] or "BioRig" not in header[1] or settings.chain_name not in header[1]:
+        missing.append(f"branded header with mark, wordmark and '{settings.chain_name}' chip: got {header}")
+    icon = page.evaluate("""async () => { const l = document.querySelector('link[rel~="icon"]');
+        if (!l) return null; const r = await fetch(l.href); return [l.href, r.status, r.headers.get('content-type')]; }""")
+    if not icon or icon[1] != 200 or "image/png" not in (icon[2] or "") or "favicon.ico" in icon[0]:
+        missing.append(f"brand favicon served as PNG: got {icon}")
+    return missing
+
+
+def lime_text(page, scheme: str) -> list[str]:
+    if scheme != "light":
+        return []
+    return [f"lime text in light mode: {hit}" for hit in page.evaluate(LIME_TEXT_JS)]
+
+
+def open_home(page) -> bool:
+    page.goto(url)
+    try:
+        page.wait_for_function(TEXT_JS, arg=HERO, timeout=90_000)
+        return True
+    except PlaywrightTimeout:
+        return False
+
+
+def home_pass(page, scheme: str) -> list[str]:
+    """The first screen: hero, both calls to action, the Celo cards, the live strip, no protocol terms."""
+    if not open_home(page):
+        return [HERO]
+    missing = []
+    try:
+        page.wait_for_function("want => want.every(e => document.body.textContent.includes(e))", arg=HOME_EXPECT,
+                               timeout=60_000)
+    except PlaywrightTimeout:
+        pass
+    # textContent, not innerText: the section labels are uppercased by CSS, and the check reads the words.
+    missing += [e for e in HOME_EXPECT if e not in page.evaluate("document.body.textContent")]
+    body = page.evaluate("document.body.innerText")
+    for name in (CTA_REGISTER, CTA_PROTOCOL):
+        if not page.get_by_role("button", name=name).is_visible():
+            missing.append(f"call to action: {name}")
+    missing += header_and_icon(page)
+    missing += [f"jargon on home: {j}" for j in JARGON if j in body]
+    missing += lime_text(page, scheme)
+    return missing
+
+
+def enter(page, cta: str) -> bool:
+    """From a fresh home screen, press one of its calls to action."""
+    if not open_home(page):
+        return False
+    page.get_by_role("button", name=cta).click()
+    return True
+
+
+def planter_pass(page, scheme: str) -> list[str]:
+    """Enter from home, walk the three steps; return what was missing or wrong."""
+    missing = []
+    if not enter(page, CTA_REGISTER):
+        return [f"home, to press '{CTA_REGISTER}'"]
 
     def wait_text(text, timeout=90_000):
         try:
@@ -125,16 +208,10 @@ def planter_pass(page) -> list[str]:
     if not wait_text("How thick is the trunk?"):
         return missing
     wait_text("Tree #1")  # the live tree badges
-    header = page.evaluate("""() => { const bar = document.querySelector('.br-appbar');
-        return bar ? [!!bar.querySelector('svg[aria-label^="BioRig brandmark"]'), bar.innerText] : null; }""")
-    if not header or not header[0] or "BioRig" not in header[1] or settings.chain_name not in header[1]:
-        missing.append(f"branded header with mark, wordmark and '{settings.chain_name}' chip: got {header}")
-    icon = page.evaluate("""async () => { const l = document.querySelector('link[rel~="icon"]');
-        if (!l) return null; const r = await fetch(l.href); return [l.href, r.status, r.headers.get('content-type')]; }""")
-    if not icon or icon[1] != 200 or "image/png" not in (icon[2] or "") or "favicon.ico" in icon[0]:
-        missing.append(f"brand favicon served as PNG: got {icon}")
+    missing += header_and_icon(page)
     for text in ("208", "359", "Chave et al. 2014"):
         wait_text(text, 10_000)
+    missing += lime_text(page, scheme)
     page.get_by_role("button", name="Continue →").click()
     if not wait_text("Where is the tree?"):
         return missing
@@ -165,6 +242,7 @@ def planter_pass(page) -> list[str]:
     if ("Ready." in body) == ("Not this one." in body):
         missing.append("exactly one pre-flight verdict")
     missing += [f"jargon on the planter flow: {j}" for j in JARGON if j in body]
+    missing += lime_text(page, scheme)
     return missing
 
 
@@ -176,6 +254,7 @@ def wait_verdict(page, want: str, nullifier_hex: str) -> bool:
         return False
 
 failures = []
+renders = 0
 with sync_playwright() as p:
     browser = p.chromium.launch(args=["--num-raster-threads=4"])
     for scheme in ("dark", "light"):
@@ -186,8 +265,17 @@ with sync_playwright() as p:
             errors = []
             page.on("console", lambda m: errors.append(m.text) if m.type == "error" else None)
             page.on("pageerror", lambda e: errors.append(str(e)))
-            page.goto(url)
-            p_missing = planter_pass(page)
+            h_missing = home_pass(page, scheme)
+            h_overflow = page.evaluate("document.documentElement.scrollWidth > window.innerWidth + 1")
+            h_mode = page.evaluate("document.documentElement.getAttribute('data-app-mode')")
+            h_status = "ok"
+            if h_missing or errors or h_mode != scheme or h_overflow:
+                h_status = "FAIL"
+                failures.append(("home", scheme, width, h_missing, errors[:3], h_mode, h_overflow))
+            print(f"  home     {scheme:5} {width:4}px  mode={h_mode}  missing={h_missing}  "
+                  f"console_errors={len(errors)}  h-overflow={h_overflow}  {h_status}")
+            renders += 1
+            p_missing = planter_pass(page, scheme)
             p_overflow = page.evaluate("document.documentElement.scrollWidth > window.innerWidth + 1")
             p_mode = page.evaluate("document.documentElement.getAttribute('data-app-mode')")
             p_status = "ok"
@@ -196,7 +284,8 @@ with sync_playwright() as p:
                 failures.append(("planter", scheme, width, p_missing, errors[:3], p_mode, p_overflow))
             print(f"  planter  {scheme:5} {width:4}px  mode={p_mode}  missing={p_missing}  "
                   f"console_errors={len(errors)}  h-overflow={p_overflow}  {p_status}")
-            page.goto(url.rstrip("/") + "/?view=operator")
+            renders += 1
+            entered = enter(page, CTA_PROTOCOL)
             # The panels fill in independently (getTreeStats can land after the TBA check on a slow RPC), so wait for
             # every expected string; whatever is still absent at the timeout is reported as missing below.
             try:
@@ -216,6 +305,9 @@ with sync_playwright() as p:
                     pass
                 body = page.evaluate("document.body.innerText")
             missing = [e for e in expect if e not in body]
+            if not entered:
+                missing.append(f"home, to press '{CTA_PROTOCOL}'")
+            missing += lime_text(page, scheme)
             if NO_KEY:
                 pass  # no signer, no simulation: the read-only notice is in `expect`
             elif not wait_verdict(page, default_want, default.nullifier_hex):
@@ -239,8 +331,26 @@ with sync_playwright() as p:
                 failures.append((scheme, width, missing, errors[:3], mode, overflow))
             print(f"  operator {scheme:5} {width:4}px  mode={mode}  missing={missing}  console_errors={len(errors)}  "
                   f"h-overflow={overflow}  key_in_page={bool(key and key in html)}  {status}")
+            renders += 1
             context.close()
+    # The published links: ?view=planter and ?view=operator are aliases now, and must still open the same screens.
+    context = browser.new_context(viewport={"width": 1440, "height": 900})
+    page = context.new_page()
+    for value, marker in (("planter", "How thick is the trunk?"), ("operator", "spatialNullifier")):
+        page.goto(url.rstrip("/") + f"/?view={value}")
+        try:
+            page.wait_for_function(TEXT_JS, arg=marker, timeout=90_000)
+            alias_ok = HERO not in page.evaluate("document.body.innerText")
+        except PlaywrightTimeout:
+            alias_ok = False
+        print(f"  alias    ?view={value:8} -> '{marker}'  {'ok' if alias_ok else 'FAIL'}")
+        if not alias_ok:
+            failures.append(("alias", value, marker))
+    context.close()
     browser.close()
+print(f"{renders} renders")
+if renders != 12:
+    failures.append(("renders", renders))
 if failures:
     print("UI CHECK FAILED", failures)
     sys.exit(1)
