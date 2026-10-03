@@ -310,13 +310,22 @@ def slider_thumb_css(value: int, minimum: int, maximum: int) -> str:
     is left alone, so dragging still feels like dragging.
     """
     pct = (value - minimum) / (maximum - minimum) * 100
+    # The thumb is the only element inside the widget with an absolute position, and it is the only
+    # one that also carries the centring transform and a touch-action of its own. Either marker
+    # identifies it; the track's own container is position: relative, so it can match neither.
+    guarded = ",".join(
+        f'[data-testid="stSlider"]:not(:hover):not(:active) {selector}'
+        for selector in (
+            'div[style*="position: absolute"][style*="translate(-50%, -50%)"]',
+            'div[style*="position: absolute"][style*="touch-action: none"]',
+        )
+    )
     return (
         '<style id="br-slider-pin">'
         '[data-testid="stSlider"] { direction: ltr; }'
-        # Only the thumb carries an absolute position + touch-action, so the track's own container
-        # (position: relative) is left alone.
-        '[data-testid="stSlider"] div[style*="position: absolute"][style*="touch-action: none"]'
-        ":not(:active):not(:hover) {"
+        # The guard sits on the whole widget rather than on the thumb: mid-drag the pointer can slide
+        # off a 12px thumb while the drag is still live, and a thumb-level guard would freeze it.
+        f"{guarded} {{"
         f" left: {pct:.4f}% !important; right: auto !important;"
         " transform: translate(-50%, -50%) !important;"
         " }"

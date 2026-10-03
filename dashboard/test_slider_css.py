@@ -19,15 +19,19 @@ def test_pin_spans_the_whole_range() -> None:
 
 
 def test_pin_leaves_the_native_drag_alone() -> None:
+    # The guard belongs to the whole widget: mid-drag the pointer sits over the track, so a
+    # thumb-level :not(:hover) would freeze the thumb under the pointer.
     css = slider_thumb_css(43, DBH_MIN_CM, DBH_MAX_CM)
-    assert ":not(:active)" in css and ":not(:hover)" in css
+    assert '[data-testid="stSlider"]:not(:hover):not(:active)' in css
     assert "direction: ltr" in css  # an inherited RTL direction would place the thumb mirrored
 
 
 def test_pin_targets_the_thumb_only() -> None:
-    # The track's container is position: relative with touch-action: none, so a looser selector
-    # would move the whole track instead of the thumb.
+    # Both selectors require an absolute position, which the track's container (position: relative)
+    # does not have. They are matched either on the centring transform the thumb carries or on its
+    # own touch-action, so a change to either marker alone leaves the pin working.
     css = slider_thumb_css(43, DBH_MIN_CM, DBH_MAX_CM)
+    assert 'div[style*="position: absolute"][style*="translate(-50%, -50%)"]' in css
     assert 'div[style*="position: absolute"][style*="touch-action: none"]' in css
     assert "position: relative" not in css
 
