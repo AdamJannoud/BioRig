@@ -55,12 +55,17 @@ sealed interface RelayResult<out T> {
  *     POST /v1/registrations          Bearer <session_token>
  *     GET  /v1/registrations/{job_id} the reload / polling path
  *     GET  /v1/plots/{cell}           occupancy for the pre-check
+ *
+ * Given an [InstallId], every one of them carries `X-BioRig-Install-Id`, added by an interceptor on the client rather
+ * than at each call site. Without one the relay counts the caller's address, as it did before the header existed.
  */
 class RelayClient(
     baseUrl: String,
-    private val http: OkHttpClient = OkHttpClient(),
+    http: OkHttpClient = OkHttpClient(),
+    installId: InstallId? = null,
 ) {
     private val base: HttpUrl = baseUrl.trimEnd('/').toHttpUrl()
+    private val http: OkHttpClient = if (installId == null) http else http.withInstallId(installId)
 
     companion object {
         val json = Json {

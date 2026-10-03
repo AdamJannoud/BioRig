@@ -150,7 +150,7 @@ class SubmissionQueue(
 
     private suspend fun transientFailure(capture: CaptureEntity, r: Refusal?, sessionRefusal: Refusal? = null): CaptureEntity {
         val now = clock()
-        // A refused session bootstrap (sessions_per_ip_hour) is a wait, not a failure.
+        // A refused session bootstrap (sessions_per_device_hour, or the relay-wide ceiling) is a wait, not a failure.
         if (sessionRefusal != null && sessionRefusal.code == "rate_limited") {
             return save(
                 capture.copy(

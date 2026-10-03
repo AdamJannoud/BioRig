@@ -38,7 +38,10 @@ class Limits:
     max_accuracy_m: float = 30.0  # R4
     # Not in the plan's table, so they are new values rather than retuned ones: an open endpoint needs a key for the
     # per-session limit, and the key needs its own guard (sessions per IP), a lifetime, and a read limit.
+    # The per-caller limits (sessions_per_ip_hour, per_ip_hour, per_ip_day, plot_reads_per_ip_hour) keep their
+    # names and values, but count the app's install id when it sends one; "ip" is the fallback key.
     sessions_per_ip_hour: int = 4
+    sessions_global_hour: int = 30  # whole relay: what bounds install-id rotation (clearing the app's data)
     session_ttl_s: int = 86_400
     plot_reads_per_ip_hour: int = 120
     fix_max_age_s: int = 600
@@ -131,6 +134,7 @@ def load_limits(env: Mapping[str, str]) -> Limits:
         collision_radius_m=_number(env, "COLLISION_RADIUS_M", d.collision_radius_m, float, minimum=1.0),
         max_accuracy_m=_number(env, "MAX_ACCURACY_M", d.max_accuracy_m, float, minimum=1.0),
         sessions_per_ip_hour=_number(env, "SESSIONS_PER_IP_HOUR", d.sessions_per_ip_hour, minimum=1),
+        sessions_global_hour=_number(env, "SESSIONS_GLOBAL_HOUR", d.sessions_global_hour, minimum=1),
         session_ttl_s=_number(env, "SESSION_TTL_S", d.session_ttl_s, minimum=60),
         plot_reads_per_ip_hour=_number(env, "PLOT_READS_PER_IP_HOUR", d.plot_reads_per_ip_hour, minimum=1),
         fix_max_age_s=_number(env, "FIX_MAX_AGE_S", d.fix_max_age_s, minimum=1),

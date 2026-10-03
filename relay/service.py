@@ -35,6 +35,8 @@ MAX_TRAILERS = 32
 HOUR_S = 3_600
 _JOB_ID = r"(?P<job_id>[0-9a-f]{32})"
 _CELL = r"(?P<cell>[0-9a-fA-F]{15,16})"
+INSTALL_ID_HEADER = "x-biorig-install-id"  # Request.headers names are lower-cased, so the read is case-insensitive
+_INSTALL_ID = re.compile(r"^[0-9a-f]{32}$")
 
 
 class BootError(RuntimeError):
@@ -181,11 +183,23 @@ class Relay:
         return Response(exc.status, exc.body(), headers)
 
     def client_ip(self, req: Request) -> str:
+        # Off by default, and the deployment never sets TRUST_FORWARDED_FOR: behind the platform edge X-Forwarded-For
+        # is whatever the caller wrote, so honouring it would let anyone pick their own bucket. It stays only for a
+        # deployment behind a proxy of its own that overwrites the header.
         if self.config.trust_forwarded_for:
             fwd = req.headers.get("x-forwarded-for", "").split(",")[0].strip()
             if fwd:
                 return fwd
         return req.client_ip
+
+    def caller(self, req: Request) -> tuple[str, str]:
+        """The key the per-caller limits count on, and the family name their refusals carry: the app's install id
+        when X-BioRig-Install-Id is present and well-formed, else the caller's address exactly as before the header
+        existed (an older APK, loopback, the suite). Every outside caller shares the edge's one address."""
+        install_id = req.headers.get(INSTALL_ID_HEADER, "").strip().lower()
+        if _INSTALL_ID.match(install_id):
+            return f"install:{install_id}", "device"
+        return self.client_ip(req), "ip"
 
     @staticmethod
     def _bearer(req: Request) -> str | None:
@@ -237,8 +251,11 @@ class Relay:
 
     # ------------------------------------------------------------------ sessions
     def create_session(self, req, params, ctx, query) -> Response:
-        ip = self.client_ip(req)
-        self._limit([("sessions_per_ip_hour", f"session_create:{ip}", self.limits.sessions_per_ip_hour, HOUR_S)],
+        key, per = self.caller(req)
+        # The whole-relay ceiling is what bounds rotation: clearing the app's data buys a fresh install id, and with
+        # it a fresh per-device allowance, but never a fresh relay-wide one.
+        self._limit([(f"sessions_per_{per}_hour", f"session_create:{key}", self.limits.sessions_per_ip_hour, HOUR_S),
+                     ("sessions_global_hour", "session_create:*", self.limits.sessions_global_hour, HOUR_S)],
                     record=True)
         token = secrets.token_urlsafe(32)
         created, expires = self.store.create_session(hashlib.sha256(token.encode()).hexdigest(),
@@ -262,11 +279,12 @@ class Relay:
                                   "this submission_id already names a different registration", job_id=prior.id)
                 return Response(200, {"job": job_view(prior), "outcome": "replayed"})
 
-        ip = self.client_ip(req)
+        key, per = self.caller(req)
+        bucket = key if per == "device" else f"ip:{key}"
         with self._intake:
             now = self.clock()
-            self._limit([("per_ip_hour", f"ip:{ip}", self.limits.per_ip_hour, HOUR_S),
-                         ("per_ip_day", f"ip:{ip}", self.limits.per_ip_day, DAY_S)], record=True)
+            self._limit([(f"per_{per}_hour", bucket, self.limits.per_ip_hour, HOUR_S),
+                         (f"per_{per}_day", bucket, self.limits.per_ip_day, DAY_S)], record=True)
             sub = parse_submission(body, self.limits, self.config.species, now)
             self._limit([("per_session", f"session:{sid}", self.limits.per_session, self.limits.session_ttl_s),
                          ("per_planter_day", f"planter:{sub.planter_address.lower()}", self.limits.per_planter_day,
@@ -345,8 +363,8 @@ class Relay:
         cell = params["cell"].lower()
         if not h3.is_valid_cell(cell) or h3.get_resolution(cell) != self.config.h3_resolution:
             raise Refusal(400, "invalid_cell", f"not a valid resolution-{self.config.h3_resolution} H3 cell")
-        ip = self.client_ip(req)
-        self._limit([("plot_reads_per_ip_hour", f"plot_read:{ip}", self.limits.plot_reads_per_ip_hour, HOUR_S)],
+        key, per = self.caller(req)
+        self._limit([(f"plot_reads_per_{per}_hour", f"plot_read:{key}", self.limits.plot_reads_per_ip_hour, HOUR_S)],
                     record=True)
         trees = self.store.in_cells([cell])
         nearby = self.store.in_cells(self.index.neighbourhood(cell))

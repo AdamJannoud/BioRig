@@ -72,6 +72,7 @@ the signer lacks `VERIFIER_ROLE` or the chain cannot be read (3), or the store b
 | `COLLISION_RADIUS_M`, `MAX_ACCURACY_M`, `MAX_TREES_PER_CELL` | 20, 30, 4 | |
 | `LIMIT_PER_SESSION`, `LIMIT_PER_IP_HOUR`, `LIMIT_PER_IP_DAY`, `LIMIT_PER_PLANTER_DAY`, `LIMIT_GLOBAL_PER_DAY` | 3, 5, 20, 10, 200 | |
 | `SESSIONS_PER_IP_HOUR`, `SESSION_TTL_S`, `PLOT_READS_PER_IP_HOUR` | 4, 86400, 120 | not in the spec's table: the session bootstrap needs them |
+| `SESSIONS_GLOBAL_HOUR` | 30 | sessions minted per hour across the whole relay: bounds rotating `X-BioRig-Install-Id` (the per-caller limits count it when sent; see docs/relay-api.md) |
 | `FIX_MAX_AGE_S`, `FIX_MAX_FUTURE_S` | 600, 60 | the fix freshness window |
 | `BIOMASS_TOLERANCE_REL`, `BIOMASS_TOLERANCE_ABS_KG` | 0.02, 0.5 | client estimate vs the relay's |
 | `BACKOFF_S`, `STUCK_AFTER_S` | `2,10,45`, 300 | attempts = len(backoff) + 1 |
