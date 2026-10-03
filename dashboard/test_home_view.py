@@ -61,7 +61,10 @@ def test_calls_to_action_lead_into_the_demo(tmp_path, monkeypatch, cta, view, ma
     at.button(key=cta).click().run()
     _ok(at)
     assert at.session_state["br-view"] == view and marker in _visible(at)
-    assert at.query_params["view"] == [view]
+    # AppTest's query-param proxy returns a single-element list on streamlit 1.64 and a bare
+    # string on 1.65+; unwrap so the URL assertion holds on any fresh install (>=1.46 floats).
+    raw = at.query_params["view"]
+    assert (raw[0] if isinstance(raw, list) else raw) == view
     assert HERO not in _visible(at)
 
 
