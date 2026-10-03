@@ -722,9 +722,10 @@ predates `HardenMainnetAdmin` and still has its deployer as admin.
 
 ## 9. Publishing the proposal carriers
 
-Ten files are published into the workspace Files for reviewers: `proposal.pdf`, `proposal.docx`, `proposal.md`,
+Thirteen files are published into the workspace Files for reviewers: `proposal.pdf`, `proposal.docx`, `proposal.md`,
 `architecture.png`, `architecture.svg`, `architecture-slide.png`, `android-debug.apk`, `milestone-report.docx`,
-`celo-mainnet-deployment-plan.md` and `findings.md`.
+`celo-mainnet-deployment-plan.md`, `findings.md`, the two explainer videos `demo_90s.mp4` and
+`demo_90s_voiceover.mp4`, and `corev5-source.md`.
 
 Each derives from repo source:
 
@@ -745,19 +746,36 @@ Each derives from repo source:
   report through `tools/render_proposal_docx.py` (so that renderer and the lockup are its sources too), compared by
   the same zip-entries digest as the proposal docx;
 - `celo-mainnet-deployment-plan.md` and `findings.md` are the committed `docs/celo-mainnet-deployment-plan.md` and
-  `FINDINGS.md`, byte for byte.
+  `FINDINGS.md`, byte for byte;
+- `demo_90s.mp4` is the silent 90-second explainer master `tools/generate_demo.py` renders from the scenes under
+  `tools/demo_scenes/`, `tools/demo_style.py` and `tools/demo_facts.json`, and `demo_90s_voiceover.mp4` is the same
+  picture with the narration muxed on. Neither is re-rendered or re-encoded by the check (an h264 encode depends on the
+  encoder build, the same reason the pdf is environment-bound): each is compared by sha256, and the media facts the
+  record keeps (1920 x 1080, 30 fps, 2700 frames, 90.000000 s, the md5 of the decoded video stream, no audio for the
+  master and one mono 44.1 kHz aac stream for the narrated cut) are read back out of the staged copy with `ffprobe`
+  and `ffmpeg`. Both rows list every file under `tools/demo_scenes/` plus the style and facts files as their sources,
+  and the narrated cut's recorded video-stream md5 must equal the master's, which shows the narration was muxed onto
+  the published picture rather than onto a second render;
+- `corev5-source.md` is the rail doc publishing the full `src/BioRigCoreV5.sol` in one fenced solidity block. What
+  matters is the code, so the check extracts that single block from the staged copy and compares it byte for byte with
+  the committed contract; the record keeps the fence's sha256 as well as the document's, and a staged doc with no
+  fenced block or with more than one is drift.
 
 `docs/carriers.json` records, per carrier, the published copy's digest and the hash of every source it was made from,
-and for the apk the app tree it was built against. `tools/check_carriers.py` (step 7 of `scripts/verify-demo.sh`) fails
-when a source has moved since, when a fresh render no longer matches what was published, when the app source has moved
-past the tree the apk was built from, when a staged slide raster's provenance names other svg bytes or another size, or
-when a staged copy of the Files bytes is not what the pipeline produced.
+for the apk the app tree it was built against, for the videos their media facts, and for the source doc its fence's
+digest. `tools/check_carriers.py` (step 7 of `scripts/verify-demo.sh`) fails when a source has moved since, when a
+fresh render no longer matches what was published, when the app source has moved past the tree the apk was built from,
+when a staged slide raster's provenance names other svg bytes or another size, when a staged video's media facts are
+not the recorded ones or the two videos' recorded pictures differ, when the staged source doc's fence is not the
+committed contract, or when a staged copy of the Files bytes is not what the pipeline produced. The video rows need
+`ffprobe` and `ffmpeg` (the same ones step 5 uses): with a video staged and either missing, the check stops with a
+setup failure, exit 2, rather than passing the video unread.
 
 The Files are not reachable from the repo, so publishing is a hand-off with one rule: the record is written only from
 the bytes actually held in Files.
 
 1. Edit `docs/prezenti-proposal.md` (or a renderer, the stylesheet, the lockup, the diagram, the android app, the
-   milestone report, the deployment plan or `FINDINGS.md`).
+   milestone report, the deployment plan, `FINDINGS.md`, the demo scenes, style or facts, or the contract).
 2. Render:
    ```bash
    .venv/bin/python tools/render_proposal_pdf.py    # out/proposal/BioRig-Prezenti-Grant-Application-Proposal.pdf
@@ -767,12 +785,13 @@ the bytes actually held in Files.
    ```
    For the committed diagram, regenerate and commit `BioRig_Architecture_Pro.png` and the svg first. For the apk,
    rebuild it from the current `mobile/android` and commit any app source change before recording, so the record names
-   a committed tree.
-3. Publish the ten files into the workspace Files under the carrier names above.
-4. Stage the published bytes: download the ten copies back out of Files into `cache/carriers/published/` (git-ignored;
-   never commit it), named `proposal.pdf`, `proposal.docx`, `proposal.md`, `architecture.png`, `architecture.svg`,
-   `architecture-slide.png`, `android-debug.apk`, `milestone-report.docx`, `celo-mainnet-deployment-plan.md`,
-   `findings.md`.
+   a committed tree. For the videos, re-render with `tools/generate_demo.py` (and its `--voiceover` cut) after a scene,
+   style or facts change; for the source doc, paste the committed contract into its one fenced block.
+3. Publish the thirteen files into the workspace Files under the carrier names above.
+4. Stage the published bytes: download the thirteen copies back out of Files into `cache/carriers/published/`
+   (git-ignored; never commit it), named `proposal.pdf`, `proposal.docx`, `proposal.md`, `architecture.png`,
+   `architecture.svg`, `architecture-slide.png`, `android-debug.apk`, `milestone-report.docx`,
+   `celo-mainnet-deployment-plan.md`, `findings.md`, `demo_90s.mp4`, `demo_90s_voiceover.mp4`, `corev5-source.md`.
 5. Record: `.venv/bin/python tools/check_carriers.py --record`. It re-renders and refuses (exit 1, writing nothing)
    unless every staged copy agrees with its source - including that the staged apk is an Android package and that the
    app source is committed - so a stale or wrong upload is caught here, not by a reviewer.
@@ -794,13 +813,20 @@ too; the module docstring of
 `tools/check_carriers.py` carries the evidence. Without staged copies the check prints a note and still fails on any
 repo-side drift; exit status is 0 clean, 1 drift, 2 setup failure.
 
-Two of the carriers are checked by something weaker than bytes on purpose, and the limits are worth stating. The slide
+Four of the carriers are checked by something weaker than a fresh derivation on purpose, and the limits are worth
+stating. The slide
 raster's pixels are never compared: a rebuilt Pillow or FreeType moves pixels on glyph edges from unchanged source (a
 re-render of the committed raster differed in 1,284 of 20,394,000 pixels), so the raster is held to the provenance and
 size its own bytes carry, and its published copy is what the staged byte comparison attests. The apk is held to the
 app source tree, not to a rebuild: the check proves that no app source has moved since the published apk was built
 (committed or still uncommitted), and it cannot prove the published bytes were built from that tree - only the machine
-that built it can, which is what recording at publish time is for. Neither is a substitute for publishing the bytes
+that built it can, which is what recording at publish time is for. The two videos are held to the inputs that decide
+the picture (every file under `tools/demo_scenes/`, `tools/demo_style.py` and `tools/demo_facts.json`), not to a
+re-render: the gate proves the inputs have not moved, it does not prove the published file is what those inputs would
+produce today. `tools/generate_demo.py` is deliberately not among those sources: it is the harness, its data-fetch path
+changed on 2 October (8f2ab60) after the render without touching the drawing path, and binding its bytes would fail the
+rows for unrelated edits, so a change to how it draws is not caught by the check and needs a re-render review by hand.
+None of these is a substitute for publishing the bytes
 you actually built: `--record` refuses anything that does not match its source, and `--require-staged` refuses a
 publish whose staged copies are missing.
 
