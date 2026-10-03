@@ -3,6 +3,7 @@
     .venv/bin/python tools/check_carriers.py           # exit 1 if a source moved or a carrier would render differently
     .venv/bin/python tools/check_carriers.py --json    # the same checks as one JSON report on stdout
     .venv/bin/python tools/check_carriers.py --record  # rewrite docs/carriers.json from the staged published copies
+    .venv/bin/python tools/check_carriers.py --require-staged  # publish-flow gate: the staging notes below fail (see under 'Checks')
 
 Carriers (docs/carriers.json is the publish record: per carrier its size, digest and the sources it was made from):
   proposal.pdf      tools/render_proposal_pdf.py over docs/prezenti-proposal.md, tools/print/proposal.css and
@@ -35,6 +36,10 @@ Checks, one line per carrier per check:
   staged    each file in cache/carriers/published/ (the bytes downloaded from the workspace Files; git-ignored)
             equals the record: the copy in Files is the artefact the publish flow produced. Absent directory:
             a note, and the repo-side checks still decide the exit status.
+
+--require-staged (the closing gate of a publish run, DEPLOY.md section 9) removes that leniency: an absent or partial
+staging directory, and a pdf render whose bytes cannot be attested without a staged copy, become drift and the run
+exits 1, so a publish that never staged the bytes it uploaded cannot read green. Mutually exclusive with --record.
 
 The workspace Files are not reachable from the repo, so nothing here fetches them: an operator downloads the
 published bytes into the staging directory. --record refuses (exit 1) unless all four staged copies agree with a
@@ -204,12 +209,18 @@ def environment_bound(carrier: Carrier) -> bool:
     return carrier.renderer is not None and carrier.algorithm == SHA256
 
 
-def check_derived(root: Path, carrier: Carrier, entry: dict, out_dir: Path, staged: Path) -> Line:
+def check_derived(root: Path, carrier: Carrier, entry: dict, out_dir: Path, staged: Path,
+                  require_staged: bool = False) -> Line:
     have, _ = derived(root, carrier, out_dir)
     want = entry["digest"]
     what = "a fresh render" if carrier.renderer else f"the committed {carrier.copy_of.as_posix()}"
     if environment_bound(carrier) and not (staged / carrier.name).is_file():
         verdict = "matches" if have == want else f"is {short(have)}, not"
+        if require_staged:
+            return Line(carrier.name, "derive", "drift",
+                        f"{what} {verdict} the published {entry['algorithm']} {short(want)}, but its bytes are not "
+                        f"attested: --require-staged needs the published copy staged in {staged / carrier.name}, where "
+                        f"the browser build and brand fonts are pinned; {REMEDY}")
         return Line(carrier.name, "derive", "note",
                     f"{what} {verdict} the published {entry['algorithm']} {short(want)}, but its bytes are not "
                     f"attested in this environment: no published copy is staged, and Chromium print-to-PDF bytes "
@@ -221,9 +232,14 @@ def check_derived(root: Path, carrier: Carrier, entry: dict, out_dir: Path, stag
                 f"{what} is {entry['algorithm']} {have}, {LOCATION} is {want}; {REMEDY}")
 
 
-def check_staged(staged: Path, record: dict[str, dict], root: Path) -> list[Line]:
+def check_staged(staged: Path, record: dict[str, dict], root: Path,
+                 require_staged: bool = False) -> list[Line]:
     shown = staged.relative_to(root) if staged.is_relative_to(root) else staged
     if not staged.is_dir() or not any(staged.iterdir()):
+        if require_staged:
+            return [Line("", "staged", "drift",
+                         f"no staged copies in {shown}/, but --require-staged needs all four published carriers "
+                         f"staged to attest them (DEPLOY.md section 9)")]
         return [Line("", "staged", "note",
                      f"no staged copies in {shown}/; download the four carriers from the workspace Files into it "
                      f"to compare them (DEPLOY.md section 9)")]
@@ -231,7 +247,11 @@ def check_staged(staged: Path, record: dict[str, dict], root: Path) -> list[Line
     for carrier in CARRIERS:
         path, entry = staged / carrier.name, record[carrier.name]
         if not path.exists():
-            lines.append(Line(carrier.name, "staged", "note", f"not staged in {shown}/"))
+            status = "drift" if require_staged else "note"
+            detail = f"not staged in {shown}/"
+            if require_staged:
+                detail += " (--require-staged needs it to attest the published bytes)"
+            lines.append(Line(carrier.name, "staged", status, detail))
         elif (have := digest(path, entry["algorithm"])) == entry["digest"]:
             lines.append(Line(carrier.name, "staged", "ok", "staged copy matches the record"))
         else:
@@ -241,7 +261,7 @@ def check_staged(staged: Path, record: dict[str, dict], root: Path) -> list[Line
     return lines
 
 
-def check(root: Path, staged: Path) -> list[Line]:
+def check(root: Path, staged: Path, require_staged: bool = False) -> list[Line]:
     record = load_record(root)
     missing = [c.name for c in CARRIERS if c.name not in record]
     if missing:
@@ -250,8 +270,8 @@ def check(root: Path, staged: Path) -> list[Line]:
     with tempfile.TemporaryDirectory(prefix="carriers-") as tmp:
         for carrier in CARRIERS:
             lines += check_sources(root, carrier, record[carrier.name])
-            lines.append(check_derived(root, carrier, record[carrier.name], Path(tmp), staged))
-    return lines + check_staged(staged, record, root)
+            lines.append(check_derived(root, carrier, record[carrier.name], Path(tmp), staged, require_staged))
+    return lines + check_staged(staged, record, root, require_staged)
 
 
 def record(root: Path, staged: Path) -> tuple[list[Line], bool]:
@@ -283,10 +303,15 @@ def record(root: Path, staged: Path) -> tuple[list[Line], bool]:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--record", action="store_true", help=f"rewrite {RECORD} from the staged published copies")
     ap.add_argument("--json", action="store_true", help="print a machine-readable report instead of lines")
     ap.add_argument("--root", type=Path, default=ROOT, help="checkout to operate on (default: this repo)")
     ap.add_argument("--staged", type=Path, help=f"staged published copies (default: <root>/{STAGED})")
+    mode = ap.add_mutually_exclusive_group()
+    mode.add_argument("--record", action="store_true",
+                      help=f"rewrite {RECORD} from the staged published copies")
+    mode.add_argument("--require-staged", action="store_true",
+                      help="publish-flow gate: the absent/partial-staging and unattested-pdf notes fail this run "
+                           "(exit 1) instead of passing as notes (DEPLOY.md section 9)")
     args = ap.parse_args(argv)
     root = args.root.resolve()
     staged = (args.staged or root / STAGED).resolve()
@@ -295,7 +320,7 @@ def main(argv: list[str] | None = None) -> int:
             lines, written = record(root, staged)
             code = 0 if written else 1
         else:
-            lines = check(root, staged)
+            lines = check(root, staged, require_staged=args.require_staged)
             code = 1 if any(line.status == "drift" for line in lines) else 0
     except SetupError as exc:
         if args.json:

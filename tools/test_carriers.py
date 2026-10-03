@@ -334,3 +334,63 @@ def test_json_report(tree, capsys):
     assert (report["status"], report["exit"], report["staged"]) == ("drift", 1, True)
     bad = [c for c in report["checks"] if c["status"] == "drift"]
     assert [(c["carrier"], c["check"]) for c in bad] == [("proposal.md", "staged")]
+
+
+# ---- --require-staged: the publish-flow shape (closing gate of DEPLOY.md section 9)
+
+def test_require_staged_with_nothing_staged_is_drift(tree, capsys):
+    shutil.rmtree(tree / C.STAGED)
+    assert run(tree, "--require-staged") == 1
+    lines = drift(capsys)
+    assert any(l.startswith("drift: no staged copies in cache/carriers/published/") for l in lines)
+    assert any(l.startswith("drift: proposal.pdf: a fresh render ") and "--require-staged" in l for l in lines)
+
+
+def test_require_staged_partial_staging_is_drift_on_that_carrier(tree, capsys):
+    (tree / C.STAGED / "architecture.png").unlink()
+    assert run(tree, "--require-staged") == 1
+    lines = drift(capsys)
+    assert any(l.startswith("drift: architecture.png: not staged in cache/carriers/published/") for l in lines)
+    # the pdf is still staged, so its render bytes are attested and match: it is not part of the drift
+    assert not any(l.startswith("drift: proposal.pdf: a fresh render ") for l in lines)
+
+
+def test_require_staged_with_everything_staged_passes(tree, capsys):
+    assert run(tree, "--require-staged") == 0
+    out = capsys.readouterr()
+    assert out.err == ""
+    assert all(l.startswith("ok: ") for l in out.out.splitlines())
+
+
+def test_require_staged_unattested_render_is_a_note_without_the_flag(tree, capsys, monkeypatch):
+    """Same state, two verdicts: the plain check notes the unattested pdf, --require-staged drifts on it."""
+    shutil.rmtree(tree / C.STAGED)
+    foreign_render(monkeypatch)
+    assert run(tree) == 0
+    assert run(tree, "--require-staged") == 1
+    lines = drift(capsys)
+    assert any(l.startswith("drift: proposal.pdf: a fresh render ") and "--require-staged" in l for l in lines)
+
+
+def test_require_staged_with_staged_mismatch_still_fails(tree, capsys):
+    (tree / C.STAGED / "proposal.pdf").write_bytes(b"%PDF-1.7 an older render")
+    assert run(tree, "--require-staged") == 1
+    lines = drift(capsys)
+    assert len(lines) == 1 and lines[0].startswith(
+        "drift: proposal.pdf: the copy in cache/carriers/published/proposal.pdf is not the published artifact (")
+
+
+def test_require_staged_mutually_exclusive_with_record(tree, capsys):
+    with pytest.raises(SystemExit) as exc:
+        run(tree, "--require-staged", "--record")
+    assert exc.value.code == 2
+    assert "not allowed with argument" in capsys.readouterr().err
+
+
+def test_require_staged_json_report_is_drift(tree, capsys):
+    shutil.rmtree(tree / C.STAGED)
+    assert run(tree, "--require-staged", "--json") == 1
+    report = json.loads(capsys.readouterr().out)
+    assert (report["status"], report["exit"], report["staged"]) == ("drift", 1, False)
+    assert any(c["status"] == "drift" and c["check"] == "staged" for c in report["checks"])
+    assert any(c["status"] == "drift" and c["carrier"] == "proposal.pdf" for c in report["checks"])

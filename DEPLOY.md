@@ -747,6 +747,11 @@ the bytes actually held in Files.
 5. Record: `.venv/bin/python tools/check_carriers.py --record`. It re-renders and refuses (exit 1, writing nothing)
    unless every staged copy agrees with the fresh render, so a stale or wrong upload is caught here, not by a reviewer.
 6. Commit `docs/carriers.json` with the source change.
+7. Prove the publish: `.venv/bin/python tools/check_carriers.py --require-staged`. The plain check (step 7 of
+   `scripts/verify-demo.sh`) accepts the absence of staged copies with a `note:` (the CI shape, where the browser
+   build and brand fonts of the publishing environment are not present). `--require-staged` is the closing gate of a
+   publish run and turns that note - and an absent or partial staging directory - into drift, exit 1, so a publish
+   whose staged copies went missing cannot read green. Mutually exclusive with `--record`.
 
 The pdf is byte-deterministic on one machine and compared by sha256. Byte-equality of the rendered pdf is attested in
 the publishing environment, where the published copies are staged and the browser build and brand fonts (Caladea,
