@@ -31,5 +31,7 @@ assets/media/.voiceover/
 
 # gh CLI state written into the sandbox workspace
 .local/
-# relay: its SQLite store (python -m relay defaults RELAY_DB here)
+# relay: its SQLite store (python -m relay defaults RELAY_DB here, and the deployed relay is pointed at
+# var-public/ so its live store never mixes with a local run's)
 relay/var/
+relay/var-public/
