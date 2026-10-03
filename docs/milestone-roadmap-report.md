@@ -2,7 +2,7 @@
 
 **Project:** BioRig — mobile-first dMRV and proof-of-growth infrastructure on Celo
 **Owner, author and sole deployer:** Adam Jannoud (AdamJannoud)
-**Repository:** `AdamJannoud/BioRig`, public, `main` at `079c725` — audited at `61bb478`, the tip as it stood when the audit ran; four commits have landed since, all in the carrier record and its gate, and this edition is re-attested against the head (see the delta note below)
+**Repository:** `AdamJannoud/BioRig`, public — audited at `61bb478`, the tip as it stood when the audit ran; five commits have landed since, all in the carrier record and its gate, and this edition is re-attested against the head it carries (see the delta note below). Read the live head with `git ls-remote origin refs/heads/main`; this edition deliberately does not pin it
 **Networks:** Celo mainnet (chain id 42220) — production; Celo Sepolia (11142220) — testnet
 **Report date:** 3 October 2026 (refreshes the 2 October 2026 edition)
 **Scope:** complete project audit, live verification sweep, and forward roadmap
@@ -16,14 +16,15 @@
 > history does carry co-author trailers, and the proxy and account code sizes were mis-stated — and each
 > is corrected in place and set out in Section 3.9.
 >
-> **Delta since the audit.** Four commits landed after `61bb478`, none of them touching the contract,
+> **Delta since the audit.** Five commits landed after `61bb478`, none of them touching the contract,
 > the deployment scripts or any on-chain state: `c30898a` (the milestone report docx, the mainnet
 > deployment plan and `FINDINGS.md` become carriers), `1038f28` (the doc-path allowlist), `288118b`
-> (the two demo videos and the contract source doc become carriers — thirteen in all) and `079c725`
-> (step 7 refuses a short or duplicate-padded carrier record). The head is `079c725`, remote head equal
-> to local head. This edition states the audit as it was run at `61bb478` and attests the carrier record
-> at the head, and the branding sweep recorded in Section 3.9 changed `.gitignore`, `docs/relay-api.md`
-> and `relay/tests/test_edge.py` alongside it.
+> (the two demo videos and the contract source doc become carriers — thirteen in all), `079c725`
+> (step 7 refuses a short or duplicate-padded carrier record) and this edition's own commit, the
+> branding sweep recorded in Section 3.9. The head moved to that commit as this edition landed, so this
+> note does not pin it: read it with `git ls-remote origin refs/heads/main`. This edition states the
+> audit as it was run at `61bb478` and attests the carrier record at the head; Section 3.9 records the
+> sweep in it, which changed `.gitignore`, `docs/relay-api.md` and `relay/tests/test_edge.py`.
 
 ---
 
