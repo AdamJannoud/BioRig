@@ -2,6 +2,7 @@
 
     .venv/bin/python tools/generate_architecture.py          # write all three outputs
     .venv/bin/python tools/generate_architecture.py --check  # exit 1 if an output on disk is stale
+    .venv/bin/python tools/generate_architecture.py --png-out slide.png --png-scale 2   # the slide-size export
 
 Outputs:
   assets/BioRig_Architecture_v5.svg   vector source, 2400 px wide
@@ -9,6 +10,10 @@ Outputs:
   BioRig_Architecture_Pro.png         raster, 4800 px wide (4x the design grid), RGB, carrying two PNG tEXt chunks:
     bio-rig-source-svg-sha256         lowercase-hex sha256 of the SVG bytes this raster was rendered with
     bio-rig-generator                 tools/generate_architecture.py
+
+`--png-out PATH --png-scale N` writes just that raster, N x the design grid, carrying the same provenance, and leaves
+the three committed outputs untouched (`--png-scale 2` is the 2400 px slide-size export, published as its own carrier
+by tools/check_carriers.py, which reads the provenance rather than the pixels).
 
 Every address, the chain id, the proxy block and the deploy date are read from dashboard/deployment.json and
 the DeployAll broadcast under broadcast/, never typed in here; the two records are cross-checked and the
@@ -659,14 +664,20 @@ def title(f: Facts) -> str:
             f"deployment on {f.chain_name} with its addresses, the roadmap protocol tier, and the demo dashboard.")
 
 
-def render_all(facts: Facts | None = None) -> tuple[str, bytes]:
-    facts = facts or load_facts()
+def render_scene(facts: Facts, scale: int) -> tuple[str, bytes]:
+    """(svg, png) from one scene: the SVG at its own scale, and the raster at `scale` x the design grid, carrying the
+    sha256 of those exact SVG bytes."""
     scene = build_scene(facts)
     bad = overflows(scene)
     if bad:
         raise ValueError("layout overflow:\n  " + "\n  ".join(bad))
     svg = render_svg(scene, title=title(facts))
-    return svg, render_png(scene, source_svg_sha256=hashlib.sha256(svg.encode()).hexdigest())
+    return svg, render_png(scene, scale=scale, source_svg_sha256=hashlib.sha256(svg.encode()).hexdigest())
+
+
+def render_all(facts: Facts | None = None) -> tuple[str, bytes]:
+    """The committed pair: the SVG, and the raster at PNG_SCALE."""
+    return render_scene(facts or load_facts(), PNG_SCALE)
 
 
 def svg_provenance(svg: bytes) -> str:
@@ -703,10 +714,22 @@ def png_provenance_matches(path: Path, svg: bytes) -> bool:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--check", action="store_true", help="exit 1 if the SVG or its sha256 sidecar differs from a fresh render, or the PNG is unusable or lacks matching provenance")
+    mode = ap.add_mutually_exclusive_group()
+    mode.add_argument("--check", action="store_true", help="exit 1 if the SVG or its sha256 sidecar differs from a fresh render, or the PNG is unusable or lacks matching provenance")
+    mode.add_argument("--png-out", type=Path, metavar="PATH", help="write just this raster at --png-scale, leaving the three committed outputs untouched; --png-scale 2 is the slide-size export")
+    ap.add_argument("--png-scale", type=int, default=PNG_SCALE, help=f"raster scale for --png-out, in multiples of the design grid (default {PNG_SCALE}, the committed raster; 2 is the slide-size export)")
     ap.add_argument("--chain-id", type=int, help="draw this recorded chain instead of deployment.json's default")
     args = ap.parse_args(argv)
-    svg, png = render_all(load_facts(chain_id=args.chain_id))
+    facts = load_facts(chain_id=args.chain_id)
+    if args.png_out:
+        if args.png_scale < 1:
+            ap.error("--png-scale must be at least 1")
+        _, png = render_scene(facts, args.png_scale)
+        args.png_out.parent.mkdir(parents=True, exist_ok=True)
+        args.png_out.write_bytes(png)
+        print(f"wrote {_rel(args.png_out)} ({len(png)} bytes) at {args.png_scale}x")
+        return 0
+    svg, png = render_scene(facts, PNG_SCALE)
     if args.check:
         # The PNG is not byte-compared: a rebuilt environment (same vendored fonts, different Pillow/FreeType
         # build) was measured to move 1,284 of 20,394,000 pixels (max channel delta 78), all on glyph edges, with

@@ -722,30 +722,51 @@ predates `HardenMainnetAdmin` and still has its deployer as admin.
 
 ## 9. Publishing the proposal carriers
 
-Four files are published into the workspace Files for reviewers: `proposal.pdf`, `proposal.docx`, `proposal.md` and
-`architecture.png`. Each derives from repo source: the pdf from `docs/prezenti-proposal.md` through
-`tools/render_proposal_pdf.py` (with `tools/print/proposal.css` and `assets/brand/biorig-lockup.png`), the docx from
-the same markdown through `tools/render_proposal_docx.py`, the md is the markdown itself, and the png is the committed
-`BioRig_Architecture_Pro.png` (rendered from `assets/BioRig_Architecture_v5.svg`). `docs/carriers.json` records, per
-carrier, the published copy's digest and the hash of every source it was made from, and `tools/check_carriers.py`
-(step 7 of `scripts/verify-demo.sh`) fails when a source has moved since, when a fresh render no longer matches what
-was published, or when a staged copy of the Files bytes is not what the pipeline produced.
+Seven files are published into the workspace Files for reviewers: `proposal.pdf`, `proposal.docx`, `proposal.md`,
+`architecture.png`, `architecture.svg`, `architecture-slide.png` and `android-debug.apk`.
+
+Each derives from repo source:
+
+- the pdf from `docs/prezenti-proposal.md` through `tools/render_proposal_pdf.py` (with `tools/print/proposal.css` and
+  `assets/brand/biorig-lockup.png`), compared by sha256;
+- the docx from the same markdown through `tools/render_proposal_docx.py`, compared by a digest over its zip entries;
+- the md and the svg are the committed `docs/prezenti-proposal.md` and `assets/BioRig_Architecture_v5.svg`, byte for
+  byte;
+- `architecture.png` is the committed `BioRig_Architecture_Pro.png`, which is a render of that svg;
+- `architecture-slide.png` is the 2400 x 2124 slide-size render of the same svg, published because the deck embeds it
+  at that size. It has no committed counterpart, and its pixels are not compared: a raster is pinned by the provenance
+  the generator embeds in it (`bio-rig-source-svg-sha256` is the digest of the exact svg bytes it was rendered from,
+  `bio-rig-generator` names the tool) plus its size against the size the svg declares. The check reads those chunks out
+  of the published bytes and never renders;
+- `android-debug.apk` is pinned to the git tree of `mobile/android` it was built from, because rebuilding it needs the
+  Android SDK and its bytes are not reproducible across machines.
+
+`docs/carriers.json` records, per carrier, the published copy's digest and the hash of every source it was made from,
+and for the apk the app tree it was built against. `tools/check_carriers.py` (step 7 of `scripts/verify-demo.sh`) fails
+when a source has moved since, when a fresh render no longer matches what was published, when the app source has moved
+past the tree the apk was built from, when a staged slide raster's provenance names other svg bytes or another size, or
+when a staged copy of the Files bytes is not what the pipeline produced.
 
 The Files are not reachable from the repo, so publishing is a hand-off with one rule: the record is written only from
 the bytes actually held in Files.
 
-1. Edit `docs/prezenti-proposal.md` (or a renderer, the stylesheet, the lockup, the diagram).
+1. Edit `docs/prezenti-proposal.md` (or a renderer, the stylesheet, the lockup, the diagram, the android app).
 2. Render:
    ```bash
    .venv/bin/python tools/render_proposal_pdf.py    # out/proposal/BioRig-Prezenti-Grant-Application-Proposal.pdf
    .venv/bin/python tools/render_proposal_docx.py   # out/proposal/BioRig-Prezenti-Grant-Application-Proposal.docx
+   .venv/bin/python tools/generate_architecture.py --png-out out/BioRig_Architecture_Slides_2400.png --png-scale 2
    ```
-   For the diagram, regenerate and commit `BioRig_Architecture_Pro.png` first.
-3. Publish the four files into the workspace Files under the carrier names above.
-4. Stage the published bytes: download the four copies back out of Files into `cache/carriers/published/` (git-ignored;
-   never commit it), named `proposal.pdf`, `proposal.docx`, `proposal.md`, `architecture.png`.
+   For the committed diagram, regenerate and commit `BioRig_Architecture_Pro.png` and the svg first. For the apk,
+   rebuild it from the current `mobile/android` and commit any app source change before recording, so the record names
+   a committed tree.
+3. Publish the seven files into the workspace Files under the carrier names above.
+4. Stage the published bytes: download the seven copies back out of Files into `cache/carriers/published/` (git-ignored;
+   never commit it), named `proposal.pdf`, `proposal.docx`, `proposal.md`, `architecture.png`, `architecture.svg`,
+   `architecture-slide.png`, `android-debug.apk`.
 5. Record: `.venv/bin/python tools/check_carriers.py --record`. It re-renders and refuses (exit 1, writing nothing)
-   unless every staged copy agrees with the fresh render, so a stale or wrong upload is caught here, not by a reviewer.
+   unless every staged copy agrees with its source - including that the staged apk is an Android package and that the
+   app source is committed - so a stale or wrong upload is caught here, not by a reviewer.
 6. Commit `docs/carriers.json` with the source change.
 7. Prove the publish: `.venv/bin/python tools/check_carriers.py --require-staged`. The plain check (step 7 of
    `scripts/verify-demo.sh`) accepts the absence of staged copies with a `note:` (the CI shape, where the browser
@@ -761,6 +782,16 @@ and prints a `note:` saying the pdf bytes are not attested there. The docx is co
 entries' names, CRC32s and sizes, because python-docx stamps the render time into every entry; the module docstring of
 `tools/check_carriers.py` carries the evidence. Without staged copies the check prints a note and still fails on any
 repo-side drift; exit status is 0 clean, 1 drift, 2 setup failure.
+
+Two of the carriers are checked by something weaker than bytes on purpose, and the limits are worth stating. The slide
+raster's pixels are never compared: a rebuilt Pillow or FreeType moves pixels on glyph edges from unchanged source (a
+re-render of the committed raster differed in 1,284 of 20,394,000 pixels), so the raster is held to the provenance and
+size its own bytes carry, and its published copy is what the staged byte comparison attests. The apk is held to the
+app source tree, not to a rebuild: the check proves that no app source has moved since the published apk was built
+(committed or still uncommitted), and it cannot prove the published bytes were built from that tree - only the machine
+that built it can, which is what recording at publish time is for. Neither is a substitute for publishing the bytes
+you actually built: `--record` refuses anything that does not match its source, and `--require-staged` refuses a
+publish whose staged copies are missing.
 
 ## 10. Clean-clone proof, the pre-push gate and CI
 

@@ -1,19 +1,22 @@
-"""The proposal carriers in the workspace Files must still be what their repo source produces, and the gate that says
+"""The published carriers in the workspace Files must still be what their repo source produces, and the gate that says
 so must be able to fail.
 
-The negative controls run against a small tree in tmp_path: the markdown, both renderers, the stylesheet, the
-lockup and the diagram svg copied from the checkout, plus a stand-in raster of a few bytes (the real one is 1.8 MB
-and the gate only hashes it). The tree is recorded once per module from its own fresh renders, and each test gets
-its own copy, shown to pass before it is broken, so a red result cannot be a broken copy. Renders are memoised on
-their inputs, so only a test that changes an input pays for a new one. One control runs the real CLI on this
-checkout against the committed record: with nothing staged it must pass in any environment, noting that the pdf's
-raw bytes are not attested there, because Chromium print-to-PDF bytes depend on the browser build and fonts. The
-controls below show that byte comparison is still enforced wherever the published copies are staged. Nothing here
-reads cache/carriers/published/.
+The negative controls run against a small tree in tmp_path: the markdown, both renderers, the stylesheet, the lockup
+and a stand-in diagram svg, a stand-in raster of a few bytes (the real one is 1.8 MB and the gate only hashes it), a
+small stand-in slide raster carrying the same tEXt provenance the generator writes, a stand-in app source under
+mobile/android in a git repo, and a stand-in apk (a zip with the two entries that make one). The tree is recorded once
+per module from its own fresh renders, and each test gets its own copy, shown to pass before it is broken, so a red
+result cannot be a broken copy. Renders are memoised on their inputs, so only a test that changes an input pays for a
+new one. One control runs the real CLI on this checkout against the committed record: with nothing staged it must pass
+in any environment, noting that the pdf's raw render bytes and the slide raster's provenance are not attested there,
+because Chromium print-to-PDF bytes depend on the browser build and fonts, and the raster's provenance is only read
+where its published copy is staged. The controls below show that byte comparison is still enforced wherever the
+published copies are staged. Nothing here reads cache/carriers/published/.
 """
 from __future__ import annotations
 
 import hashlib
+import io
 import json
 import shutil
 import subprocess
@@ -25,13 +28,62 @@ import pytest
 
 from tools import check_carriers as C
 
+if C.diagram is None:  # the provenance keys live in the generator, which needs Pillow to import
+    pytest.skip(f"the diagram generator's provenance keys are not importable: {C.DIAGRAM_IMPORT_ERROR}",
+                allow_module_level=True)
+
 ROOT = Path(__file__).resolve().parent.parent
 CLI = ROOT / "tools" / "check_carriers.py"
-COPIED = (C.MARKDOWN, C.PDF_RENDERER, C.DOCX_RENDERER, C.STYLESHEET, C.LOCKUP, C.DIAGRAM_SVG)
+COPIED = (C.MARKDOWN, C.PDF_RENDERER, C.DOCX_RENDERER, C.STYLESHEET, C.LOCKUP, C.ARCH_GENERATOR)
+STAND_IN_SVG = ('<svg xmlns="http://www.w3.org/2000/svg" width="8" height="5" viewBox="0 0 8 5">'
+                '<rect width="8" height="5" fill="#ffffff"/></svg>')
 STAND_IN_RASTER = b"\x89PNG\r\n\x1a\n stand-in raster for the carrier gate tests\n"
+STAND_IN_APP = ("app/src/main/kotlin/org/biorig/app/MainActivity.kt", "core/build.gradle.kts")
 
 _real_render = C.render
 _renders: dict[str, bytes] = {}
+
+
+def stand_in_apk(path: Path) -> Path:
+    """The two entries the gate's package check reads: without either, the file is not an Android package."""
+    with zipfile.ZipFile(path, "w") as z:
+        z.writestr("AndroidManifest.xml", b"<manifest package='org.biorig.app'/>")
+        z.writestr("classes.dex", b"dex\n035\x00 stand-in")
+    return path
+
+
+def slide_raster(svg: str, *, size: tuple[int, int] | None = None, svg_sha: str | None = None,
+                 generator: str | None = None, pixels: bytes | None = None, provenance: bool = True) -> bytes:
+    """A PNG carrying the provenance the diagram generator stamps into every raster it paints, over stand-in pixels."""
+    from PIL import Image
+    from PIL.PngImagePlugin import PngInfo
+
+    want = size or C.svg_declared_size(svg)
+    assert want, "the stand-in svg must declare a pixel size"
+    info = None
+    if provenance:
+        info = PngInfo()
+        info.add_text(C.diagram.PNG_SVG_SHA_KEY, svg_sha or hashlib.sha256(svg.encode()).hexdigest())
+        info.add_text(C.diagram.PNG_GENERATOR_KEY, C.diagram.GENERATOR if generator is None else generator)
+    data = pixels or bytes((i * 7 + 3) % 256 for i in range(want[0] * want[1] * 3))
+    with io.BytesIO() as buf:
+        Image.frombytes("RGB", want, data).save(buf, format="PNG", pnginfo=info)
+        return buf.getvalue()
+
+
+def flip(raw: bytes, offset: int) -> bytes:
+    """One byte, one bit: the tamper the gate has to catch."""
+    return raw[:offset] + bytes([raw[offset] ^ 0x01]) + raw[offset + 1:]
+
+
+def commit(root: Path, message: str) -> None:
+    """Commit the tree, so the app source has a git tree the record can pin. Config comes from the command line, so
+    the suite does not depend on a user's git identity."""
+    identity = ("-c", "user.name=carrier tests", "-c", "user.email=tests@example.invalid")
+    if not (root / ".git").exists():
+        subprocess.run(["git", "init", "-q", str(root)], check=True, capture_output=True)
+    subprocess.run(["git", "-C", str(root), *identity, "add", "-A"], check=True, capture_output=True)
+    subprocess.run(["git", "-C", str(root), *identity, "commit", "-q", "-m", message], check=True, capture_output=True)
 
 
 def memo_render(root: Path, carrier: C.Carrier, out_dir: Path) -> Path:
@@ -62,7 +114,13 @@ def recorded(tmp_path_factory) -> Path:
     for rel in COPIED:
         (root / rel).parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(ROOT / rel, root / rel)
+    (root / C.DIAGRAM_SVG).parent.mkdir(parents=True, exist_ok=True)
+    (root / C.DIAGRAM_SVG).write_text(STAND_IN_SVG)
     (root / C.RASTER).write_bytes(STAND_IN_RASTER)
+    for rel in STAND_IN_APP:
+        (root / C.APP_SOURCE / rel).parent.mkdir(parents=True, exist_ok=True)
+        (root / C.APP_SOURCE / rel).write_text(f"// stand-in app source: {rel}\n")
+    commit(root, "the stand-in tree the carriers are recorded against")
     staged = root / C.STAGED
     staged.mkdir(parents=True)
     with pytest.MonkeyPatch.context() as mp:
@@ -70,8 +128,12 @@ def recorded(tmp_path_factory) -> Path:
         for carrier in C.CARRIERS:
             if carrier.renderer:
                 memo_render(root, carrier, staged)
-            else:
+            elif carrier.copy_of:
                 shutil.copyfile(root / carrier.copy_of, staged / carrier.name)
+            elif carrier.provenance_of:
+                (staged / carrier.name).write_bytes(slide_raster((root / carrier.provenance_of).read_text()))
+            else:
+                stand_in_apk(staged / carrier.name)
         assert run(root, "--record") == 0
     return root
 
@@ -93,7 +155,8 @@ def drift(capsys) -> list[str]:
 
 def test_committed_record_matches_the_tree(tmp_path):
     """Control 1: the real CLI, real renders, on this checkout, with nothing staged: the CI shape. Every source
-    digest is asserted; the pdf's render bytes are noted as unattested here, whatever they came out as."""
+    digest is asserted; the pdf's render bytes and the slide raster's provenance are noted as unattested here,
+    whatever they came out as."""
     run_ = subprocess.run([sys.executable, str(CLI), "--staged", str(tmp_path / "none")],
                           capture_output=True, text=True, timeout=600)
     assert (run_.returncode, run_.stderr) == (0, "")
@@ -101,13 +164,17 @@ def test_committed_record_matches_the_tree(tmp_path):
     assert any(l.startswith("note: no staged copies in") for l in out)
     assert any(l.startswith("note: proposal.pdf: a fresh render ") and "not attested in this environment" in l
                and l.endswith("the recorded source digests are enforced") for l in out)
+    note = f"note: {C.SLIDE_PNG}: the published raster's provenance is not checked here"
+    assert any(l.startswith(note) for l in out)
     for carrier in C.CARRIERS:
         n = len(carrier.sources)
-        assert f"ok: {carrier.name}: {n}/{n} sources match the record" in out
-    for name in ("proposal.docx", "proposal.md", "architecture.png"):
+        if n:
+            assert f"ok: {carrier.name}: {n}/{n} sources match the record" in out
+    for name in ("proposal.docx", "proposal.md", "architecture.png", "architecture.svg"):
         assert any(l.startswith(f"ok: {name}: ") and "matches the published" in l for l in out)
+    assert any(l.startswith(f"ok: {C.APK}: the app source mobile/android is the tree ") for l in out)
     assert [l for l in out if not l.startswith("ok: ")] == [l for l in out if l.startswith("note: ")]
-    assert sum(l.startswith("note: ") for l in out) == 2
+    assert sum(l.startswith("note: ") for l in out) == 3
 
 
 def test_committed_record_covers_every_source_and_no_internal_location():
@@ -152,7 +219,9 @@ def test_clean_tree_passes(tree, capsys):
     assert run(tree) == 0
     out = capsys.readouterr()
     assert out.err == ""
-    assert sum(line.startswith("ok: ") for line in out.out.splitlines()) == 3 * len(C.CARRIERS)
+    # every carrier gets a derivation and a staged line; only the ones with file sources get a source line
+    expected = sum(1 for carrier in C.CARRIERS if carrier.sources) + 2 * len(C.CARRIERS)
+    assert sum(line.startswith("ok: ") for line in out.out.splitlines()) == expected
 
 
 def test_edited_markdown_is_caught_on_every_carrier_it_feeds(tree, capsys):
@@ -202,7 +271,7 @@ def test_absent_staged_dir_passes_with_a_note(tree, capsys):
     assert run(tree) == 0
     out = capsys.readouterr()
     assert out.err == ""
-    assert "note: no staged copies in cache/carriers/published/; download the four carriers" in out.out
+    assert "note: no staged copies in cache/carriers/published/; download the published carriers" in out.out
     assert "note: proposal.pdf: a fresh render matches the published sha256 " in out.out
     assert "not attested in this environment" in out.out
 
@@ -394,3 +463,133 @@ def test_require_staged_json_report_is_drift(tree, capsys):
     assert (report["status"], report["exit"], report["staged"]) == ("drift", 1, False)
     assert any(c["status"] == "drift" and c["check"] == "staged" for c in report["checks"])
     assert any(c["status"] == "drift" and c["carrier"] == "proposal.pdf" for c in report["checks"])
+
+
+# ---- the svg copy, the slide raster and the apk: one flipped byte each, and how each is tied to its source
+
+def test_flipped_byte_in_the_staged_vector_copy_is_caught(tree, capsys):
+    path = tree / C.STAGED / "architecture.svg"
+    raw = path.read_bytes()
+    path.write_bytes(flip(raw, len(raw) // 2))
+    assert run(tree) == 1
+    lines = drift(capsys)
+    assert len(lines) == 1, lines
+    assert lines[0].startswith("drift: architecture.svg: the copy in cache/carriers/published/architecture.svg is not "
+                               "the published artifact (sha256 ")
+
+
+def test_flipped_byte_in_the_staged_apk_is_caught(tree, capsys):
+    path = tree / C.STAGED / C.APK
+    raw = path.read_bytes()
+    path.write_bytes(flip(raw, len(raw) // 2))
+    assert run(tree) == 1
+    lines = drift(capsys)
+    assert len(lines) == 1, lines
+    assert lines[0].startswith(f"drift: {C.APK}: the copy in cache/carriers/published/{C.APK} is not the published "
+                               "artifact (sha256 ")
+
+
+def test_flipped_pixel_in_the_staged_slide_raster_is_caught(tree, capsys):
+    """Its pixels are never compared at gate time, so the staged byte check is what catches a repainted copy: same
+    size, intact provenance, other pixels."""
+    (tree / C.STAGED / C.SLIDE_PNG).write_bytes(slide_raster(STAND_IN_SVG, pixels=bytes(8 * 5 * 3)))
+    assert run(tree) == 1
+    lines = drift(capsys)
+    assert len(lines) == 1, lines
+    assert lines[0].startswith(f"drift: {C.SLIDE_PNG}: the copy in cache/carriers/published/{C.SLIDE_PNG} is not the "
+                               "published artifact (sha256 ")
+
+
+def test_slide_raster_naming_other_svg_bytes_is_caught(tree, capsys):
+    """The provenance read alone fails on a raster repainted from other vector bytes: it names the bytes it came from,
+    and that name is the committed svg's digest only for a genuine render of the committed svg."""
+    (tree / C.STAGED / C.SLIDE_PNG).write_bytes(slide_raster(STAND_IN_SVG, svg_sha="0" * 64))
+    assert run(tree) == 1
+    lines = drift(capsys)
+    assert any(l.startswith(f"drift: {C.SLIDE_PNG}: the staged {C.SLIDE_PNG} was rendered from other svg bytes: its "
+                            f"{C.diagram.PNG_SVG_SHA_KEY} chunk is 0000") for l in lines)
+
+
+def test_slide_raster_of_another_size_is_caught(tree, capsys):
+    (tree / C.STAGED / C.SLIDE_PNG).write_bytes(slide_raster(STAND_IN_SVG, size=(4, 3)))
+    assert run(tree) == 1
+    lines = drift(capsys)
+    assert any(l.startswith(f"drift: {C.SLIDE_PNG}: the staged {C.SLIDE_PNG} is 4x3 px, the vector source declares "
+                            f"8x5; ") for l in lines)
+
+
+def test_slide_raster_without_provenance_is_caught(tree, capsys):
+    """What a raster from anything but the generator looks like: the declared size, no tEXt provenance at all."""
+    (tree / C.STAGED / C.SLIDE_PNG).write_bytes(slide_raster(STAND_IN_SVG, provenance=False))
+    assert run(tree) == 1
+    lines = drift(capsys)
+    assert any(l.startswith(f"drift: {C.SLIDE_PNG}: the staged {C.SLIDE_PNG} was rendered from other svg bytes: its "
+                            f"{C.diagram.PNG_SVG_SHA_KEY} chunk is absent") for l in lines)
+
+
+def test_slide_raster_not_staged_is_a_note_and_drift_under_require_staged(tree, capsys):
+    (tree / C.STAGED / C.SLIDE_PNG).unlink()
+    assert run(tree) == 0
+    assert capsys.readouterr().err == ""
+    assert run(tree, "--require-staged") == 1
+    lines = drift(capsys)
+    assert any(l.startswith(f"drift: {C.SLIDE_PNG}: the published raster's provenance is not checked here") for l in lines)
+
+
+def test_edited_svg_is_caught_on_every_carrier_it_feeds(tree, capsys):
+    """One added byte in the committed vector source reaches the svg copy, the committed raster and the slide raster."""
+    with (tree / C.DIAGRAM_SVG).open("a") as f:
+        f.write("<!-- one byte more -->\n")
+    assert run(tree) == 1
+    lines = drift(capsys)
+    for name in ("architecture.png", "architecture.svg", C.SLIDE_PNG):
+        assert any(l.startswith(f"drift: {name}: source assets/BioRig_Architecture_v5.svg moved") for l in lines)
+    assert any(l.startswith(f"drift: {C.SLIDE_PNG}: the staged {C.SLIDE_PNG} was rendered from other svg bytes")
+               for l in lines)
+
+
+def test_edited_app_source_is_caught(tree, capsys):
+    """A file added under mobile/android and never committed: the apk is no longer from this app source, and the tree
+    hash alone would not see it, so the check reads untracked files too."""
+    added = tree / C.APP_SOURCE / "app" / "src" / "NewScreen.kt"
+    added.parent.mkdir(parents=True, exist_ok=True)
+    added.write_text("// a screen added after the apk was published\n")
+    assert run(tree) == 1
+    lines = drift(capsys)
+    assert len(lines) == 1, lines
+    assert lines[0].startswith(f"drift: {C.APK}: the app source mobile/android has moved past the tree ")
+    assert "mobile/android/app/src/NewScreen.kt" in lines[0]
+    assert lines[0].endswith("--record (DEPLOY.md section 9)")
+
+
+def test_committed_app_source_move_is_caught(tree, capsys):
+    """The other half: a change committed in the app source, with nothing rebuilt, moves HEAD's tree off the pin."""
+    moved = tree / C.APP_SOURCE / STAND_IN_APP[0]
+    moved.write_text(moved.read_text() + "// one line more\n")
+    commit(tree, "app: a change committed after the apk was published")
+    assert run(tree) == 1
+    lines = drift(capsys)
+    assert len(lines) == 1, lines
+    assert lines[0].startswith(f"drift: {C.APK}: the app source mobile/android has moved past the tree ")
+    assert f"mobile/android/{STAND_IN_APP[0]}" in lines[0]
+
+
+def test_record_pins_the_app_tree_it_recorded_against(tree, capsys):
+    assert run(tree, "--record") == 0
+    assert C.load_record(tree)[C.APK]["build_source"] == {
+        "path": C.APP_SOURCE.as_posix(), "tree": C.app_source_tree(tree, C.APP_SOURCE)}
+
+
+def test_record_refuses_a_staged_file_that_is_not_an_android_package(tree, capsys):
+    _zip(tree / C.STAGED / C.APK, (2026, 10, 3, 12, 0, 0), {"docProps/core.xml": b"<x/>"})
+    assert run(tree, "--record") == 1
+    assert drift(capsys) == [f"drift: {C.APK}: refusing to record: is a zip but holds no AndroidManifest.xml"]
+
+
+def test_record_refuses_a_dirty_app_source(tree, capsys):
+    added = tree / C.APP_SOURCE / "app" / "New.kt"
+    added.parent.mkdir(parents=True, exist_ok=True)
+    added.write_text("// uncommitted\n")
+    assert run(tree, "--record") == 2
+    assert capsys.readouterr().err.startswith(
+        f"setup: --record cannot pin {C.APK}: mobile/android has uncommitted changes")

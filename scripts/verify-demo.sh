@@ -184,11 +184,14 @@ PY
 fi
 
 step "7. proposal carriers: the published copies still match their source"
-# The pdf, docx, md and architecture raster held in the workspace Files are compared against the markdown, the two
-# renderers and the committed raster they derive from (docs/carriers.json is the publish record). On 2 October 2026
-# the markdown had moved three commits past the published render and the Files raster was a pre-brand copy, and
-# nothing noticed. Offline; re-renders the pdf with the Chromium step 4 installed. Copies staged under
-# cache/carriers/published/ are checked too; without them it notes so and still fails on repo-side drift.
+# The seven files held in the workspace Files (the proposal pdf, docx and md, the architecture raster, the vector copy
+# and the slide-size raster, and the reviewers' debug apk) are compared against the markdown, the two renderers, the
+# committed diagram and the app source they derive from (docs/carriers.json is the publish record). On 2 October 2026
+# the markdown had moved three commits past the published render and the Files raster was a pre-brand copy, and nothing
+# noticed. The apk is pinned to the git tree of mobile/android it was built from rather than rebuilt, which needs no
+# Android SDK here, and the slide raster to the provenance its own bytes carry rather than to pixels. Offline;
+# re-renders the pdf with the Chromium step 4 installed. Copies staged under cache/carriers/published/ are checked
+# too; without them it notes so and still fails on repo-side drift.
 $PY tools/check_carriers.py || { echo "carriers drifted: see DEPLOY.md section 9"; exit 1; }
 
 step "8. documentation: every path, link, command, port and env var the docs name is real"
