@@ -805,15 +805,25 @@ python3 tools/install_git_hooks.py           # copies scripts/git-hooks/pre-push
 python3 tools/install_git_hooks.py --check   # exit 1 unless the installed hook matches the committed one
 ```
 
-On a push that updates `refs/heads/main` it proves the exact local commit being pushed (`--source local`) and refuses
-the push unless the verdict is `PASS`, naming the failing step. Pushes to any other branch are not gated. A PASS
-record for the same commit and tree under `.git/clean-clone-proof/` is reused rather than proving twice. Bypass only on
-purpose: `git push --no-verify`, or `CLEAN_CLONE_PROOF_SKIP=1 git push ...`, which prints a loud warning that the
-commit went up unverified.
+On a push that updates `refs/heads/main` it refuses a stale base first (the shared pre-flight below), then proves the
+exact local commit being pushed (`--source local`) and refuses the push unless the verdict is `PASS`, naming the failing
+step. Pushes to any other branch are not gated. A PASS record for the same commit and tree under
+`.git/clean-clone-proof/` is reused rather than proving twice. Bypass only on purpose: `git push --no-verify`, or
+`CLEAN_CLONE_PROOF_SKIP=1 git push ...`, which prints a loud warning that the commit went up unverified.
+
+**The fast-forward pre-flight.** `scripts/lib/fast_forward_check.sh` is the one check both push paths run: the pre-push
+hook, and `scripts/push-verified.sh` as its stage 0. It refuses a commit that does not build on the remote's `main`,
+naming the remote sha, the commits the remote has that this checkout does not, and the rebase to run. Git refuses a
+plain push like that itself, in seconds, without calling the hook at all; what the pre-flight adds is the push git
+would otherwise carry out - a **forced** update of `main` from a stale base, which drops the work the remote already
+has - and the case where the remote's tip is not in this checkout, which git cannot classify locally. In both, the
+refusal comes before the minutes-long proof instead of after it. A deliberate rewrite needs `--force` with
+`BIORIG_ALLOW_NON_FAST_FORWARD=1`: it prints a loud warning, skips the pre-flight, and still requires the proof.
 
 **Pushing.** `scripts/push-verified.sh` is the way to push `main`. It first checks the push can land: the remote's
 `main` is read with `git ls-remote`, and a local commit that is not a fast-forward of it is refused in seconds, naming
-the remote sha and the rebase to run, instead of failing as `! [rejected] ... (fetch first)` after the whole proof. It
+the remote sha and the rebase to run, instead of failing as `! [rejected] ... (fetch first)` after the whole proof.
+That is the same check the pre-push hook runs, from the one implementation (`scripts/lib/fast_forward_check.sh`). It
 then proves the local commit, pushes it, and confirms what landed: `git ls-remote` must report the local sha as the
 remote's `main`, and a `--source github` proof clones the pushed tip back and runs everything again. It exits nonzero
 naming the stage that failed.

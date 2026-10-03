@@ -135,7 +135,9 @@ prints a per-line table, the commit and tree it checked, and every skipped step.
 Push `main` with `scripts/push-verified.sh`: it refuses a base that is behind the remote's `main` in seconds, rather
 than after the proof, then proves the local commit, pushes it, checks the remote's `main` is that commit and proves it
 again from the remote. `python3 tools/install_git_hooks.py` installs the pre-push hook
-(`scripts/git-hooks/pre-push`) that refuses a push to `main` whose commit fails the proof; `--check` reports whether
-the installed copy is current. CI (`.github/workflows/clean-clone-proof.yml`) repeats the gate on every push to `main`
-in key-free mode, so its runs are partial by design: **the deployer key is never given to CI**, and the steps that
-need it are proven by the pre-push path. `DEPLOY.md` section 10 has the details.
+(`scripts/git-hooks/pre-push`) that refuses a push to `main` whose commit fails the proof, and a stale base before
+that; `--check` reports whether the installed copy is current. Both push paths run the one fast-forward check
+(`scripts/lib/fast_forward_check.sh`), so a `git push --force` of a stale base is refused in seconds too, instead of
+overwriting the remote's work after the proof had run. CI (`.github/workflows/clean-clone-proof.yml`) repeats the gate
+on every push to `main` in key-free mode, so its runs are partial by design: **the deployer key is never given to CI**,
+and the steps that need it are proven by the pre-push path. `DEPLOY.md` section 10 has the details.

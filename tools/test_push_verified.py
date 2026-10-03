@@ -19,6 +19,7 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = REPO_ROOT / "scripts" / "push-verified.sh"
+FF_LIB = REPO_ROOT / "scripts" / "lib" / "fast_forward_check.sh"
 
 # Stand-in for the real proof tool: records the call, then succeeds. The two proofs the script makes (local, then of
 # the pushed tip) are distinguishable by their arguments, so a test can tell whether they ran at all and in what order.
@@ -66,6 +67,9 @@ def rig(tmp_path: Path) -> Rig:
     script.parent.mkdir()
     script.write_bytes(SCRIPT.read_bytes())  # the script under test, byte for byte
     script.chmod(0o755)
+    lib = work / "scripts" / "lib" / "fast_forward_check.sh"
+    lib.parent.mkdir()
+    lib.write_bytes(FF_LIB.read_bytes())  # the shared pre-flight the script sources
     (work / "tools").mkdir()
     (work / "tools" / "clean_clone_proof.py").write_text(PROOF_STUB, encoding="utf-8")
 

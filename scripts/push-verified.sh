@@ -6,7 +6,8 @@
 # 0. A pre-flight on the remote's main, before anything expensive: a local commit that is not a fast-forward of it is a
 #    stale base, and the push is rejected "fetch first" only after the whole proof below has run. Caught here in
 #    seconds, naming the remote sha and the rebase to run. The remote is read directly (git ls-remote), never a
-#    tracking ref, which may itself be stale.
+#    tracking ref, which may itself be stale. The check itself is scripts/lib/fast_forward_check.sh, the same one the
+#    pre-push hook runs, so a plain `git push` gives the same verdict with the same numbers.
 # 1. tools/clean_clone_proof.py --source local proves HEAD from a plain clone of this checkout: the README quick
 #    start line by line, then the whole acceptance gate with the deployer key. Anything short of PASS stops here.
 # 2. git push <remote> HEAD:refs/heads/main. The pre-push hook (tools/install_git_hooks.py) finds the PASS record
@@ -23,6 +24,8 @@ url=$(git remote get-url "$remote")
 records="$(git rev-parse --path-format=absolute --git-common-dir)/clean-clone-proof"
 mkdir -p "$records"
 fail() { echo; echo "push-verified: FAILED at stage $1"; exit 1; }
+# shellcheck source=scripts/lib/fast_forward_check.sh
+. scripts/lib/fast_forward_check.sh
 
 if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
     echo "push-verified: the working tree has uncommitted changes; the proof covers $sha only, which is what is pushed"
@@ -30,22 +33,22 @@ fi
 
 echo "== stage 0/3: pre-flight on $remote main"
 remote_sha=$(git ls-remote "$remote" refs/heads/main | cut -f1) || fail "0 (pre-flight: cannot read $remote main)"
-if [ -z "$remote_sha" ]; then
+state=$(fast_forward_state "$remote_sha" "$sha")
+if [ "$state" = create ]; then
     echo "pre-flight: $remote has no main yet; the push creates it"
-elif [ "$remote_sha" = "$sha" ]; then
+elif [ "$state" = current ]; then
     echo "pre-flight: $remote main is already $sha"
 else
+    # Fetch here even when the verdict looks settled: the remote's tip may not be in this checkout at all, and an
+    # absent tip reads as stale. Only a fetched object settles the ancestry. The ls-remote above is what counts as the
+    # remote's tip; a tracking ref is stale exactly in the case this pre-flight exists for.
     git fetch --quiet "$remote" "+refs/heads/main:refs/remotes/$remote/main" \
         || fail "0 (pre-flight: cannot fetch $remote main)"
-    if git merge-base --is-ancestor "$remote_sha" "$sha"; then
+    if [ "$(fast_forward_state "$remote_sha" "$sha")" = fast-forward ]; then
         echo "pre-flight: $remote main is behind $sha; the push fast-forwards it"
     else
-        ahead=$(git rev-list --count "$sha..$remote_sha")
-        echo "pre-flight: $remote main is $remote_sha, $ahead commit(s) ahead of $sha: a stale base, not a remote problem."
         echo "pre-flight: the push would be rejected 'fetch first' - after the whole proof had run."
-        echo "pre-flight: rebase this checkout onto the remote tip and run this script again:"
-        echo "pre-flight:   git fetch $remote && git rebase refs/remotes/$remote/main"
-        echo "pre-flight: do not force-push: it would drop the $ahead commit(s) $remote main already has."
+        fast_forward_report "$remote" "$remote_sha" "$sha" "$remote"
         fail "0 (pre-flight: $sha is not a fast-forward of $remote main)"
     fi
 fi

@@ -1,20 +1,36 @@
 #!/usr/bin/env bash
-# BioRig pre-push gate: a push to main must first pass the clean-clone proof of the exact commit being pushed.
-# Installed by `python3 tools/install_git_hooks.py`; source-controlled at scripts/git-hooks/pre-push.
+# BioRig pre-push gate: a push to main must first clear the fast-forward pre-flight, then pass the clean-clone proof of
+# the exact commit being pushed. Installed by `python3 tools/install_git_hooks.py`; source-controlled here.
 #
 # Git hands the hook one line per ref on stdin: <local ref> <local sha> <remote ref> <remote sha>. Only a push to
-# refs/heads/main is gated; every other branch passes untouched. For main, tools/clean_clone_proof.py clones this
-# checkout at <local sha> (a plain clone, as a reader gets it), runs the README quick start and the whole acceptance
-# gate with the deployer key, and the push is refused unless the verdict is a complete PASS. A PARTIAL (something
-# skipped, e.g. no key here) is refused too: it is not a full acceptance pass.
+# refs/heads/main is gated; every other branch passes untouched.
 #
-# A PASS record for the same commit and tree under <git dir>/clean-clone-proof/ (scripts/push-verified.sh writes it
-# just before pushing) is reused instead of proving the same commit twice.
+# For main, in this order:
+#   1. the fast-forward pre-flight (scripts/lib/fast_forward_check.sh, the same check scripts/push-verified.sh runs as
+#      its stage 0). A commit that does not build on the remote's main cannot land. Git refuses a plain push like that
+#      itself, in seconds, without ever calling this hook; what the pre-flight catches is the push git would otherwise
+#      carry out - a forced update of main from a stale base, which drops the work the remote already has - and the
+#      case where the remote's tip is not in this checkout at all, which git cannot classify locally. Both would
+#      otherwise spend the minutes-long proof below before failing. The refusal names the remote sha, the commits the
+#      remote has that this checkout does not, and the rebase to run.
+#   2. tools/clean_clone_proof.py clones this checkout at <local sha> (a plain clone, as a reader gets it), runs the
+#      README quick start and the whole acceptance gate with the deployer key, and the push is refused unless the
+#      verdict is a complete PASS. A PARTIAL (something skipped, e.g. no key here) is refused too: it is not a full
+#      acceptance pass. A PASS record for the same commit and tree under <git dir>/clean-clone-proof/ (written by
+#      scripts/push-verified.sh just before it pushes) is reused instead of proving the same commit twice.
 #
-# Bypass only on purpose: `git push --no-verify` (git skips the hook), or CLEAN_CLONE_PROOF_SKIP=1, which pushes
-# with a loud warning that the commit is unverified.
+# Bypass only on purpose: `git push --no-verify` (git skips the hook), CLEAN_CLONE_PROOF_SKIP=1, which pushes with a
+# loud warning that the commit is unverified, or BIORIG_ALLOW_NON_FAST_FORWARD=1, for a deliberate rewrite of main
+# (which needs --force as well), and which still requires the proof.
 set -u
 repo=$(git rev-parse --show-toplevel)
+lib="$repo/scripts/lib/fast_forward_check.sh"
+if [ ! -r "$lib" ]; then
+    echo "pre-push: refusing: $lib is missing, so a stale base cannot be detected" >&2
+    exit 1
+fi
+# shellcheck source=scripts/lib/fast_forward_check.sh
+. "$lib"
 records="$(git rev-parse --path-format=absolute --git-common-dir)/clean-clone-proof"
 zero=0000000000000000000000000000000000000000
 mkdir -p "$records"
@@ -24,6 +40,28 @@ while read -r local_ref local_sha remote_ref remote_sha; do
     if [ "$local_sha" = "$zero" ]; then
         echo "pre-push: refusing to delete main on $1" >&2
         exit 1
+    fi
+    # Before the proof, not after it: proving takes minutes, and the remote rejects a non-fast-forward regardless.
+    if [ "$(fast_forward_state "$remote_sha" "$local_sha")" = stale ]; then
+        if [ "${BIORIG_ALLOW_NON_FAST_FORWARD:-0}" = 1 ]; then
+            cat >&2 <<WARN
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!! BIORIG_ALLOW_NON_FAST_FORWARD=1: $remote_sha is not an ancestor of $local_sha.
+!! Pushing this to $1 main rewrites it and can drop work the remote already has.
+!! The clean-clone proof below still runs; the rewrite itself needs --force as well.
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+WARN
+        else
+            cat >&2 <<REFUSED
+
+pre-push: PUSH REFUSED: the update of $1 main is not a fast-forward, so the remote would reject it as "fetch first".
+REFUSED
+            fast_forward_report "$1" "$remote_sha" "$local_sha" "$1" >&2
+            echo "pre-push: (for a deliberate rewrite of main: --force with BIORIG_ALLOW_NON_FAST_FORWARD=1)" >&2
+            exit 1
+        fi
     fi
     if [ "${CLEAN_CLONE_PROOF_SKIP:-0}" = 1 ]; then
         cat >&2 <<WARN
