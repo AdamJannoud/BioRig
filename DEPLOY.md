@@ -722,8 +722,9 @@ predates `HardenMainnetAdmin` and still has its deployer as admin.
 
 ## 9. Publishing the proposal carriers
 
-Seven files are published into the workspace Files for reviewers: `proposal.pdf`, `proposal.docx`, `proposal.md`,
-`architecture.png`, `architecture.svg`, `architecture-slide.png` and `android-debug.apk`.
+Ten files are published into the workspace Files for reviewers: `proposal.pdf`, `proposal.docx`, `proposal.md`,
+`architecture.png`, `architecture.svg`, `architecture-slide.png`, `android-debug.apk`, `milestone-report.docx`,
+`celo-mainnet-deployment-plan.md` and `findings.md`.
 
 Each derives from repo source:
 
@@ -739,7 +740,12 @@ Each derives from repo source:
   `bio-rig-generator` names the tool) plus its size against the size the svg declares. The check reads those chunks out
   of the published bytes and never renders;
 - `android-debug.apk` is pinned to the git tree of `mobile/android` it was built from, because rebuilding it needs the
-  Android SDK and its bytes are not reproducible across machines.
+  Android SDK and its bytes are not reproducible across machines;
+- `milestone-report.docx` from `docs/milestone-roadmap-report.md` through `tools/render_report_docx.py`, which sets the
+  report through `tools/render_proposal_docx.py` (so that renderer and the lockup are its sources too), compared by
+  the same zip-entries digest as the proposal docx;
+- `celo-mainnet-deployment-plan.md` and `findings.md` are the committed `docs/celo-mainnet-deployment-plan.md` and
+  `FINDINGS.md`, byte for byte.
 
 `docs/carriers.json` records, per carrier, the published copy's digest and the hash of every source it was made from,
 and for the apk the app tree it was built against. `tools/check_carriers.py` (step 7 of `scripts/verify-demo.sh`) fails
@@ -750,20 +756,23 @@ when a staged copy of the Files bytes is not what the pipeline produced.
 The Files are not reachable from the repo, so publishing is a hand-off with one rule: the record is written only from
 the bytes actually held in Files.
 
-1. Edit `docs/prezenti-proposal.md` (or a renderer, the stylesheet, the lockup, the diagram, the android app).
+1. Edit `docs/prezenti-proposal.md` (or a renderer, the stylesheet, the lockup, the diagram, the android app, the
+   milestone report, the deployment plan or `FINDINGS.md`).
 2. Render:
    ```bash
    .venv/bin/python tools/render_proposal_pdf.py    # out/proposal/BioRig-Prezenti-Grant-Application-Proposal.pdf
    .venv/bin/python tools/render_proposal_docx.py   # out/proposal/BioRig-Prezenti-Grant-Application-Proposal.docx
+   .venv/bin/python tools/render_report_docx.py --out out/report/milestone-report.docx
    .venv/bin/python tools/generate_architecture.py --png-out out/BioRig_Architecture_Slides_2400.png --png-scale 2
    ```
    For the committed diagram, regenerate and commit `BioRig_Architecture_Pro.png` and the svg first. For the apk,
    rebuild it from the current `mobile/android` and commit any app source change before recording, so the record names
    a committed tree.
-3. Publish the seven files into the workspace Files under the carrier names above.
-4. Stage the published bytes: download the seven copies back out of Files into `cache/carriers/published/` (git-ignored;
+3. Publish the ten files into the workspace Files under the carrier names above.
+4. Stage the published bytes: download the ten copies back out of Files into `cache/carriers/published/` (git-ignored;
    never commit it), named `proposal.pdf`, `proposal.docx`, `proposal.md`, `architecture.png`, `architecture.svg`,
-   `architecture-slide.png`, `android-debug.apk`.
+   `architecture-slide.png`, `android-debug.apk`, `milestone-report.docx`, `celo-mainnet-deployment-plan.md`,
+   `findings.md`.
 5. Record: `.venv/bin/python tools/check_carriers.py --record`. It re-renders and refuses (exit 1, writing nothing)
    unless every staged copy agrees with its source - including that the staged apk is an Android package and that the
    app source is committed - so a stale or wrong upload is caught here, not by a reviewer.
@@ -779,7 +788,9 @@ the publishing environment, where the published copies are staged and the browse
 Lato) are the ones it was rendered with; elsewhere, such as a fresh clone in CI, Chromium print-to-PDF yields other
 bytes from unchanged source, so the check enforces the recorded source digests plus whatever staged copies it can see,
 and prints a `note:` saying the pdf bytes are not attested there. The docx is compared by a digest over its zip
-entries' names, CRC32s and sizes, because python-docx stamps the render time into every entry; the module docstring of
+entries' names, CRC32s and sizes, because python-docx stamps the render time into every entry (the milestone report
+docx likewise), and every entry must still inflate to its CRC32, so a flipped byte in the compressed data is drift
+too; the module docstring of
 `tools/check_carriers.py` carries the evidence. Without staged copies the check prints a note and still fails on any
 repo-side drift; exit status is 0 clean, 1 drift, 2 setup failure.
 

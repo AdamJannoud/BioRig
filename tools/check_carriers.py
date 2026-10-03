@@ -20,7 +20,10 @@ Carriers (docs/carriers.json is the publish record: per carrier its size, digest
                     fresh render. So it is compared by a normalized digest, sha256 over the entries sorted by name of
                     `name \\0 crc32 (8 hex digits) \\0 uncompressed size \\n`. Do not turn this into a byte
                     comparison, and do not pin the stamp in the renderer: the first would fail on every render, the
-                    second would change the published artefact to suit its gate.
+                    second would change the published artefact to suit its gate. That digest reads only the
+                    central directory, so the archive is also read through: an entry whose data no longer inflates
+                    to its recorded CRC32 (one flipped byte in the compressed data, measured on the milestone report)
+                    makes the digest `damaged:<sha256 of the file>`, which never equals a recorded one.
   proposal.md       a plain copy of docs/prezenti-proposal.md. sha256.
   architecture.png  a plain copy of the committed BioRig_Architecture_Pro.png, itself rendered from
                     assets/BioRig_Architecture_v5.svg. sha256.
@@ -41,6 +44,12 @@ Carriers (docs/carriers.json is the publish record: per carrier its size, digest
                     tree of mobile/android the APK was built from, and the check fails the moment this checkout's app
                     source stops matching it: any change to any file the app is built from means the published APK
                     predates it. The published bytes themselves are still compared with the record.
+  milestone-report.docx  tools/render_report_docx.py over docs/milestone-roadmap-report.md. That script loads
+                    tools/render_proposal_docx.py by path and sets the report through it (parser, cover, header and
+                    lockup are the proposal's), so both of those are its sources too. Same python-docx timestamps as
+                    proposal.docx, so the same sha256-zip-entries digest.
+  celo-mainnet-deployment-plan.md  a plain copy of docs/celo-mainnet-deployment-plan.md. sha256.
+  findings.md       a plain copy of FINDINGS.md. sha256.
 
 Checks, one line per carrier per check:
   sources   every source the record names still hashes to the recorded value (a moved source is a carrier
@@ -84,6 +93,7 @@ import subprocess
 import sys
 import tempfile
 import zipfile
+import zlib
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -110,6 +120,10 @@ ARCH_GENERATOR = Path("tools") / "generate_architecture.py"
 SLIDE_PNG = "architecture-slide.png"
 APK = "android-debug.apk"
 APP_SOURCE = Path("mobile") / "android"
+REPORT_MARKDOWN = Path("docs") / "milestone-roadmap-report.md"
+REPORT_RENDERER = Path("tools") / "render_report_docx.py"
+DEPLOYMENT_PLAN = Path("docs") / "celo-mainnet-deployment-plan.md"
+FINDINGS = Path("FINDINGS.md")
 
 LOCATION = "the published copy in the workspace Files"
 REMEDY = "re-render, republish, stage the published bytes, then --record (DEPLOY.md section 9)"
@@ -122,11 +136,12 @@ class Carrier:
     name: str
     algorithm: str
     sources: tuple[Path, ...]
-    renderer: Path | None = None       # rendered from MARKDOWN by this script ...
+    renderer: Path | None = None       # rendered from `markdown` by this script ...
     copy_of: Path | None = None        # ... or published as this file, byte for byte ...
     provenance_of: Path | None = None  # ... or a raster pinned to this SVG by the tEXt chunks it carries ...
     build_source: Path | None = None   # ... or a binary pinned to this committed git tree
     environment_bound: bool = False    # its raw bytes are reproducible only where the render environment is pinned
+    markdown: Path = MARKDOWN          # the source a renderer is run over
 
 
 CARRIERS: tuple[Carrier, ...] = (
@@ -138,6 +153,10 @@ CARRIERS: tuple[Carrier, ...] = (
     Carrier("architecture.svg", SHA256, (DIAGRAM_SVG,), copy_of=DIAGRAM_SVG),
     Carrier(SLIDE_PNG, SHA256, (DIAGRAM_SVG, ARCH_GENERATOR), provenance_of=DIAGRAM_SVG),
     Carrier(APK, SHA256, (), build_source=APP_SOURCE),
+    Carrier("milestone-report.docx", ZIP_ENTRIES, (REPORT_MARKDOWN, REPORT_RENDERER, DOCX_RENDERER, LOCKUP),
+            renderer=REPORT_RENDERER, markdown=REPORT_MARKDOWN),
+    Carrier("celo-mainnet-deployment-plan.md", SHA256, (DEPLOYMENT_PLAN,), copy_of=DEPLOYMENT_PLAN),
+    Carrier("findings.md", SHA256, (FINDINGS,), copy_of=FINDINGS),
 )
 
 
@@ -172,12 +191,23 @@ def zip_entries_digest(path: Path) -> str:
     return h.hexdigest()
 
 
+def zip_damaged(path: Path) -> bool:
+    """True when an entry's data no longer inflates to the CRC32 the central directory records for it: the entries
+    digest reads only that directory, so without this a flipped byte in the compressed data would pass."""
+    try:
+        with zipfile.ZipFile(path) as z:
+            return z.testzip() is not None
+    except (zipfile.BadZipFile, zlib.error, EOFError):
+        return True
+
+
 def digest(path: Path, algorithm: str) -> str:
     if algorithm == ZIP_ENTRIES:
         try:
-            return zip_entries_digest(path)
+            entries = zip_entries_digest(path)
         except zipfile.BadZipFile:
             return "not-a-zip:" + sha256_file(path)
+        return "damaged:" + sha256_file(path) if zip_damaged(path) else entries
     return sha256_file(path)
 
 
@@ -207,13 +237,13 @@ def render_record(entries: list[dict]) -> str:
 # --------------------------------------------------------------------------- render
 
 def render(root: Path, carrier: Carrier, out_dir: Path) -> Path:
-    """Run the carrier's renderer over the markdown in a subprocess (each renderer resolves its stylesheet and
+    """Run the carrier's renderer over its markdown in a subprocess (each renderer resolves its stylesheet and
     lockup against its own checkout) and return the output path."""
     script = root / carrier.renderer
     if not script.exists():
         raise SetupError(f"renderer {carrier.renderer} missing")
     out = out_dir / carrier.name
-    run = subprocess.run([sys.executable, str(script), "--src", str(root / MARKDOWN), "--out", str(out)],
+    run = subprocess.run([sys.executable, str(script), "--src", str(root / carrier.markdown), "--out", str(out)],
                          cwd=root, capture_output=True, text=True, timeout=300)
     if run.returncode != 0 or not out.exists():
         tail = "\n".join((run.stdout + run.stderr).strip().splitlines()[-15:])
