@@ -132,8 +132,9 @@ recursion, exactly what a reader gets), runs the quick start above line by line 
 prints a per-line table, the commit and tree it checked, and every skipped step. Only a run with nothing skipped is a
 `PASS` (exit 0); `--source local --commit <sha>` proves a local commit, `--json PATH` writes the record.
 
-Push `main` with `scripts/push-verified.sh`: it proves the local commit, pushes it, then checks the remote's `main`
-is that commit and proves it again from the remote. `python3 tools/install_git_hooks.py` installs the pre-push hook
+Push `main` with `scripts/push-verified.sh`: it refuses a base that is behind the remote's `main` in seconds, rather
+than after the proof, then proves the local commit, pushes it, checks the remote's `main` is that commit and proves it
+again from the remote. `python3 tools/install_git_hooks.py` installs the pre-push hook
 (`scripts/git-hooks/pre-push`) that refuses a push to `main` whose commit fails the proof; `--check` reports whether
 the installed copy is current. CI (`.github/workflows/clean-clone-proof.yml`) repeats the gate on every push to `main`
 in key-free mode, so its runs are partial by design: **the deployer key is never given to CI**, and the steps that

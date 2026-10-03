@@ -811,9 +811,12 @@ record for the same commit and tree under `.git/clean-clone-proof/` is reused ra
 purpose: `git push --no-verify`, or `CLEAN_CLONE_PROOF_SKIP=1 git push ...`, which prints a loud warning that the
 commit went up unverified.
 
-**Pushing.** `scripts/push-verified.sh` is the way to push `main`. It proves the local commit, pushes it, then
-confirms what landed: `git ls-remote` must report the local sha as the remote's `main`, and a `--source github` proof
-clones the pushed tip back and runs everything again. It exits nonzero naming the stage that failed.
+**Pushing.** `scripts/push-verified.sh` is the way to push `main`. It first checks the push can land: the remote's
+`main` is read with `git ls-remote`, and a local commit that is not a fast-forward of it is refused in seconds, naming
+the remote sha and the rebase to run, instead of failing as `! [rejected] ... (fetch first)` after the whole proof. It
+then proves the local commit, pushes it, and confirms what landed: `git ls-remote` must report the local sha as the
+remote's `main`, and a `--source github` proof clones the pushed tip back and runs everything again. It exits nonzero
+naming the stage that failed.
 
 ```bash
 scripts/push-verified.sh            # HEAD to origin's main
