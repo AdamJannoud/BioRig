@@ -102,6 +102,74 @@
       "sources": {
         "FINDINGS.md": "ae92a1e655db3f98d055c3761b576b13659bf4e9483a7ab6c201742b68a7d34b"
       }
+    },
+    {
+      "algorithm": "sha256",
+      "digest": "b6bd4bc27680d43517fb414f5ada04793a082881979687bc122cee838b3b8cb9",
+      "name": "demo_90s.mp4",
+      "properties": {
+        "audio": null,
+        "codec": "h264",
+        "duration_s": "90.000000",
+        "fps": "30/1",
+        "frames": 2700,
+        "height": 1080,
+        "video_md5": "9dc0bad9f57a934b53a9225632cf07ea",
+        "width": 1920
+      },
+      "size": 3543402,
+      "sources": {
+        "tools/demo_facts.json": "3f27f922a2eb4e785cc99ce28c17c133c1d4d8fcb463b6bbc8c7fe4bd56a13a3",
+        "tools/demo_scenes/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "tools/demo_scenes/scene1_context.py": "3d360da23aa1fe0e212c4dd1e21ff0bb926dae171dbf1c966c6a201c4780feb9",
+        "tools/demo_scenes/scene2_verify.py": "d02bf491d51e00f37bf1c186d38d56ddc810ba621255be318389fc90a924955c",
+        "tools/demo_scenes/scene3_mint.py": "5752b8dfa430843c0913e2e2d0fdf5ba381bcab58cdb714ba7e3706564615187",
+        "tools/demo_scenes/scene4_protect.py": "eeaa76bcb38f5ee89b6f6965631afccf2d54f702c6bb28000bc6b143f8ca9add",
+        "tools/demo_style.py": "1928a2963063d9845784b33acfcbcf32b45565dc936c0f3356173323bcd8a02d"
+      }
+    },
+    {
+      "algorithm": "sha256",
+      "digest": "1339744bf6ea2b7979c1fae2b9bc9cbb9c60b6c9477d3868205a976c74eed3b9",
+      "name": "demo_90s_voiceover.mp4",
+      "properties": {
+        "audio": {
+          "channels": 1,
+          "codec": "aac",
+          "sample_rate": 44100
+        },
+        "codec": "h264",
+        "duration_s": "90.000000",
+        "fps": "30/1",
+        "frames": 2700,
+        "height": 1080,
+        "video_md5": "9dc0bad9f57a934b53a9225632cf07ea",
+        "width": 1920
+      },
+      "size": 5357943,
+      "sources": {
+        "tools/demo_facts.json": "3f27f922a2eb4e785cc99ce28c17c133c1d4d8fcb463b6bbc8c7fe4bd56a13a3",
+        "tools/demo_scenes/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "tools/demo_scenes/scene1_context.py": "3d360da23aa1fe0e212c4dd1e21ff0bb926dae171dbf1c966c6a201c4780feb9",
+        "tools/demo_scenes/scene2_verify.py": "d02bf491d51e00f37bf1c186d38d56ddc810ba621255be318389fc90a924955c",
+        "tools/demo_scenes/scene3_mint.py": "5752b8dfa430843c0913e2e2d0fdf5ba381bcab58cdb714ba7e3706564615187",
+        "tools/demo_scenes/scene4_protect.py": "eeaa76bcb38f5ee89b6f6965631afccf2d54f702c6bb28000bc6b143f8ca9add",
+        "tools/demo_style.py": "1928a2963063d9845784b33acfcbcf32b45565dc936c0f3356173323bcd8a02d"
+      }
+    },
+    {
+      "algorithm": "sha256",
+      "digest": "c4c1c7179d8884896c5697ed0d37258321837f7c4fd0f018ee1f169ec8b513a0",
+      "fence": {
+        "lines": 281,
+        "path": "src/BioRigCoreV5.sol",
+        "sha256": "1d7e41fa73ec2c2a9a0045280a66f22ba24eb1b0263884ec25c4d55c957a6c92"
+      },
+      "name": "corev5-source.md",
+      "size": 11293,
+      "sources": {
+        "src/BioRigCoreV5.sol": "1d7e41fa73ec2c2a9a0045280a66f22ba24eb1b0263884ec25c4d55c957a6c92"
+      }
     }
   ],
   "location": "the published copy in the workspace Files"

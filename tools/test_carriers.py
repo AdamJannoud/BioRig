@@ -4,14 +4,17 @@ so must be able to fail.
 The negative controls run against a small tree in tmp_path: the proposal and report markdown, the three renderers, the
 stylesheet, the lockup, the deployment plan and FINDINGS.md, a stand-in diagram svg, a stand-in raster of a few bytes (the real one is 1.8 MB and the gate only hashes it), a
 small stand-in slide raster carrying the same tEXt provenance the generator writes, a stand-in app source under
-mobile/android in a git repo, and a stand-in apk (a zip with the two entries that make one). The tree is recorded once
+mobile/android in a git repo, a stand-in apk (a zip with the two entries that make one), the demo scenes, style and
+facts with two one-second stand-in videos (a silent master, and the same h264 stream copied under a mono aac track, as
+the narrated cut is made), and the committed BioRigCoreV5.sol with a stand-in rail doc fencing it. The tree is recorded once
 per module from its own fresh renders, and each test gets its own copy, shown to pass before it is broken, so a red
 result cannot be a broken copy. Renders are memoised on their inputs, so only a test that changes an input pays for a
 new one. One control runs the real CLI on this checkout against the committed record: with nothing staged it must pass
 in any environment, noting that the pdf's raw render bytes and the slide raster's provenance are not attested there,
 because Chromium print-to-PDF bytes depend on the browser build and fonts, and the raster's provenance is only read
 where its published copy is staged. The controls below show that byte comparison is still enforced wherever the
-published copies are staged. Nothing here reads cache/carriers/published/.
+published copies are staged. Only test_new_rows_pass_on_the_real_published_copies reads cache/carriers/published/,
+and it skips where the video and source-doc copies are not staged there (CI).
 """
 from __future__ import annotations
 
@@ -35,7 +38,8 @@ if C.diagram is None:  # the provenance keys live in the generator, which needs 
 ROOT = Path(__file__).resolve().parent.parent
 CLI = ROOT / "tools" / "check_carriers.py"
 COPIED = (C.MARKDOWN, C.PDF_RENDERER, C.DOCX_RENDERER, C.STYLESHEET, C.LOCKUP, C.ARCH_GENERATOR,
-          C.REPORT_MARKDOWN, C.REPORT_RENDERER, C.DEPLOYMENT_PLAN, C.FINDINGS)
+          C.REPORT_MARKDOWN, C.REPORT_RENDERER, C.DEPLOYMENT_PLAN, C.FINDINGS, C.DEMO_STYLE, C.DEMO_FACTS, C.COREV5,
+          *(p.relative_to(ROOT) for p in sorted((ROOT / C.DEMO_SCENES).glob("*.py"))))
 STAND_IN_SVG = ('<svg xmlns="http://www.w3.org/2000/svg" width="8" height="5" viewBox="0 0 8 5">'
                 '<rect width="8" height="5" fill="#ffffff"/></svg>')
 STAND_IN_RASTER = b"\x89PNG\r\n\x1a\n stand-in raster for the carrier gate tests\n"
@@ -70,6 +74,26 @@ def slide_raster(svg: str, *, size: tuple[int, int] | None = None, svg_sha: str 
     with io.BytesIO() as buf:
         Image.frombytes("RGB", want, data).save(buf, format="PNG", pnginfo=info)
         return buf.getvalue()
+
+
+def ffmpeg(*args: str) -> None:
+    subprocess.run(["ffmpeg", "-v", "error", "-y", *args], check=True, capture_output=True, timeout=120)
+
+
+def stand_in_videos(staged: Path) -> None:
+    """A one-second silent h264 master, and the narrated cut made the way the real one is: the master's video stream
+    copied, not re-encoded, under one mono aac track."""
+    master, voiceover = staged / C.DEMO_MASTER, staged / C.DEMO_VOICEOVER
+    ffmpeg("-f", "lavfi", "-i", "testsrc=size=64x36:rate=10", "-t", "1", "-c:v", "libx264", "-pix_fmt", "yuv420p",
+           str(master))
+    ffmpeg("-i", str(master), "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=44100", "-t", "1",
+           "-map", "0:v", "-map", "1:a", "-c:v", "copy", "-c:a", "aac", "-ac", "1", str(voiceover))
+
+
+def rail_doc(source: bytes, extra: str = "") -> bytes:
+    """A stand-in for the published rail doc: a header, then the contract in one ```solidity fence."""
+    return (b"# BioRigCoreV5.sol\n\nCurrent source on disk.\n\n## Full source\n\n```solidity\n" + source + b"```\n"
+            + extra.encode())
 
 
 def flip(raw: bytes, offset: int) -> bytes:
@@ -133,6 +157,11 @@ def recorded(tmp_path_factory) -> Path:
                 shutil.copyfile(root / carrier.copy_of, staged / carrier.name)
             elif carrier.provenance_of:
                 (staged / carrier.name).write_bytes(slide_raster((root / carrier.provenance_of).read_text()))
+            elif carrier.media:
+                if not (staged / carrier.name).exists():
+                    stand_in_videos(staged)
+            elif carrier.fence_of:
+                (staged / carrier.name).write_bytes(rail_doc((root / carrier.fence_of).read_bytes()))
             else:
                 stand_in_apk(staged / carrier.name)
         assert run(root, "--record") == 0
@@ -168,15 +197,20 @@ def test_committed_record_matches_the_tree(tmp_path):
     note = f"note: {C.SLIDE_PNG}: the published raster's provenance is not checked here"
     assert any(l.startswith(note) for l in out)
     for carrier in C.CARRIERS:
-        n = len(carrier.sources)
+        n = len(C.source_files(ROOT, carrier))
         if n:
             assert f"ok: {carrier.name}: {n}/{n} sources match the record" in out
     for name in ("proposal.docx", "proposal.md", "architecture.png", "architecture.svg", "milestone-report.docx",
                  "celo-mainnet-deployment-plan.md", "findings.md"):
         assert any(l.startswith(f"ok: {name}: ") and "matches the published" in l for l in out)
     assert any(l.startswith(f"ok: {C.APK}: the app source mobile/android is the tree ") for l in out)
+    for name in (C.DEMO_MASTER, C.DEMO_VOICEOVER):
+        assert any(l.startswith(f"note: {name}: the published video's media facts are not checked here") for l in out)
+    assert f"ok: {C.COREV5_DOC}: the committed src/BioRigCoreV5.sol matches the published fence sha256 " \
+        f"{C.sha256_file(ROOT / C.COREV5)[:12]}" in out
+    assert any(l.startswith(f"ok: {C.DEMO_VOICEOVER}: its recorded video stream md5 ") for l in out)
     assert [l for l in out if not l.startswith("ok: ")] == [l for l in out if l.startswith("note: ")]
-    assert sum(l.startswith("note: ") for l in out) == 3
+    assert sum(l.startswith("note: ") for l in out) == 5
 
 
 def test_committed_record_covers_every_source_and_no_internal_location():
@@ -184,7 +218,8 @@ def test_committed_record_covers_every_source_and_no_internal_location():
     record = C.load_record(ROOT)
     assert sorted(record) == sorted(c.name for c in C.CARRIERS)
     for carrier in C.CARRIERS:
-        assert sorted(record[carrier.name]["sources"]) == sorted(rel.as_posix() for rel in carrier.sources)
+        assert sorted(record[carrier.name]["sources"]) == sorted(rel.as_posix()
+                                                                 for rel in C.source_files(ROOT, carrier))
         assert record[carrier.name]["algorithm"] == carrier.algorithm
     assert raw == C.render_record(list(json.loads(raw)["carriers"]))  # deterministic layout, trailing newline
     assert json.loads(raw)["location"] == C.LOCATION
@@ -222,7 +257,9 @@ def test_clean_tree_passes(tree, capsys):
     out = capsys.readouterr()
     assert out.err == ""
     # every carrier gets a derivation and a staged line; only the ones with file sources get a source line
-    expected = sum(1 for carrier in C.CARRIERS if carrier.sources) + 2 * len(C.CARRIERS)
+    # and the narrated video a picture line
+    expected = (sum(1 for carrier in C.CARRIERS if carrier.has_sources) + 2 * len(C.CARRIERS)
+                + sum(1 for carrier in C.CARRIERS if carrier.same_picture_as))
     assert sum(line.startswith("ok: ") for line in out.out.splitlines()) == expected
 
 
@@ -646,3 +683,179 @@ def test_edited_report_markdown_is_caught_on_the_report_alone(tree, capsys):
                for l in lines)
     assert any(l.startswith("drift: milestone-report.docx: a fresh render is sha256-zip-entries ") for l in lines)
     assert not any(l.startswith("drift: proposal.") for l in lines)
+
+
+# ---- the two videos and the published contract source
+
+def restore_passes(path: Path, raw: bytes, root: Path, capsys) -> None:
+    """Put the unmutated published copy back: the same tree passes again, so the drift was the mutation's."""
+    path.write_bytes(raw)
+    assert run(root) == 0
+    assert capsys.readouterr().err == ""
+
+
+@pytest.mark.parametrize("name", [C.DEMO_MASTER, C.DEMO_VOICEOVER])
+def test_flipped_byte_in_a_staged_video_is_caught(tree, capsys, name):
+    path = tree / C.STAGED / name
+    raw = path.read_bytes()
+    path.write_bytes(flip(raw, len(raw) // 2))
+    assert run(tree) == 1
+    lines = drift(capsys)
+    assert lines and all(l.startswith(f"drift: {name}: ") for l in lines), lines
+    assert f"drift: {name}: the copy in cache/carriers/published/{name} is not the published artifact (sha256 " \
+        f"{C.sha256_file(path)[:12]}, record {hashlib.sha256(raw).hexdigest()[:12]})" in lines
+    restore_passes(path, raw, tree, capsys)
+
+
+def test_reencoded_voiceover_is_caught_by_its_media_facts(tree, capsys):
+    """Narration muxed onto a second render rather than the published picture: a valid video, another decoded stream."""
+    path = tree / C.STAGED / C.DEMO_VOICEOVER
+    raw = path.read_bytes()
+    ffmpeg("-i", str(tree / C.STAGED / C.DEMO_MASTER), "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=44100",
+           "-t", "1", "-map", "0:v", "-map", "1:a", "-c:v", "libx264", "-crf", "40", "-pix_fmt", "yuv420p",
+           "-c:a", "aac", "-ac", "1", str(path))
+    assert run(tree) == 1
+    lines = drift(capsys)
+    assert any(l.startswith(f"drift: {C.DEMO_VOICEOVER}: the staged {C.DEMO_VOICEOVER}'s media facts differ from the "
+                            "record: video_md5 ") for l in lines), lines
+    restore_passes(path, raw, tree, capsys)
+
+
+def test_video_rows_report_their_media_facts(tree, capsys):
+    assert run(tree) == 0
+    out = capsys.readouterr().out.splitlines()
+    assert any(l.startswith(f"ok: {C.DEMO_MASTER}: the staged copy is 64x36 h264 at 10/1 fps, 10 frames, ")
+               and l.endswith("no audio track, as recorded") for l in out), out
+    assert any(l.startswith(f"ok: {C.DEMO_VOICEOVER}: the staged copy is 64x36 h264 at 10/1 fps, 10 frames, ")
+               and l.endswith("one aac audio stream at 44100 Hz, 1 channel(s), as recorded") for l in out), out
+    record = C.load_record(tree)
+    assert record[C.DEMO_MASTER]["properties"]["video_md5"] == record[C.DEMO_VOICEOVER]["properties"]["video_md5"]
+
+
+def test_picture_invariant_mismatch_is_drift_from_the_record_alone(tree, capsys):
+    shutil.rmtree(tree / C.STAGED)
+    path = tree / C.RECORD
+    raw = json.loads(path.read_text())
+    voiceover = next(c for c in raw["carriers"] if c["name"] == C.DEMO_VOICEOVER)
+    voiceover["properties"]["video_md5"] = "0" * 32
+    path.write_text(C.render_record(raw["carriers"]))
+    assert run(tree) == 1
+    lines = drift(capsys)
+    assert len(lines) == 1, lines
+    assert lines[0].startswith(f"drift: {C.DEMO_VOICEOVER}: its recorded video stream md5 {'0' * 32} is not "
+                               f"{C.DEMO_MASTER}'s ")
+
+
+def test_edited_scene_is_caught_on_both_videos(tree, capsys):
+    scene = sorted((tree / C.DEMO_SCENES).glob("scene*.py"))[0]
+    with scene.open("a") as f:
+        f.write("# a drawing change after the render\n")
+    assert run(tree) == 1
+    lines = drift(capsys)
+    rel = scene.relative_to(tree).as_posix()
+    assert sorted(l.split(" moved ")[0] for l in lines) == sorted(
+        f"drift: {name}: source {rel}" for name in (C.DEMO_MASTER, C.DEMO_VOICEOVER))
+
+
+def test_added_scene_is_caught_on_both_videos(tree, capsys):
+    (tree / C.DEMO_SCENES / "scene5_extra.py").write_text("# a scene the published render predates\n")
+    assert run(tree) == 1
+    lines = drift(capsys)
+    assert sorted(lines) == sorted(
+        f"drift: {name}: source tools/demo_scenes/scene5_extra.py is not in the record; {C.REMEDY}"
+        for name in (C.DEMO_MASTER, C.DEMO_VOICEOVER))
+
+
+def test_demo_harness_is_deliberately_not_a_video_source():
+    for name in (C.DEMO_MASTER, C.DEMO_VOICEOVER):
+        assert "tools/generate_demo.py" not in C.load_record(ROOT)[name]["sources"]
+
+
+def test_staged_video_without_ffprobe_is_a_setup_failure(tree, capsys, monkeypatch):
+    which = shutil.which
+    monkeypatch.setattr(C.shutil, "which", lambda name: None if name == "ffprobe" else which(name))
+    assert run(tree) == 2
+    assert capsys.readouterr().err.startswith("setup: ffprobe is not on PATH: the video carriers")
+
+
+def test_videos_not_staged_are_notes_and_drift_under_require_staged(tree, capsys):
+    for name in (C.DEMO_MASTER, C.DEMO_VOICEOVER):
+        (tree / C.STAGED / name).unlink()
+    assert run(tree) == 0
+    assert capsys.readouterr().err == ""
+    assert run(tree, "--require-staged") == 1
+    lines = drift(capsys)
+    for name in (C.DEMO_MASTER, C.DEMO_VOICEOVER):
+        assert any(l.startswith(f"drift: {name}: the published video's media facts are not checked here") for l in lines)
+        assert f"drift: {name}: not staged in cache/carriers/published/ (--require-staged needs it to attest the " \
+            "published bytes)" in lines
+
+
+def test_mutated_line_in_the_staged_source_fence_is_caught(tree, capsys):
+    path = tree / C.STAGED / C.COREV5_DOC
+    raw = path.read_bytes()
+    assert raw.count(b"pragma solidity ^0.8.20;") == 1
+    path.write_bytes(raw.replace(b"pragma solidity ^0.8.20;", b"pragma solidity ^0.8.21;"))
+    assert run(tree) == 1
+    lines = drift(capsys)
+    assert lines and all(l.startswith(f"drift: {C.COREV5_DOC}: ") for l in lines), lines
+    assert any(l.startswith(f"drift: {C.COREV5_DOC}: the staged {C.COREV5_DOC} has a fenced block that is not the "
+                            "committed src/BioRigCoreV5.sol: fence sha256 ") and "first difference at line 2" in l
+               for l in lines), lines
+    assert any(l.startswith(f"drift: {C.COREV5_DOC}: the copy in cache/carriers/published/{C.COREV5_DOC} is not the "
+                            "published artifact (sha256 ") for l in lines)
+    restore_passes(path, raw, tree, capsys)
+
+
+@pytest.mark.parametrize("extra, count", [("", 0), ("\n```text\nsecond block\n```\n", 2)])
+def test_staged_source_doc_without_exactly_one_fence_is_drift(tree, capsys, extra, count):
+    path = tree / C.STAGED / C.COREV5_DOC
+    source = (tree / C.COREV5).read_bytes()
+    path.write_bytes(rail_doc(source, extra) if count else source)  # no fence at all: the bare contract
+    assert run(tree) == 1
+    held = "no fenced code blocks" if count == 0 else "2 fenced code blocks"
+    assert any(l.startswith(f"drift: {C.COREV5_DOC}: the staged {C.COREV5_DOC} holds {held}, not exactly one")
+               for l in drift(capsys))
+
+
+def test_edited_contract_is_caught_on_the_source_doc(tree, capsys):
+    with (tree / C.COREV5).open("a") as f:
+        f.write("// a change after the doc was published\n")
+    assert run(tree) == 1
+    lines = drift(capsys)
+    assert any(l.startswith(f"drift: {C.COREV5_DOC}: source src/BioRigCoreV5.sol moved") for l in lines)
+    assert any(l.startswith(f"drift: {C.COREV5_DOC}: the committed src/BioRigCoreV5.sol is sha256 ") for l in lines)
+
+
+def test_record_refuses_a_voiceover_on_another_picture(tree, capsys):
+    before = (tree / C.RECORD).read_bytes()
+    path = tree / C.STAGED / C.DEMO_VOICEOVER
+    ffmpeg("-f", "lavfi", "-i", "testsrc2=size=64x36:rate=10", "-f", "lavfi", "-i", "sine=sample_rate=44100", "-t", "1",
+           "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", "-ac", "1", str(path))
+    assert run(tree, "--record") == 1
+    lines = drift(capsys)
+    assert len(lines) == 1 and lines[0].startswith(f"drift: {C.DEMO_VOICEOVER}: refusing to record: its video stream "
+                                                   "md5 ")
+    assert (tree / C.RECORD).read_bytes() == before
+
+
+NEW_ROWS = (C.DEMO_MASTER, C.DEMO_VOICEOVER, C.COREV5_DOC)
+REAL_STAGED = ROOT / C.STAGED
+
+
+@pytest.mark.skipif(not all((REAL_STAGED / name).is_file() for name in NEW_ROWS),
+                    reason="the published videos and source doc are staged only in the publishing environment")
+def test_new_rows_pass_on_the_real_published_copies(tmp_path):
+    """The three new rows against the bytes actually published, staged under cache/carriers/published/, and the
+    picture invariant on the committed record."""
+    record = C.load_record(ROOT)
+    for carrier in (c for c in C.CARRIERS if c.name in NEW_ROWS):
+        lines = (C.check_sources(ROOT, carrier, record[carrier.name])
+                 + [C.check_derivation(ROOT, carrier, record[carrier.name], tmp_path, REAL_STAGED, True)]
+                 + ([C.check_picture(carrier, record)] if carrier.same_picture_as else []))
+        assert [l.status for l in lines] == ["ok"] * len(lines), [str(l) for l in lines]
+        assert C.sha256_file(REAL_STAGED / carrier.name) == record[carrier.name]["digest"]
+    master, voiceover = record[C.DEMO_MASTER]["properties"], record[C.DEMO_VOICEOVER]["properties"]
+    assert master["video_md5"] == voiceover["video_md5"]
+    assert (master["audio"], voiceover["audio"]) == (None, {"codec": "aac", "sample_rate": 44100, "channels": 1})
+    assert record[C.COREV5_DOC]["fence"]["sha256"] == C.sha256_file(ROOT / C.COREV5)

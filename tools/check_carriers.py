@@ -50,6 +50,24 @@ Carriers (docs/carriers.json is the publish record: per carrier its size, digest
                     proposal.docx, so the same sha256-zip-entries digest.
   celo-mainnet-deployment-plan.md  a plain copy of docs/celo-mainnet-deployment-plan.md. sha256.
   findings.md       a plain copy of FINDINGS.md. sha256.
+  demo_90s.mp4      the silent 90-second explainer master, rendered by tools/generate_demo.py from the scenes under
+                    tools/demo_scenes/, tools/demo_style.py and tools/demo_facts.json. Never re-rendered or re-encoded
+                    here: an h264 encode is bound to the encoder build, so a fresh render would make the gate flaky for
+                    the same reason the pdf is environment-bound. sha256 over the published bytes, plus the media facts
+                    the record keeps under `properties` (size, frame rate, frame count, duration, the md5 of the decoded
+                    video stream, and no audio track), read back from the staged copy with ffprobe and ffmpeg. Its
+                    sources are every file under tools/demo_scenes/ plus the style and facts files: the inputs that
+                    decide the picture. tools/generate_demo.py is deliberately not one of them: it is the harness, its
+                    data-fetch path changed (8f2ab60, 2 October) after the render without touching the drawing path,
+                    and binding its bytes would fail the row for unrelated edits. So the row proves the picture's inputs
+                    have not moved since the render; it does not prove the published file is what they produce today.
+  demo_90s_voiceover.mp4  the same picture with narration muxed on: the same sources, sha256 and media facts, with one
+                    aac audio stream. Its recorded video-stream md5 must equal the master's (`picture`), which is what
+                    shows the narration was muxed onto the published picture rather than onto a second render.
+  corev5-source.md  the rail doc publishing the full src/BioRigCoreV5.sol inside one ```solidity fence. The code is what
+                    matters, so the check extracts the single fenced block from the staged copy and compares it byte for
+                    byte with the committed contract. sha256 over the document; the record keeps the fence's sha256 too.
+                    A staged doc with no fenced block, or with more than one, is drift, never a guess.
 
 Checks, one line per carrier per check:
   sources   every source the record names still hashes to the recorded value (a moved source is a carrier
@@ -60,7 +78,12 @@ Checks, one line per carrier per check:
             render (proposal.pdf) is attested only in the publishing environment, where the published copy is staged
             (pinned browser build and brand fonts); without a staged copy the line is a note on stdout saying the
             render's bytes are not attested here, and the recorded source digests, the docx/md/png/svg comparisons and
-            any staged copies present still decide the exit status.
+            any staged copies present still decide the exit status. For the two videos the derivation is the media
+            facts read from the staged copy (ffprobe, and ffmpeg for the decoded video-stream md5); with no staged copy
+            that line is a note. A staged video with ffprobe or ffmpeg missing is a setup failure, never a skip. For
+            corev5-source.md it is the staged doc's single fenced block against src/BioRigCoreV5.sol, or without a
+            staged copy the recorded fence digest against that file.
+  picture   demo_90s_voiceover.mp4 only, from the record alone: its recorded video-stream md5 equals demo_90s.mp4's.
   tree      android-debug.apk only: the recorded git tree of the app source still matches this checkout, so the
             published APK was built from the app source as it stands. A file added under mobile/android and never
             committed counts too, since gradle compiles untracked files: the tree hash alone would miss it. Needs a
@@ -81,7 +104,8 @@ Android package plus a clean app-source tree - so the record only ever describes
 pipeline. The publish flow is DEPLOY.md section 9. Offline: no network, no RPC.
 
 Exit status: 0 clean, 1 drift (or --record refused), 2 setup failure (record missing or unreadable, a renderer
-missing, a render failing, or --record with a published copy unstaged).
+missing, a render failing, ffprobe or ffmpeg missing where a staged video needs them, or --record with a published copy
+unstaged).
 """
 from __future__ import annotations
 
@@ -89,6 +113,7 @@ import argparse
 import hashlib
 import json
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -124,6 +149,13 @@ REPORT_MARKDOWN = Path("docs") / "milestone-roadmap-report.md"
 REPORT_RENDERER = Path("tools") / "render_report_docx.py"
 DEPLOYMENT_PLAN = Path("docs") / "celo-mainnet-deployment-plan.md"
 FINDINGS = Path("FINDINGS.md")
+DEMO_MASTER = "demo_90s.mp4"
+DEMO_VOICEOVER = "demo_90s_voiceover.mp4"
+DEMO_SCENES = Path("tools") / "demo_scenes"
+DEMO_STYLE = Path("tools") / "demo_style.py"
+DEMO_FACTS = Path("tools") / "demo_facts.json"
+COREV5_DOC = "corev5-source.md"
+COREV5 = Path("src") / "BioRigCoreV5.sol"
 
 LOCATION = "the published copy in the workspace Files"
 REMEDY = "re-render, republish, stage the published bytes, then --record (DEPLOY.md section 9)"
@@ -140,8 +172,16 @@ class Carrier:
     copy_of: Path | None = None        # ... or published as this file, byte for byte ...
     provenance_of: Path | None = None  # ... or a raster pinned to this SVG by the tEXt chunks it carries ...
     build_source: Path | None = None   # ... or a binary pinned to this committed git tree
+    media: bool = False                # ... or a video pinned by the media facts read from its published bytes ...
+    fence_of: Path | None = None       # ... or a markdown doc whose single fenced block is this file, byte for byte
     environment_bound: bool = False    # its raw bytes are reproducible only where the render environment is pinned
     markdown: Path = MARKDOWN          # the source a renderer is run over
+    source_dirs: tuple[Path, ...] = () # every file under these is a source too, so an added file is drift as well
+    same_picture_as: str | None = None # a video whose recorded video-stream md5 must equal this carrier's
+
+    @property
+    def has_sources(self) -> bool:
+        return bool(self.sources or self.source_dirs)
 
 
 CARRIERS: tuple[Carrier, ...] = (
@@ -157,6 +197,10 @@ CARRIERS: tuple[Carrier, ...] = (
             renderer=REPORT_RENDERER, markdown=REPORT_MARKDOWN),
     Carrier("celo-mainnet-deployment-plan.md", SHA256, (DEPLOYMENT_PLAN,), copy_of=DEPLOYMENT_PLAN),
     Carrier("findings.md", SHA256, (FINDINGS,), copy_of=FINDINGS),
+    Carrier(DEMO_MASTER, SHA256, (DEMO_STYLE, DEMO_FACTS), source_dirs=(DEMO_SCENES,), media=True),
+    Carrier(DEMO_VOICEOVER, SHA256, (DEMO_STYLE, DEMO_FACTS), source_dirs=(DEMO_SCENES,), media=True,
+            same_picture_as=DEMO_MASTER),
+    Carrier(COREV5_DOC, SHA256, (COREV5,), fence_of=COREV5),
 )
 
 
@@ -261,10 +305,20 @@ def derived(root: Path, carrier: Carrier, out_dir: Path) -> tuple[str, Path]:
 
 # --------------------------------------------------------------------------- checks
 
+def source_files(root: Path, carrier: Carrier) -> list[Path]:
+    """The carrier's named sources plus every file under its source directories (bytecode caches aside), sorted."""
+    found = set(carrier.sources)
+    for rel in carrier.source_dirs:
+        for path in (root / rel).rglob("*"):
+            if path.is_file() and "__pycache__" not in path.parts and path.suffix != ".pyc":
+                found.add(path.relative_to(root))
+    return sorted(found, key=Path.as_posix)
+
+
 def check_sources(root: Path, carrier: Carrier, entry: dict) -> list[Line]:
     recorded: dict[str, str] = entry.get("sources", {})
     lines = []
-    for rel in carrier.sources:
+    for rel in source_files(root, carrier):
         if rel.as_posix() not in recorded:
             lines.append(Line(carrier.name, "sources", "drift",
                               f"source {rel.as_posix()} is not in the record; {REMEDY}"))
@@ -421,6 +475,180 @@ def check_provenance(root: Path, carrier: Carrier, staged: Path, require_staged:
     return Line(carrier.name, "derive", "drift", f"the staged {carrier.name} {problem}; {REMEDY}")
 
 
+# --------------------------------------------------------------------------- videos
+
+def media_tool(name: str) -> str:
+    """The path of ffprobe or ffmpeg. Missing is a setup failure, so a staged video is never passed unread."""
+    found = shutil.which(name)
+    if found is None:
+        raise SetupError(f"{name} is not on PATH: the video carriers ({DEMO_MASTER}, {DEMO_VOICEOVER}) are checked by "
+                         f"reading their media facts out of the staged copies with ffprobe and ffmpeg; install ffmpeg "
+                         f"(DEPLOY.md section 9)")
+    return found
+
+
+_media_facts: dict[str, dict | str] = {}  # by sha256 of the file: decoding 90 s of 1080p takes seconds, once is enough
+
+
+def media_facts(path: Path) -> dict | str:
+    """The media facts the record keeps for a published video, read from its bytes (never re-encoded): codec, size,
+    frame rate, frame count and duration of its one video stream, the md5 of that stream decoded, and its audio
+    (None, one stream, or a list of them). A string says why they cannot be read."""
+    ffprobe, ffmpeg = media_tool("ffprobe"), media_tool("ffmpeg")
+    key = sha256_file(path)
+    if key not in _media_facts:
+        _media_facts[key] = read_media_facts(path, ffprobe, ffmpeg)
+    return _media_facts[key]
+
+
+def read_media_facts(path: Path, ffprobe: str, ffmpeg: str) -> dict | str:
+    probe = subprocess.run([ffprobe, "-v", "error", "-show_entries",
+                            "stream=codec_type,codec_name,width,height,r_frame_rate,nb_frames,sample_rate,channels"
+                            ":format=duration", "-of", "json", str(path)],
+                           capture_output=True, text=True, timeout=120)
+    if probe.returncode != 0:
+        return f"is not a readable video (ffprobe exit {probe.returncode}: {probe.stderr.strip()[-200:]})"
+    try:
+        info = json.loads(probe.stdout)
+        streams, duration = info.get("streams", []), info["format"]["duration"]
+    except (json.JSONDecodeError, KeyError, TypeError) as exc:
+        return f"is not a readable video (ffprobe gave no container duration: {exc!r})"
+    video = [st for st in streams if st.get("codec_type") == "video"]
+    if len(video) != 1:
+        return f"holds {len(video)} video streams, not one"
+    audio = [{"codec": st.get("codec_name"), "sample_rate": int(st.get("sample_rate", 0)),
+              "channels": st.get("channels")} for st in streams if st.get("codec_type") == "audio"]
+    md5 = subprocess.run([ffmpeg, "-v", "error", "-i", str(path), "-map", "0:v", "-f", "md5", "-"],
+                         capture_output=True, text=True, timeout=300)
+    if md5.returncode != 0 or not md5.stdout.startswith("MD5="):
+        return f"does not decode (ffmpeg exit {md5.returncode}: {md5.stderr.strip()[-200:]})"
+    v = video[0]
+    return {"codec": v.get("codec_name"), "width": v.get("width"), "height": v.get("height"),
+            "fps": v.get("r_frame_rate"), "frames": int(v.get("nb_frames", 0)), "duration_s": duration,
+            "video_md5": md5.stdout.strip()[len("MD5="):],
+            "audio": None if not audio else audio[0] if len(audio) == 1 else audio}
+
+
+def describe_media(facts: dict) -> str:
+    audio = facts.get("audio")
+    if audio is None:
+        heard = "no audio track"
+    elif isinstance(audio, dict):
+        heard = f"one {audio['codec']} audio stream at {audio['sample_rate']} Hz, {audio['channels']} channel(s)"
+    else:
+        heard = f"{len(audio)} audio streams"
+    return (f"{facts.get('width')}x{facts.get('height')} {facts.get('codec')} at {facts.get('fps')} fps, "
+            f"{facts.get('frames')} frames, {facts.get('duration_s')} s, video stream md5 "
+            f"{short(str(facts.get('video_md5')))}, {heard}")
+
+
+def check_media(carrier: Carrier, entry: dict, staged: Path, require_staged: bool) -> Line:
+    path = staged / carrier.name
+    if not path.is_file():
+        detail = (f"the published video's media facts are not checked here: no published copy is staged in {path}, and "
+                  f"the video is never re-rendered here (an h264 encode is bound to the encoder build); the recorded "
+                  f"source digests are enforced")
+        return Line(carrier.name, "derive", "drift" if require_staged else "note",
+                    f"{detail}; {REMEDY}" if require_staged else detail)
+    want = entry.get("properties")
+    if not want:
+        return Line(carrier.name, "derive", "drift", f"the record carries no media properties for it; {REMEDY}")
+    have = media_facts(path)
+    if isinstance(have, str):
+        return Line(carrier.name, "derive", "drift", f"the staged {carrier.name} {have}; {REMEDY}")
+    moved = [f"{key} {have.get(key)} (record {want.get(key)})" for key in sorted(set(want) | set(have))
+             if have.get(key) != want.get(key)]
+    if moved:
+        return Line(carrier.name, "derive", "drift",
+                    f"the staged {carrier.name}'s media facts differ from the record: {'; '.join(moved)}; {REMEDY}")
+    return Line(carrier.name, "derive", "ok", f"the staged copy is {describe_media(have)}, as recorded")
+
+
+def check_picture(carrier: Carrier, record: dict[str, dict]) -> Line:
+    """From the record alone: the narrated cut carries the master's picture, decoded md5 for decoded md5."""
+    mine = (record[carrier.name].get("properties") or {}).get("video_md5")
+    theirs = (record.get(carrier.same_picture_as, {}).get("properties") or {}).get("video_md5")
+    if mine and mine == theirs:
+        return Line(carrier.name, "picture", "ok",
+                    f"its recorded video stream md5 {short(mine)} is {carrier.same_picture_as}'s: the narration is "
+                    f"muxed onto the published picture")
+    return Line(carrier.name, "picture", "drift",
+                f"its recorded video stream md5 {mine or 'absent'} is not {carrier.same_picture_as}'s "
+                f"{theirs or 'absent'}: the narration is not on the published picture; {REMEDY}")
+
+
+# --------------------------------------------------------------------------- fenced source
+
+FENCE_OPEN = re.compile(r"^ {0,3}(`{3,}|~{3,})")
+
+
+def fenced_blocks(text: str) -> list[str]:
+    """The bodies of the fenced code blocks in a markdown text, each exactly as written (line endings kept). An
+    unclosed fence runs to the end of the text, as CommonMark has it."""
+    blocks, body, fence = [], [], None
+    for line in re.findall(r"[^\n]*\n|[^\n]+$", text):
+        if fence is None:
+            if match := FENCE_OPEN.match(line):
+                fence, body = match.group(1), []
+        elif re.fullmatch(rf" {{0,3}}{re.escape(fence[0])}{{{len(fence)},}}[ \t]*\r?\n?", line):
+            blocks.append("".join(body))
+            fence = None
+        else:
+            body.append(line)
+    if fence is not None:
+        blocks.append("".join(body))
+    return blocks
+
+
+def single_fence(doc: Path) -> bytes | str:
+    """The one fenced block of `doc` as bytes, or why there is not exactly one."""
+    try:
+        blocks = fenced_blocks(doc.read_bytes().decode("utf-8"))
+    except UnicodeDecodeError as exc:
+        return f"is not utf-8 text ({exc})"
+    if len(blocks) != 1:
+        return (f"holds {'no' if not blocks else len(blocks)} fenced code block{'' if len(blocks) == 1 else 's'}, "
+                f"not exactly one, so the code it publishes cannot be told apart")
+    return blocks[0].encode("utf-8")
+
+
+def fence_problem(doc: Path, source: Path, rel: Path) -> str | None:
+    """Why the single fenced block of `doc` is not the bytes of `source`, or None when it is."""
+    fence = single_fence(doc)
+    if isinstance(fence, str):
+        return fence
+    want = source.read_bytes()
+    if fence == want:
+        return None
+    ours, theirs = fence.splitlines(), want.splitlines()
+    first = next((i for i, (a, b) in enumerate(zip(ours, theirs)) if a != b), min(len(ours), len(theirs)))
+    return (f"has a fenced block that is not the committed {rel.as_posix()}: fence sha256 "
+            f"{short(hashlib.sha256(fence).hexdigest())} ({len(ours)} lines), tree {short(sha256_file(source))} "
+            f"({len(theirs)} lines), first difference at line {first + 1}")
+
+
+def check_fence(root: Path, carrier: Carrier, entry: dict, staged: Path) -> Line:
+    rel = carrier.fence_of.as_posix()
+    source = root / carrier.fence_of
+    if not source.exists():
+        return Line(carrier.name, "derive", "drift", f"source {rel} missing; {REMEDY}")
+    tree = sha256_file(source)
+    want = (entry.get("fence") or {}).get("sha256")
+    if want != tree:
+        return Line(carrier.name, "derive", "drift",
+                    f"the committed {rel} is sha256 {short(tree)}, the published fence is {want or 'not recorded'}; "
+                    f"{REMEDY}")
+    path = staged / carrier.name
+    if not path.is_file():
+        return Line(carrier.name, "derive", "ok", f"the committed {rel} matches the published fence sha256 {short(want)}")
+    if problem := fence_problem(path, source, carrier.fence_of):
+        return Line(carrier.name, "derive", "drift", f"the staged {carrier.name} {problem}; {REMEDY}")
+    lines = len(source.read_bytes().splitlines())
+    return Line(carrier.name, "derive", "ok",
+                f"the fenced block of the staged copy is the committed {rel} byte for byte ({lines} lines, sha256 "
+                f"{short(tree)}), as recorded")
+
+
 def check_derived(root: Path, carrier: Carrier, entry: dict, out_dir: Path, staged: Path,
                   require_staged: bool = False) -> Line:
     have, _ = derived(root, carrier, out_dir)
@@ -451,6 +679,10 @@ def check_derivation(root: Path, carrier: Carrier, entry: dict, out_dir: Path, s
         return check_build_source(root, carrier, entry)
     if carrier.provenance_of is not None:
         return check_provenance(root, carrier, staged, require_staged)
+    if carrier.media:
+        return check_media(carrier, entry, staged, require_staged)
+    if carrier.fence_of is not None:
+        return check_fence(root, carrier, entry, staged)
     return check_derived(root, carrier, entry, out_dir, staged, require_staged)
 
 
@@ -491,9 +723,11 @@ def check(root: Path, staged: Path, require_staged: bool = False) -> list[Line]:
     lines: list[Line] = []
     with tempfile.TemporaryDirectory(prefix="carriers-") as tmp:
         for carrier in CARRIERS:
-            if carrier.sources:
+            if carrier.has_sources:
                 lines += check_sources(root, carrier, record[carrier.name])
             lines.append(check_derivation(root, carrier, record[carrier.name], Path(tmp), staged, require_staged))
+            if carrier.same_picture_as is not None:
+                lines.append(check_picture(carrier, record))
     return lines + check_staged(staged, record, root, require_staged)
 
 
@@ -503,6 +737,17 @@ def staged_problem(root: Path, carrier: Carrier, path: Path, out_dir: Path) -> s
         return android_package_problem(path)
     if carrier.provenance_of is not None:
         return provenance_problem(path, root / carrier.provenance_of)
+    if carrier.media:
+        facts = media_facts(path)
+        if isinstance(facts, str) or carrier.same_picture_as is None:
+            return facts if isinstance(facts, str) else None
+        master = media_facts(path.parent / carrier.same_picture_as)
+        if isinstance(master, str) or master["video_md5"] != facts["video_md5"]:
+            return (f"its video stream md5 {facts['video_md5']} is not the staged {carrier.same_picture_as}'s "
+                    f"{master if isinstance(master, str) else master['video_md5']}: not the published picture")
+        return None
+    if carrier.fence_of is not None:
+        return fence_problem(path, root / carrier.fence_of, carrier.fence_of)
     want, _ = derived(root, carrier, out_dir)
     have = digest(path, carrier.algorithm)
     if have == want:
@@ -542,9 +787,15 @@ def record(root: Path, staged: Path) -> tuple[list[Line], bool]:
                 continue
             entry = {"name": carrier.name, "size": path.stat().st_size, "algorithm": carrier.algorithm,
                      "digest": digest(path, carrier.algorithm),
-                     "sources": {rel.as_posix(): sha256_file(root / rel) for rel in carrier.sources}}
+                     "sources": {rel.as_posix(): sha256_file(root / rel) for rel in source_files(root, carrier)}}
             if carrier.build_source is not None:
                 entry["build_source"] = build_source_entry(root, carrier)
+            if carrier.media:
+                entry["properties"] = media_facts(path)
+            if carrier.fence_of is not None:
+                fence = single_fence(path)
+                entry["fence"] = {"path": carrier.fence_of.as_posix(), "sha256": hashlib.sha256(fence).hexdigest(),
+                                  "lines": len(fence.splitlines())}
             entries.append(entry)
     if lines:
         return lines, False

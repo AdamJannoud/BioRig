@@ -61,6 +61,24 @@
     },
     {
       "kind": "path",
+      "value": "demo_90s.mp4",
+      "doc": "DEPLOY.md",
+      "reason": "carrier name in the workspace Files (staged under the git-ignored cache/carriers/published/), not a repo path; the silent explainer master tools/generate_demo.py renders from tools/demo_scenes/, tools/demo_style.py and tools/demo_facts.json"
+    },
+    {
+      "kind": "path",
+      "value": "demo_90s_voiceover.mp4",
+      "doc": "DEPLOY.md",
+      "reason": "carrier name in the workspace Files (staged under the git-ignored cache/carriers/published/), not a repo path; the same picture as demo_90s.mp4 with the narration muxed on (DEMO.md names the local render by basename in its own entry)"
+    },
+    {
+      "kind": "path",
+      "value": "corev5-source.md",
+      "doc": "DEPLOY.md",
+      "reason": "carrier name in the workspace Files (staged under the git-ignored cache/carriers/published/), not a repo path; the rail doc whose single fenced block is src/BioRigCoreV5.sol"
+    },
+    {
+      "kind": "path",
       "value": "demo_90s_voiceover.mp4",
       "doc": "DEMO.md",
       "reason": "written by generate_demo.py --voiceover beside assets/media/demo_90s.mp4, a generated file .gitignore covers (assets/media/*.mp4); the comment names it by basename"
