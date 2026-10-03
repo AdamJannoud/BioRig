@@ -122,9 +122,11 @@ pinned: false
 
 ## 4. Check the deployed instance
 
-- The page opens on the planter flow, with the BioRig header and the chain's name in its live-chain chip. The
-  checks below read the **Operator** view: switch "Viewing as" to Operator, or open the URL with `?view=operator`.
-- The operator view should show the status bar with the chain's name and id (Celo mainnet, `42220`, unless
+- The page opens on the home screen, with the BioRig header and the chain's name in its live-chain chip, the hero,
+  and its two calls to action. The checks below read the **Protocol** view: press "See the live on-chain assets",
+  pick Protocol in the header, or open the URL with `?view=protocol` (the `?view=operator` link already published
+  still opens it).
+- The Protocol view should show the status bar with the chain's name and id (Celo mainnet, `42220`, unless
   `CHAIN_ID` says otherwise), the proxy address and the block number. If it shows a red "Could not resolve the
   BioRig proxy address" panel, the resolution failed everywhere, which on a hosted instance means
   `dashboard/deployment.json` is missing from the deployed commit or records no deployment for that chain.

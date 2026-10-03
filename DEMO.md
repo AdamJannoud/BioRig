@@ -21,9 +21,12 @@ cp .env.example .env   # then fill RPC_URL, CHAIN_ID, PRIVATE_KEY (a VERIFIER_RO
 .venv/bin/streamlit run dashboard/app.py
 ```
 
-The page opens on the planter flow: three plain-language steps ending in a read-only pre-flight check. The
-technical panel is the **Operator** view (the "Viewing as" toggle, or `?view=operator`). See `dashboard/README.md`
-for what each panel does. The operator view's Mint button broadcasts a real `mintTree` from the
+The page opens on the home screen: what BioRig is, why Celo, the live figures, and two calls to action. **Register a
+tree** opens the planter flow (`?view=register`): three plain-language steps ending in a read-only pre-flight check.
+**See the live on-chain assets** opens the technical panel, the **Protocol** view (`?view=protocol`). The Home /
+Register / Protocol control in the header switches between them, and the older `?view=planter` and
+`?view=operator` links still open the same two screens. See `dashboard/README.md` for what each panel does. The
+Protocol view's Mint button broadcasts a real `mintTree` from the
 server-side key, and only after a successful `eth_call` simulation and an explicit confirmation.
 
 ## Video

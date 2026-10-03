@@ -34,23 +34,28 @@ demo needs no key at all.
 | `deployment.json` | committed per-chain record of real deployments (`default_chain_id`, then proxy and deploy block per chain id), so a hosted checkout with no broadcast artifacts and no secrets still renders. Written by `scripts/record_deployment.py` from a broadcast, never by hand; the older flat shape is still read |
 | `h3_nullifier.py` | lat/lng → H3 cell (res 12) → `keccak256(uint64(cell) ++ utf8(salt))`, asserted to be a non-zero 32-byte value |
 | `chain.py` | reads (`getTreeStats`, `isNullifierActive`, `tokenURI`), TBA derivation, `eth_call` simulation, signed `mintTree` |
-| `app.py` | the shell: brand header, live-chain chip and the "Viewing as" toggle between the two views (`?view=operator` opens the second directly) |
-| `planter_view.py` | the default view: three plain-language steps (measure tree, locate plot, claim & register) ending in a read-only pre-flight check |
-| `operator_view.py` | the technical panel: form + simulation + confirm-then-mint on the left, live state + TBA on the right |
+| `app.py` | the shell: brand header, live-chain chip and the Home / Register / Protocol control between the three views. `?view=home`, `?view=register` and `?view=protocol` open one directly; the bare URL opens home, and the older `?view=planter` and `?view=operator` stay accepted as aliases of register and protocol |
+| `home_view.py` | the default view: the hero, two calls to action into the register flow and the protocol view, the live strip (chain id, tree count, the pilot registration's cost from its receipt, the proxy), why Celo, and the three steps |
+| `planter_view.py` | the Register view: three plain-language steps (measure tree, locate plot, claim & register) ending in a read-only pre-flight check |
+| `operator_view.py` | the Protocol view, the technical panel: form + simulation + confirm-then-mint on the left, live state + TBA on the right |
 | `allometry.py` | biomass from trunk diameter (Chave et al. 2014 pantropical model, height from diameter, wood density 0.6 g/cm³), carbon and CO₂e |
 | `geolocate.py`, `components/geolocate/` | the browser's own geolocation API as a static Streamlit component (no build step, no extra package) |
 | `strings.py` | every word on screen, English, one dict per language |
-| `ui.py`, `brand/` | the BioRig palette as `--app-*` tokens for light and dark, the header, the tab icon (written by `tools/generate_brand.py`) |
+| `ui.py`, `brand/` | the BioRig palette as `--app-*` tokens for light and dark (lime and emerald as the accent, gold as the highlight; in light mode the lime is a fill or a rule, never text), the header, the tab icon (written by `tools/generate_brand.py`) |
 | `smoke.py` | headless, read-only proof against the live proxy: `.venv/bin/python -m dashboard.smoke` |
 
-**Planter flow (default view).** Step 1 is one trunk-diameter slider; biomass, carbon and CO₂e are computed by
+**Home (default view).** What BioRig is and why it runs on Celo, with every figure read from the chain at load. "Register a
+tree" opens the planter flow and "See the live on-chain assets" the protocol view; the control in the header switches
+back at any time.
+
+**Planter flow (Register view).** Step 1 is one trunk-diameter slider; biomass, carbon and CO₂e are computed by
 `allometry.py` (10 cm gives 19.9 kg, against the 20 kg the mainnet pilot tree stores). Step 2 takes the position
 from the browser's GPS or typed coordinates, works out the H3 cell and the plot ID in the background, and asks the
 chain whether the plot is free. Step 3 shows what would be registered and runs the same `eth_call` simulation as
-the operator view, read only, with the revert explained in plain words. The register button exists only where
+the Protocol view, read only, with the revert explained in plain words. The register button exists only where
 `ALLOW_MINT` is on; with `ALLOW_MINT=false` the flow ends in an explicit "not enabled on this demo" state.
 
-**Mint flow (operator view).** Every change to the form re-runs an `eth_call` of `mintTree` from the verifier account and shows
+**Mint flow (Protocol view).** Every change to the form re-runs an `eth_call` of `mintTree` from the verifier account and shows
 the result (the token id it would mint and a gas estimate, or the decoded revert such as `NullifierInUse()`).
 The Mint button stays disabled until that simulation succeeds and the confirmation box is ticked; `send_mint`
 simulates once more before it signs.
