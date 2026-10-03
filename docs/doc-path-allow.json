@@ -49,6 +49,18 @@
     },
     {
       "kind": "path",
+      "value": "milestone-report.docx",
+      "doc": "DEPLOY.md",
+      "reason": "carrier name in the workspace Files (staged under the git-ignored cache/carriers/published/), not a repo path; it is rendered from docs/milestone-roadmap-report.md by tools/render_report_docx.py"
+    },
+    {
+      "kind": "path",
+      "value": "findings.md",
+      "doc": "DEPLOY.md",
+      "reason": "carrier name in the workspace Files (staged under the git-ignored cache/carriers/published/), not a repo path; the source is FINDINGS.md"
+    },
+    {
+      "kind": "path",
       "value": "demo_90s_voiceover.mp4",
       "doc": "DEMO.md",
       "reason": "written by generate_demo.py --voiceover beside assets/media/demo_90s.mp4, a generated file .gitignore covers (assets/media/*.mp4); the comment names it by basename"
