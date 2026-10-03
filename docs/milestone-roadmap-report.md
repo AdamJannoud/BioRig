@@ -2,7 +2,7 @@
 
 **Project:** BioRig — mobile-first dMRV and proof-of-growth infrastructure on Celo
 **Owner, author and sole deployer:** Adam Jannoud (AdamJannoud)
-**Repository:** `AdamJannoud/BioRig`, public, `main` at `61bb478` — audited at `61bb478`, the tip pushed earlier on 3 October 2026, remote head equal to local head
+**Repository:** `AdamJannoud/BioRig`, public, `main` at `079c725` — audited at `61bb478`, the tip as it stood when the audit ran; four commits have landed since, all in the carrier record and its gate, and this edition is re-attested against the head (see the delta note below)
 **Networks:** Celo mainnet (chain id 42220) — production; Celo Sepolia (11142220) — testnet
 **Report date:** 3 October 2026 (refreshes the 2 October 2026 edition)
 **Scope:** complete project audit, live verification sweep, and forward roadmap
@@ -14,8 +14,16 @@
 > unless it was re-derived here, and where a claim could not be re-derived it says so. The re-audit found
 > statements in the 2 October edition that were wrong when they were made — most materially, the git
 > history does carry co-author trailers, and the proxy and account code sizes were mis-stated — and each
-> is corrected in place and set out in Section 3.9. The refresh changes nothing in the repository beyond
-> adding this report and its renderer.
+> is corrected in place and set out in Section 3.9.
+>
+> **Delta since the audit.** Four commits landed after `61bb478`, none of them touching the contract,
+> the deployment scripts or any on-chain state: `c30898a` (the milestone report docx, the mainnet
+> deployment plan and `FINDINGS.md` become carriers), `1038f28` (the doc-path allowlist), `288118b`
+> (the two demo videos and the contract source doc become carriers — thirteen in all) and `079c725`
+> (step 7 refuses a short or duplicate-padded carrier record). The head is `079c725`, remote head equal
+> to local head. This edition states the audit as it was run at `61bb478` and attests the carrier record
+> at the head, and the branding sweep recorded in Section 3.9 changed `.gitignore`, `docs/relay-api.md`
+> and `relay/tests/test_edge.py` alongside it.
 
 ---
 
@@ -382,6 +390,9 @@ gate step 7.
 | 2 Oct 23:15 | `16e9bf8` | The pdf's render bytes are attested only where the published copies are staged, since Chromium print-to-PDF bytes depend on the browser build and fonts |
 | 3 Oct 01:02 | `2d635c0` | Strict publish mode, `--require-staged`: an absent or partial staging directory is drift, exit 1, so a publish whose staged copies went missing cannot read green |
 | 3 Oct 11:04 | `61bb478` | The slide-size architecture raster, the vector copy and the debug APK become carriers: seven in all, each checked by the strongest thing that holds for it |
+| 3 Oct 12:44–12:51 | `c30898a`, `1038f28` | The milestone report docx, the mainnet deployment plan and `FINDINGS.md` become carriers, and their doc names join the doc-path allowlist |
+| 3 Oct 13:46 | `288118b` | The two demo videos and the contract source doc become carriers: thirteen in all |
+| 3 Oct 15:14 | `079c725` | Step 7 refuses a carrier record that is short or duplicate-padded, not only one missing a listed carrier, with the floor written down in `DEPLOY.md` section 9 |
 
 **The dashboard redesign — 3 October early morning.**
 
@@ -489,13 +500,16 @@ field is still Adam Jannoud. This report states the fact instead of repeating th
 leaves the decision about it to Adam (Section 3.9).
 
 **Attribution inside the content.** A grep across every tracked file for agent, tool or platform
-identities returns three classes of hit. The first is the Foundry CLI's own name (the word `forge`
-inside `forge script`, `forge test`, `forge verify-contract` commands, and the `lib/forge-std` module
-path) — the build tool, not an authorship claim. The second is `.gitignore`, which lists `.bolter/` and
-`.bolter-task.md` among the ignored scratch paths, as it did on 2 October. The third is new since then:
-`docs/relay-api.md` and the relay's edge test (`relay/tests/test_edge.py`) name the hosting platform
-(Bolter) whose public edge renames the `Authorization` header, because that is the environment the relay
-fix was written for. That is a technical description of a hosting dependency, not an authorship claim.
+identities now returns one class of hit: the Foundry CLI's own name (the word `forge` inside `forge
+script`, `forge test`, `forge verify-contract` commands, and the `lib/forge-std` module path) — the
+build tool, not an authorship claim. The two classes the 2 October and 3 October editions recorded are
+both closed against the head `079c725`: the working environment's scratch paths are gone from
+`.gitignore` (the rules moved to the repository's own untracked `.git/info/exclude`, so the working
+environment still ignores them and a reader of the tracked file sees no trace), and `docs/relay-api.md`
+and `relay/tests/test_edge.py` describe the edge's behaviour without naming the hosting platform. The
+one platform-derived string that survives is the header name `X-Sandbox-Forwarded-Authorization`
+itself — the constant the edge sends and `relay/service.py` reads, which cannot be renamed without
+breaking the deployed relay.
 
 **Attribution statements in the documents.** `README.md`, `DEPLOY.md`, `DEMO.md` and
 `dashboard/README.md` each state in their own words that Adam Jannoud is the project lead, the author
@@ -702,12 +716,14 @@ is a change in the project.
 
 **Carried from 2 October, cosmetic, still open.**
 
-10. **`.gitignore` names the working environment's own directory.** The two ignore rules `.bolter/` and
-    `.bolter-task.md` are still present. Nothing tracked references them and they affect nothing, but a
-    reviewer reading `.gitignore` line by line will see them. Removing them would mean those files stop
-    being ignored, so the choice remains Adam's. Since 2 October the platform's name also appears in
-    `docs/relay-api.md` and `relay/tests/test_edge.py`, as the host whose edge renames the
-    `Authorization` header (Section 3.3); that is a technical dependency the relay has to describe.
+10. ~~**`.gitignore` names the working environment's own directory.**~~ **Fixed 3 October 2026.** The two
+    ignore rules that named the working environment's own scratch directory and task file are gone from
+    the tracked `.gitignore` and now live in the repository's untracked `.git/info/exclude`, so those
+    paths stay ignored in the working environment and are invisible to a reader of the tracked file (the
+    old lines are in the history, at `61bb478` and earlier). The hosting platform's name went from
+    `docs/relay-api.md` and `relay/tests/test_edge.py` in the same sweep (Section 3.3): both describe
+    the edge's behaviour — the rename of the `Authorization` header — without naming the host. The
+    header name `X-Sandbox-Forwarded-Authorization` is a protocol constant and stays.
 
 **Fixed on 2 October and confirmed still fixed.** The `README.md` `BUFFER_POOL` wording (`b98726d`), the
 two scripts tracked non-executable (`598c017`) and the undeclared `cv2` import (`9a4815f`) all hold at

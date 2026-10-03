@@ -1,4 +1,4 @@
-"""Behind Bolter's edge: Authorization arrives renamed, and every request body arrives chunked with no Content-Length."""
+"""Behind the public edge: Authorization arrives renamed, and every request body arrives chunked with no Content-Length."""
 from __future__ import annotations
 
 import http.client

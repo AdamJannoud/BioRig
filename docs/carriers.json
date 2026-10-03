@@ -75,23 +75,23 @@
     },
     {
       "algorithm": "sha256-zip-entries",
-      "digest": "ab17ebe73cac44d7a4fcbeaf4ed1401f3e95b62f341aab14414b2f8b554fe0fe",
+      "digest": "e31ebb08d7ee2da8202595e3d9505c9912ec08088ddbd9690e1f448be4d3d1dd",
       "name": "milestone-report.docx",
-      "size": 116370,
+      "size": 117472,
       "sources": {
         "assets/brand/biorig-lockup.png": "1bc2eebb87ed135926457e75bc144160bb4f6a11132659e8fa6ccc8fbdca4cfe",
-        "docs/milestone-roadmap-report.md": "2383595c190628989066d9a886a1c7fefcc1789bbe6db6b162973a37f0cd8636",
+        "docs/milestone-roadmap-report.md": "0605dc60797386cf7ac820feb28232103b64115af1ba30267c6f2cd2a4c2e6ea",
         "tools/render_proposal_docx.py": "37a32b8a8c32380afbffc8019d4d8abbeafd8560be5785aed27d213df8b77bbe",
         "tools/render_report_docx.py": "b228aaa453ac71b1f8e9aa574185bca19c675f2c71438e4c8d5ac0ab98fe8835"
       }
     },
     {
       "algorithm": "sha256",
-      "digest": "3554e90340511e9ad3bcfc14e0e7b133b8cf62f132026bc5e18f90cb53c51e3e",
+      "digest": "25d264ede36521f60eccda18dba1b10e443256ec4c7c95695e87a6155de58266",
       "name": "celo-mainnet-deployment-plan.md",
-      "size": 40649,
+      "size": 40822,
       "sources": {
-        "docs/celo-mainnet-deployment-plan.md": "3554e90340511e9ad3bcfc14e0e7b133b8cf62f132026bc5e18f90cb53c51e3e"
+        "docs/celo-mainnet-deployment-plan.md": "25d264ede36521f60eccda18dba1b10e443256ec4c7c95695e87a6155de58266"
       }
     },
     {
