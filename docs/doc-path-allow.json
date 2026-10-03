@@ -37,6 +37,18 @@
     },
     {
       "kind": "path",
+      "value": "architecture.svg",
+      "doc": "DEPLOY.md",
+      "reason": "carrier name in the workspace Files (staged under the git-ignored cache/carriers/published/), not a repo path; the source is assets/BioRig_Architecture_v5.svg"
+    },
+    {
+      "kind": "path",
+      "value": "architecture-slide.png",
+      "doc": "DEPLOY.md",
+      "reason": "carrier name in the workspace Files (staged under the git-ignored cache/carriers/published/), not a repo path; it is the 2400 x 2124 slide-size render of assets/BioRig_Architecture_v5.svg and has no committed counterpart"
+    },
+    {
+      "kind": "path",
       "value": "demo_90s_voiceover.mp4",
       "doc": "DEMO.md",
       "reason": "written by generate_demo.py --voiceover beside assets/media/demo_90s.mp4, a generated file .gitignore covers (assets/media/*.mp4); the comment names it by basename"

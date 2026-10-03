@@ -42,6 +42,36 @@
         "BioRig_Architecture_Pro.png": "ae7044cef45bd6144ad082e5df25adabf529182085cb8a1abdf51ce70241ea5c",
         "assets/BioRig_Architecture_v5.svg": "9e893e08e4ef9e53bc060e072f2a14af79f9401048b54bcc5585cca25586f181"
       }
+    },
+    {
+      "algorithm": "sha256",
+      "digest": "9e893e08e4ef9e53bc060e072f2a14af79f9401048b54bcc5585cca25586f181",
+      "name": "architecture.svg",
+      "size": 20707,
+      "sources": {
+        "assets/BioRig_Architecture_v5.svg": "9e893e08e4ef9e53bc060e072f2a14af79f9401048b54bcc5585cca25586f181"
+      }
+    },
+    {
+      "algorithm": "sha256",
+      "digest": "5ad81a86e513becd1b3609a68f4c8f092500c9ae2f90a4fe66b98d087f5d3ba3",
+      "name": "architecture-slide.png",
+      "size": 858508,
+      "sources": {
+        "assets/BioRig_Architecture_v5.svg": "9e893e08e4ef9e53bc060e072f2a14af79f9401048b54bcc5585cca25586f181",
+        "tools/generate_architecture.py": "c54018fdef30837c2ea4b68022eeb53f923ea81d31ff85a097ee4085bfad039a"
+      }
+    },
+    {
+      "algorithm": "sha256",
+      "build_source": {
+        "path": "mobile/android",
+        "tree": "421f7f03fe0db6ab473d8538e029b0b981357e16"
+      },
+      "digest": "22d906d6c98b7d0a11829a1204dfea6334065c460d5808e87b830918a1740dd0",
+      "name": "android-debug.apk",
+      "size": 16079038,
+      "sources": {}
     }
   ],
   "location": "the published copy in the workspace Files"
