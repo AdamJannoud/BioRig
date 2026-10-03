@@ -37,7 +37,7 @@ limits below are the guard.
 | `/v1/admin/*` | `Authorization: Bearer <RELAY_ADMIN_TOKEN>` (or `X-Sandbox-Forwarded-Authorization`, below) | the operator's secret; when unset the admin surface answers `404` |
 
 The relay reads the bearer credential from `X-Sandbox-Forwarded-Authorization` first and falls back to
-`Authorization`. Behind Bolter's public URL the platform edge renames a client's `Authorization` header to
+`Authorization`. Behind the public URL the hosting platform's edge renames a client's `Authorization` header to
 `X-Sandbox-Forwarded-Authorization`, value and `Bearer ` scheme intact, so a client always sends the standard
 `Authorization: Bearer <token>` and the relay accepts it under either name: renamed through the edge, as sent when
 reached directly (loopback, an emulator). The second name grants nothing the first does not; an invalid token is
