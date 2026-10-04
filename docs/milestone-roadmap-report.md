@@ -16,15 +16,19 @@
 > history does carry co-author trailers, and the proxy and account code sizes were mis-stated — and each
 > is corrected in place and set out in Section 3.9.
 >
-> **Delta since the audit.** Six commits landed after `61bb478`, none of them touching the contract,
-> the deployment scripts or any on-chain state: `c30898a` (the milestone report docx, the mainnet
-> deployment plan and `FINDINGS.md` become carriers), `1038f28` (the doc-path allowlist), `288118b`
-> (the two demo videos and the contract source doc become carriers — thirteen in all), `079c725`
-> (step 7 refuses a short or duplicate-padded carrier record), `48da319` (the branding sweep, which
-> changed `.gitignore`, `docs/relay-api.md` and `relay/tests/test_edge.py`, recorded in Section 3.9)
-> and `7630855`, which re-pointed this document structurally. This edition's own commit carries this
-> note, so it does not pin the head: read it with `git ls-remote origin refs/heads/main`. This edition
-> states the audit as it was run at `61bb478` and attests the carrier record at the head.
+> **Delta since the audit.** Nine commits landed between `61bb478` and `2341e5c`, the head when this
+> note was written, and none of them touches the contract, the deployment scripts or any on-chain
+> state: `c30898a` (the milestone report docx, the mainnet deployment plan and `FINDINGS.md` become
+> carriers), `1038f28` (the doc-path allowlist), `288118b` (the two demo videos and the contract
+> source doc become carriers — thirteen in all), `079c725` (step 7 refuses a short or
+> duplicate-padded carrier record), `48da319` (the branding sweep, which changed `.gitignore`,
+> `docs/relay-api.md` and `relay/tests/test_edge.py`, recorded in Section 3.9), `7630855` (this
+> document re-pointed structurally), `66dfa03` (this note and the deployment plan's delta list
+> corrected), `f1080e2` (the tree-diameter slider's thumb pinned to its value, dashboard only) and
+> `2341e5c` (that pin scoped to the widget, so both thumb markers agree). The range is bounded at
+> both ends so it cannot go stale: commits after `2341e5c` are not counted here. Read the live head
+> with `git ls-remote origin refs/heads/main`. This edition states the audit as it was run at
+> `61bb478` and attests the carrier record at the head.
 
 ---
 
