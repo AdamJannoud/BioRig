@@ -722,10 +722,10 @@ predates `HardenMainnetAdmin` and still has its deployer as admin.
 
 ## 9. Publishing the proposal carriers
 
-Thirteen files are published into the workspace Files for reviewers: `proposal.pdf`, `proposal.docx`, `proposal.md`,
+Fourteen files are published into the workspace Files for reviewers: `proposal.pdf`, `proposal.docx`, `proposal.md`,
 `architecture.png`, `architecture.svg`, `architecture-slide.png`, `android-debug.apk`, `milestone-report.docx`,
-`celo-mainnet-deployment-plan.md`, `findings.md`, the two explainer videos `demo_90s.mp4` and
-`demo_90s_voiceover.mp4`, and `corev5-source.md`.
+`celo-mainnet-deployment-plan.md`, `findings.md`, `final-project-report.md`, the two explainer videos `demo_90s.mp4`
+and `demo_90s_voiceover.mp4`, and `corev5-source.md`.
 
 Each derives from repo source:
 
@@ -759,7 +759,10 @@ Each derives from repo source:
 - `corev5-source.md` is the rail doc publishing the full `src/BioRigCoreV5.sol` in one fenced solidity block. What
   matters is the code, so the check extracts that single block from the staged copy and compares it byte for byte with
   the committed contract; the record keeps the fence's sha256 as well as the document's, and a staged doc with no
-  fenced block or with more than one is drift.
+  fenced block or with more than one is drift;
+- `final-project-report.md` is the repo's final project report, the committed `docs/final-project-report.md`, byte for
+  byte. It is a report *about* the carriers rather than an input to them, so its only source is the markdown it is
+  published from: edit the report, republish it, stage the published bytes, re-record.
 
 `docs/carriers.json` records, per carrier, the published copy's digest and the hash of every source it was made from,
 for the apk the app tree it was built against, for the videos their media facts, and for the source doc its fence's
@@ -771,7 +774,7 @@ committed contract, or when a staged copy of the Files bytes is not what the pip
 `ffprobe` and `ffmpeg` (the same ones step 5 uses): with a video staged and either missing, the check stops with a
 setup failure, exit 2, rather than passing the video unread.
 
-Step 7 also holds the record to a floor of thirteen carriers, counted by distinct name, so a record that has quietly
+Step 7 also holds the record to a floor of fourteen carriers, counted by distinct name, so a record that has quietly
 lost a row cannot read green even if `tools/check_carriers.py`'s own list were trimmed to match it, or if two rows
 shared one name. Adding a carrier means raising that floor in `scripts/verify-demo.sh`; lowering it drops a published
 carrier from the record, which is the decision the floor exists to force.
@@ -792,11 +795,12 @@ the bytes actually held in Files.
    rebuild it from the current `mobile/android` and commit any app source change before recording, so the record names
    a committed tree. For the videos, re-render with `tools/generate_demo.py` (and its `--voiceover` cut) after a scene,
    style or facts change; for the source doc, paste the committed contract into its one fenced block.
-3. Publish the thirteen files into the workspace Files under the carrier names above.
-4. Stage the published bytes: download the thirteen copies back out of Files into `cache/carriers/published/`
+3. Publish the fourteen files into the workspace Files under the carrier names above.
+4. Stage the published bytes: download the fourteen copies back out of Files into `cache/carriers/published/`
    (git-ignored; never commit it), named `proposal.pdf`, `proposal.docx`, `proposal.md`, `architecture.png`,
    `architecture.svg`, `architecture-slide.png`, `android-debug.apk`, `milestone-report.docx`,
-   `celo-mainnet-deployment-plan.md`, `findings.md`, `demo_90s.mp4`, `demo_90s_voiceover.mp4`, `corev5-source.md`.
+   `celo-mainnet-deployment-plan.md`, `findings.md`, `demo_90s.mp4`, `demo_90s_voiceover.mp4`, `corev5-source.md`,
+   `final-project-report.md`.
 5. Record: `.venv/bin/python tools/check_carriers.py --record`. It re-renders and refuses (exit 1, writing nothing)
    unless every staged copy agrees with its source - including that the staged apk is an Android package and that the
    app source is committed - so a stale or wrong upload is caught here, not by a reviewer.

@@ -82,6 +82,72 @@
       "value": "demo_90s_voiceover.mp4",
       "doc": "DEMO.md",
       "reason": "written by generate_demo.py --voiceover beside assets/media/demo_90s.mp4, a generated file .gitignore covers (assets/media/*.mp4); the comment names it by basename"
+    },
+    {
+      "kind": "path",
+      "value": "proposal.pdf",
+      "doc": "docs/final-project-report.md",
+      "reason": "carrier name in the workspace Files (staged under the git-ignored cache/carriers/published/), not a repo path; the published PDF render (source docs/prezenti-proposal.md)"
+    },
+    {
+      "kind": "path",
+      "value": "proposal.docx",
+      "doc": "docs/final-project-report.md",
+      "reason": "carrier name in the workspace Files (staged under the git-ignored cache/carriers/published/), not a repo path; the published Word render (source docs/prezenti-proposal.md)"
+    },
+    {
+      "kind": "path",
+      "value": "proposal.md",
+      "doc": "docs/final-project-report.md",
+      "reason": "carrier name in the workspace Files (staged under the git-ignored cache/carriers/published/), not a repo path; the published markdown copy (source docs/prezenti-proposal.md)"
+    },
+    {
+      "kind": "path",
+      "value": "architecture.png",
+      "doc": "docs/final-project-report.md",
+      "reason": "carrier name in the workspace Files (staged under the git-ignored cache/carriers/published/), not a repo path; the published raster (source assets/BioRig_Architecture_v5.png)"
+    },
+    {
+      "kind": "path",
+      "value": "architecture.svg",
+      "doc": "docs/final-project-report.md",
+      "reason": "carrier name in the workspace Files (staged under the git-ignored cache/carriers/published/), not a repo path; the published vector copy (source assets/BioRig_Architecture_v5.svg)"
+    },
+    {
+      "kind": "path",
+      "value": "architecture-slide.png",
+      "doc": "docs/final-project-report.md",
+      "reason": "carrier name in the workspace Files (staged under the git-ignored cache/carriers/published/), not a repo path; the published 2x slide raster (rendered from the diagram SVG)"
+    },
+    {
+      "kind": "path",
+      "value": "milestone-report.docx",
+      "doc": "docs/final-project-report.md",
+      "reason": "carrier name in the workspace Files (staged under the git-ignored cache/carriers/published/), not a repo path; the published Word render (source docs/milestone-roadmap-report.md)"
+    },
+    {
+      "kind": "path",
+      "value": "findings.md",
+      "doc": "docs/final-project-report.md",
+      "reason": "carrier name in the workspace Files (staged under the git-ignored cache/carriers/published/), not a repo path; the published copy (source FINDINGS.md)"
+    },
+    {
+      "kind": "path",
+      "value": "demo_90s.mp4",
+      "doc": "docs/final-project-report.md",
+      "reason": "carrier name in the workspace Files (staged under the git-ignored cache/carriers/published/), not a repo path; the silent explainer master (rendered by tools/generate_demo.py)"
+    },
+    {
+      "kind": "path",
+      "value": "demo_90s_voiceover.mp4",
+      "doc": "docs/final-project-report.md",
+      "reason": "carrier name in the workspace Files (staged under the git-ignored cache/carriers/published/), not a repo path; the narrated explainer (same picture, narration muxed on)"
+    },
+    {
+      "kind": "path",
+      "value": "corev5-source.md",
+      "doc": "docs/final-project-report.md",
+      "reason": "carrier name in the workspace Files (staged under the git-ignored cache/carriers/published/), not a repo path; the rail doc whose single fenced block is src/BioRigCoreV5.sol"
     }
   ]
 }

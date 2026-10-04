@@ -148,6 +148,7 @@ APP_SOURCE = Path("mobile") / "android"
 REPORT_MARKDOWN = Path("docs") / "milestone-roadmap-report.md"
 REPORT_RENDERER = Path("tools") / "render_report_docx.py"
 DEPLOYMENT_PLAN = Path("docs") / "celo-mainnet-deployment-plan.md"
+FINAL_REPORT = Path("docs") / "final-project-report.md"
 FINDINGS = Path("FINDINGS.md")
 DEMO_MASTER = "demo_90s.mp4"
 DEMO_VOICEOVER = "demo_90s_voiceover.mp4"
@@ -196,6 +197,7 @@ CARRIERS: tuple[Carrier, ...] = (
     Carrier("milestone-report.docx", ZIP_ENTRIES, (REPORT_MARKDOWN, REPORT_RENDERER, DOCX_RENDERER, LOCKUP),
             renderer=REPORT_RENDERER, markdown=REPORT_MARKDOWN),
     Carrier("celo-mainnet-deployment-plan.md", SHA256, (DEPLOYMENT_PLAN,), copy_of=DEPLOYMENT_PLAN),
+    Carrier("final-project-report.md", SHA256, (FINAL_REPORT,), copy_of=FINAL_REPORT),
     Carrier("findings.md", SHA256, (FINDINGS,), copy_of=FINDINGS),
     Carrier(DEMO_MASTER, SHA256, (DEMO_STYLE, DEMO_FACTS), source_dirs=(DEMO_SCENES,), media=True),
     Carrier(DEMO_VOICEOVER, SHA256, (DEMO_STYLE, DEMO_FACTS), source_dirs=(DEMO_SCENES,), media=True,

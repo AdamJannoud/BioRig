@@ -37,9 +37,13 @@ if C.diagram is None:  # the provenance keys live in the generator, which needs 
 
 ROOT = Path(__file__).resolve().parent.parent
 CLI = ROOT / "tools" / "check_carriers.py"
-COPIED = (C.MARKDOWN, C.PDF_RENDERER, C.DOCX_RENDERER, C.STYLESHEET, C.LOCKUP, C.ARCH_GENERATOR,
-          C.REPORT_MARKDOWN, C.REPORT_RENDERER, C.DEPLOYMENT_PLAN, C.FINDINGS, C.DEMO_STYLE, C.DEMO_FACTS, C.COREV5,
-          *(p.relative_to(ROOT) for p in sorted((ROOT / C.DEMO_SCENES).glob("*.py"))))
+# Every copy_of source is an input the fixture must have on disk, so derive those from the carrier
+# table: hand-listing them is how a newly added carrier took out every fixture-built test at setup.
+COPIED = tuple(dict.fromkeys((
+    *(c.copy_of for c in C.CARRIERS if c.copy_of),
+    C.MARKDOWN, C.PDF_RENDERER, C.DOCX_RENDERER, C.STYLESHEET, C.LOCKUP, C.ARCH_GENERATOR,
+    C.REPORT_MARKDOWN, C.REPORT_RENDERER, C.DEPLOYMENT_PLAN, C.FINDINGS, C.DEMO_STYLE, C.DEMO_FACTS, C.COREV5,
+    *(p.relative_to(ROOT) for p in sorted((ROOT / C.DEMO_SCENES).glob("*.py"))))))
 STAND_IN_SVG = ('<svg xmlns="http://www.w3.org/2000/svg" width="8" height="5" viewBox="0 0 8 5">'
                 '<rect width="8" height="5" fill="#ffffff"/></svg>')
 STAND_IN_RASTER = b"\x89PNG\r\n\x1a\n stand-in raster for the carrier gate tests\n"

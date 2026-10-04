@@ -184,17 +184,18 @@ PY
 fi
 
 step "7. proposal carriers: the published copies still match their source"
-# The thirteen files held in the workspace Files (the proposal pdf, docx and md, the architecture raster, its vector
+# The fourteen files held in the workspace Files (the proposal pdf, docx and md, the architecture raster, its vector
 # copy and the slide-size raster, the reviewers' debug apk, the milestone report, the deployment plan, FINDINGS.md,
-# the two demo videos and the contract source doc) are compared against the markdown, the renderers, the committed
-# diagram, the app source, the scenes and the contract they derive from (docs/carriers.json is the publish record).
+# the two demo videos, the contract source doc and this repo's final project report) are compared against the
+# markdown, the renderers, the committed diagram, the app source, the scenes and the contract they derive from
+# (docs/carriers.json is the publish record).
 # On 2 October 2026 the markdown had moved three commits past the published render and the Files raster was a
 # pre-brand copy, and nothing noticed. The apk is pinned to the git tree of mobile/android it was built from rather
 # than rebuilt, which needs no Android SDK here, and the slide raster to the provenance its own bytes carry rather
 # than to pixels. Offline; re-renders the pdf with the Chromium step 4 installed. Copies staged under
 # cache/carriers/published/ are checked too; without them it notes so and still fails on repo-side drift.
 #
-# The record is held to a floor of thirteen carriers, counted by distinct name. Losing a row used to be survivable:
+# The record is held to a floor of fourteen carriers, counted by distinct name. Losing a row used to be survivable:
 # the tool reports on the carriers its own list names, so a record trimmed alongside that list still read clean, and
 # two rows sharing a name collapse to one when the tool builds its index. The floor lives here so the gate keeps
 # asserting it whatever the tool does. Adding a carrier means raising the number; lowering it means dropping a
@@ -203,7 +204,7 @@ $PY - <<'PY' || { echo "the carrier record is short: see above, then DEPLOY.md s
 import json, sys
 from pathlib import Path
 
-FLOOR = 13  # carriers the record must never hold fewer of; raise this when a carrier is added
+FLOOR = 14  # carriers the record must never hold fewer of; raise this when a carrier is added
 
 try:
     rows = json.loads(Path("docs/carriers.json").read_text())["carriers"]

@@ -45,7 +45,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 
 DEFAULT_DOCS = ("README.md", "DEPLOY.md", "DEMO.md", "DEPLOY_DASHBOARD.md", "dashboard/README.md",
-                "relay/README.md", "docs/relay-api.md")
+                "relay/README.md", "docs/relay-api.md", "docs/final-project-report.md")
 DEFAULT_ALLOW = "docs/doc-path-allow.json"
 KINDS = ("path", "link", "command", "port", "env", "submodule", "doc", "allowlist")
 

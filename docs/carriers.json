@@ -96,6 +96,15 @@
     },
     {
       "algorithm": "sha256",
+      "digest": "d9dcd2b0f0d37189e1535a76aa146073735cb4bef6607d43e58e14f19451f636",
+      "name": "final-project-report.md",
+      "size": 16359,
+      "sources": {
+        "docs/final-project-report.md": "d9dcd2b0f0d37189e1535a76aa146073735cb4bef6607d43e58e14f19451f636"
+      }
+    },
+    {
+      "algorithm": "sha256",
       "digest": "ae92a1e655db3f98d055c3761b576b13659bf4e9483a7ab6c201742b68a7d34b",
       "name": "findings.md",
       "size": 49198,
