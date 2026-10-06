@@ -1,12 +1,3 @@
-"""Shared look for every view: the brand tokens, light/dark mode, the header, and small HTML helpers.
-
-Colours come only from --app-* custom properties, keyed on <html data-app-mode>. A small script sets data-app-mode
-from the background Streamlit actually painted, so the page follows Streamlit's own light/dark setting instead of a
-separate prefers-color-scheme query. Palette: Celo lime and emerald as the system accent, gold as the highlight, on the
-brand's forest (assets/brand/README.md). Dark is the showcase; light is derived from the same tokens, and there the
-lime (1.9:1 as text on white) only ever appears as a fill, a rule or a ring, never as text: --app-lime-text is forest.
-The backgrounds must match .streamlit/config.toml, which paints Streamlit's own widgets.
-"""
 from __future__ import annotations
 
 import html
@@ -59,7 +50,6 @@ html[data-app-mode="dark"] {
 .stMarkdown p, .stMarkdown li { font-size: 15px; }
 [data-testid="stHeadingWithActionElements"] h3 { letter-spacing: -.02em; font-weight: 700; }
 
-/* ---- header */
 .br-appbar { display:flex; align-items:center; gap:10px 14px; flex-wrap:wrap; min-height:50px;
   background:var(--app-surface); border:1px solid var(--app-rule); border-radius:var(--app-radius-sm);
   padding:9px 16px; box-shadow:var(--app-shadow); }
@@ -79,7 +69,6 @@ html[data-app-mode="dark"] .br-mark-light, html:not([data-app-mode="dark"]) .br-
   border-color:var(--app-lime) !important; color:var(--app-lime-ink) !important; box-shadow:var(--app-glow); }
 .st-key-br-view button[aria-checked="true"] * { color:var(--app-lime-ink) !important; }
 
-/* ---- home */
 .st-key-br-hero { position:relative; overflow:hidden; border:1px solid var(--app-rule) !important;
   border-radius:var(--app-radius) !important; padding:34px 34px 26px; margin-top:14px;
   background-image:linear-gradient(var(--app-plot-grid) 1px, transparent 1px),
@@ -128,206 +117,6 @@ html[data-app-mode="dark"] .br-mark-light, html:not([data-app-mode="dark"]) .br-
 .br-how-step { padding:14px 0 4px; }
 .br-how-step .tt { font-size:15px; }
 
-/* ---- protocol view panels (unchanged structure): a card per panel, hairlines inside */
 .br-bar { display:flex; flex-wrap:wrap; align-items:center; gap:6px 14px; padding:10px 15px;
   background:var(--app-surface); border:1px solid var(--app-rule); border-radius:var(--app-radius-sm);
-  font:12.5px/1.5 var(--app-font); color:var(--app-muted); margin-bottom:6px; }
-.br-bar b { color:var(--app-text); font-weight:600; }
-.br-bar .mono { font-family:var(--app-mono); font-variant-numeric:tabular-nums; color:var(--app-text);
-  overflow-wrap:anywhere; }
-.br-dot { width:9px; height:9px; border-radius:50%; background:var(--app-lime); display:inline-block;
-  box-shadow:0 0 0 3px var(--app-lime-ring); }
-.br-panel { background:var(--app-surface); border:1px solid var(--app-rule); border-radius:var(--app-radius-sm);
-  padding:12px 16px; margin:4px 0 14px; box-shadow:var(--app-shadow); }
-.br-label { margin-bottom:6px; }
-.br-row { display:flex; justify-content:space-between; gap:12px; padding:7px 0;
-  border-bottom:1px solid var(--app-rule); font-size:13.5px; }
-.br-row:last-child { border-bottom:0; }
-.br-k { color:var(--app-muted); font-family:var(--app-font); white-space:nowrap; }
-.br-v { color:var(--app-text); font-family:var(--app-mono); font-size:12.5px; font-variant-numeric:tabular-nums;
-  text-align:right; overflow-wrap:anywhere; min-width:0; }
-.br-v.plain { font-family:var(--app-font); font-size:13.5px; font-weight:600; }
-.br-v .mono { font-family:var(--app-mono); font-size:12.5px; font-weight:500; }
-.br-pill { font:600 10.5px/1 var(--app-font); padding:4px 9px; border-radius:99px; display:inline-block; }
-.br-ok { background:var(--app-ok-bg); color:var(--app-ok); }
-.br-bad { background:var(--app-bad-bg); color:var(--app-bad); }
-.br-links a, a.br-link, .br-tree a { color:var(--app-accent) !important; margin-right:12px; font-size:13px; }
-.br-null { font-family:var(--app-mono); font-size:12px; color:var(--app-text); background:var(--app-field);
-  border:1px solid var(--app-rule); border-radius:var(--app-radius-sm); padding:8px 10px; overflow-wrap:anywhere; }
-
-/* ---- planter wizard: pills for the steps, one card for the step in hand */
-.br-steps { display:flex; gap:8px; align-items:center; margin:14px 0 6px; flex-wrap:wrap; }
-.br-step { display:flex; align-items:center; gap:8px; font:600 12.5px/1.2 var(--app-font); color:var(--app-muted);
-  background:var(--app-surface); border:1px solid var(--app-rule); border-radius:99px; padding:7px 13px; }
-.br-step .n { width:19px; height:19px; border-radius:50%; background:var(--app-step-n); color:var(--app-muted);
-  font:700 11px/19px var(--app-mono); text-align:center; flex:none; }
-.br-step.on { color:var(--app-text); border-color:var(--app-lime); box-shadow:0 0 0 3px var(--app-lime-ring); }
-.br-step.on .n { background:var(--app-lime); color:var(--app-lime-ink); }
-.br-step.done .n { background:var(--app-gold); color:var(--app-gold-ink); }
-.br-step .short { display:none; }
-.st-key-br-card { background:var(--app-surface); border:1px solid var(--app-rule) !important;
-  border-radius:var(--app-radius) !important; padding:22px 24px; box-shadow:var(--app-shadow); }
-.br-h { font:700 21px/1.25 var(--app-font); letter-spacing:-.02em; color:var(--app-text); margin:0 0 4px; }
-.stMarkdown p.br-lede { color:var(--app-muted); font-size:15px; margin:0 0 6px; }
-.stMarkdown p.br-note { color:var(--app-muted); font-size:13.5px; margin:8px 0 0; }
-.br-metrics { display:flex; gap:12px; flex-wrap:wrap; margin:6px 0 2px; }
-.br-metric { flex:1; min-width:112px; background:var(--app-field); border:1px solid var(--app-rule);
-  border-radius:var(--app-radius-sm); padding:12px 14px; }
-.br-metric .num { font:700 22px/1.3 var(--app-mono); letter-spacing:-.02em; color:var(--app-text);
-  font-variant-numeric:tabular-nums; margin-top:3px; }
-.br-metric .num small { font:600 12px var(--app-font); color:var(--app-muted); }
-.br-status { display:flex; gap:10px; align-items:flex-start; background:var(--app-ok-bg);
-  border:1px solid var(--app-ok-rule); border-radius:var(--app-radius-sm); padding:12px 14px; font-size:14px;
-  color:var(--app-text); margin:8px 0 4px; }
-.br-status .ic { font-weight:700; color:var(--app-ok); flex:none; }
-.br-status.warn { background:var(--app-warn-bg); border-color:var(--app-warn-rule); }
-.br-status.warn .ic { color:var(--app-warn); }
-.br-status.idle { background:var(--app-field); border-color:var(--app-rule); color:var(--app-muted); }
-.br-status.idle .ic { color:var(--app-muted); }
-.br-status a { color:var(--app-accent); }
-.br-plot { position:relative; border-radius:var(--app-radius-sm); border:1px solid var(--app-rule); overflow:hidden;
-  background-image:linear-gradient(var(--app-plot-grid) 1px, transparent 1px),
-    linear-gradient(90deg, var(--app-plot-grid) 1px, transparent 1px),
-    linear-gradient(160deg, var(--app-plot-a), var(--app-plot-b) 55%, var(--app-plot-a));
-  background-size:26px 26px, 26px 26px, auto; }
-.br-plot svg { display:block; width:100%; height:auto; }
-.br-trees { display:flex; gap:10px; flex-wrap:wrap; }
-.br-tree { display:flex; align-items:center; gap:10px; background:var(--app-surface); border:1px solid var(--app-rule);
-  border-radius:var(--app-radius-sm); padding:10px 14px; font-size:13.5px; color:var(--app-text); }
-.br-tree b { font-weight:700; }
-.br-tree .facts { color:var(--app-muted); font-family:var(--app-mono); font-size:12.5px;
-  font-variant-numeric:tabular-nums; }
-.br-tree a { color:var(--app-accent); }
-.br-credit { color:var(--app-muted); font-size:12px; margin-top:18px; }
-
-/* Primary actions wear the lime in both modes, dark ink on it (9.6:1); secondary ones are quiet outlines. The glow
-   is kept for what can be pressed. */
-.stButton button[kind="primary"], .stDownloadButton button[kind="primary"] {
-  background:var(--app-lime); color:var(--app-lime-ink); border:0; font-weight:700;
-  border-radius:var(--app-radius-sm); min-height:44px; box-shadow:var(--app-glow); }
-.stButton button[kind="primary"] *, .stDownloadButton button[kind="primary"] * { color:var(--app-lime-ink); }
-.stButton button[kind="primary"]:hover { background:var(--app-lime-deep); color:var(--app-lime-ink); }
-.stButton button[kind="primary"]:disabled { opacity:.5; box-shadow:none; }
-.stButton button[kind="secondary"], .stDownloadButton button[kind="secondary"] {
-  border-radius:var(--app-radius-sm); min-height:44px; }
-
-@media (max-width: 640px) {
-  .block-container { padding-left:.9rem; padding-right:.9rem; padding-top:1rem; }
-  .br-appbar { padding:8px 12px; gap:8px; }
-  .br-wordmark { font-size:16px; }
-  .st-key-br-view { align-self:flex-start; }
-  .st-key-br-hero { padding:22px 18px 18px; }
-  .br-hero-lockup { margin-bottom:16px; }
-  .br-hero-lockup svg { width:36px; height:36px; }
-  .br-hero-lockup .br-wordmark { font-size:20px; }
-  .stMarkdown h1.br-h1 { font-size:30px; }
-  .stMarkdown p.br-sub { font-size:15px; }
-  .st-key-br-ctas { flex-direction:column; }
-  .st-key-br-ctas [data-testid="stElementContainer"], .st-key-br-ctas .stButton,
-  .st-key-br-ctas .stButton button { width:100% !important; }
-  .br-kpi { min-width:0; flex:1 1 40%; }
-  .br-kpi .v { font-size:15.5px; }
-  .br-step { padding:5px 10px; }
-  .br-step .long { display:none; }
-  .br-step .short { display:inline; }
-  .st-key-br-card { padding:16px 14px; }
-  .br-h { font-size:17.5px; }
-  .br-metric { min-width:0; padding:8px 10px; }
-  .br-metric .num { font-size:18px; }
-  .st-key-br-card [data-testid="stElementContainer"]:has(.stButton),
-  .st-key-br-card .stButton, .st-key-br-card .stButton button { width:100% !important; }
-  .br-row { flex-wrap:wrap; }
-  .br-k { white-space:normal; }
-}
-</style>
-"""
-
-MODE_JS = """
-<script>
-(function () {
-  const doc = window.parent.document;
-  function mode() {
-    const app = doc.querySelector('.stApp') || doc.body;
-    const m = getComputedStyle(app).backgroundColor.match(/\\d+(\\.\\d+)?/g);
-    if (!m) return;
-    const lum = (0.299 * m[0] + 0.587 * m[1] + 0.114 * m[2]) / 255;
-    const want = lum < 0.5 ? 'dark' : 'light';
-    if (doc.documentElement.getAttribute('data-app-mode') !== want) doc.documentElement.setAttribute('data-app-mode', want);
-  }
-  mode();
-  new MutationObserver(mode).observe(doc.body, {attributes: true, subtree: true, attributeFilter: ['class', 'style']});
-})();
-</script>
-"""
-
-
-def install_theme() -> None:
-    st.markdown(CSS, unsafe_allow_html=True)
-    components.html(MODE_JS, height=0)
-
-
-def inline_svg(name: str, cls: str) -> str:
-    """A committed brand SVG, inlined so it needs no static file route; the credit <desc> stays in it."""
-    svg = (BRAND_DIR / name).read_text().strip()
-    return svg.replace("<svg ", f'<svg class="{cls}" ', 1)
-
-
-def header(chain_name: str, paused: bool) -> None:
-    """Mark, wordmark and the live-chain chip. The view toggle sits beside it (see app.py)."""
-    st.markdown(
-        '<div class="br-appbar">'
-        + inline_svg("mark.svg", "br-mark-light") + inline_svg("mark-reverse.svg", "br-mark-dark")
-        + '<span class="br-wordmark">BioRig<span class="dot">.</span></span>'
-        + f'<span class="br-chip{" paused" if paused else ""}"><span class="d"></span>{html.escape(chain_name)}</span>'
-        + "</div>",
-        unsafe_allow_html=True,
-    )
-
-
-def rows_html(rows: list[tuple[str, str]], plain: bool = False) -> str:
-    cls = "br-v plain" if plain else "br-v"
-    return "".join(f'<div class="br-row"><span class="br-k">{html.escape(k)}</span>'
-                   f'<span class="{cls}">{v}</span></div>' for k, v in rows)
-
-
-def pill(ok: bool, yes: str, no: str) -> str:
-    return f'<span class="br-pill {"br-ok" if ok else "br-bad"}">{html.escape(yes if ok else no)}</span>'
-
-
-def credit() -> None:
-    st.caption(t("credit"))
-
-
-def slider_thumb_css(value: int, minimum: int, maximum: int) -> str:
-    """Style block that keeps a slider's thumb sitting on its own filled track.
-
-    Streamlit paints the filled track from the widget's value as a percentage, while the thumb
-    element can still carry the geometry of an earlier state: a drag released away from the thumb,
-    or a container that was a different width when the widget first rendered. The thumb then sits
-    where a previous value was, disconnected from the green fill. Both are derived from the one
-    value the app holds, so pinning the thumb's left edge to it whenever the pointer is off the
-    widget brings them back together; while the pointer is down or over the widget the native drag
-    is left alone, so dragging still feels like dragging.
-    """
-    pct = (value - minimum) / (maximum - minimum) * 100
-    # The thumb is the only element inside the widget with an absolute position, and it is the only
-    # one that also carries the centring transform and a touch-action of its own. Either marker
-    # identifies it; the track's own container is position: relative, so it can match neither.
-    guarded = ",".join(
-        f'[data-testid="stSlider"]:not(:hover):not(:active) {selector}'
-        for selector in (
-            'div[style*="position: absolute"][style*="translate(-50%, -50%)"]',
-            'div[style*="position: absolute"][style*="touch-action: none"]',
-        )
-    )
-    return (
-        '<style id="br-slider-pin">'
-        '[data-testid="stSlider"] { direction: ltr; }'
-        # The guard sits on the whole widget rather than on the thumb: mid-drag the pointer can slide
-        # off a 12px thumb while the drag is still live, and a thumb-level guard would freeze it.
-        f"{guarded} {{"
-        f" left: {pct:.4f}% !important; right: auto !important;"
-        " transform: translate(-50%, -50%) !important;"
-        " }"
-        "</style>"
-    )
+  font:12.5px/1.5 var(--app-font
