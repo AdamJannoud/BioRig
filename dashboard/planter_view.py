@@ -1,15 +1,3 @@
-"""Planter view: three steps a planter can walk without knowing what a nullifier is.
-
-1. Measure tree   one trunk-diameter slider; biomass, carbon and CO2e come from dashboard/allometry.py.
-2. Locate plot    the browser's GPS (dashboard/geolocate.py) or typed coordinates; the H3 cell and the plot ID are
-                  worked out in the background and the chain is asked whether the plot is free.
-3. Claim          a summary, then the pre-flight check: the same eth_call simulation the operator view runs, read
-                  only. Registration itself appears only where ALLOW_MINT is on (the owner's own machine); the
-                  public demo ends in an explicit "not enabled on this demo" state.
-
-Every word comes from dashboard/strings.py. Widget state lives under p_* keys and is carried across steps, because
-Streamlit drops the state of a widget that is not drawn on a run and only one step is drawn at a time.
-"""
 from __future__ import annotations
 
 import html
@@ -24,23 +12,16 @@ from dashboard import allometry, h3_nullifier
 from dashboard.chain import Chain, compute_tba_address, short_hex, tba_salt
 from dashboard.geolocate import geolocate
 from dashboard.strings import t
-from dashboard.ui import rows_html, slider_thumb_css
+from dashboard.ui import rows_html
 
-PILOT = dict(lat=-1.2921, lng=36.8219)  # the pilot plot, token 1 on Celo mainnet
+PILOT = dict(lat=-1.2921, lng=36.8219)
 DEFAULT_REFERENCE = "plot-1"
 DEFAULT_DBH = 24
-SIZES = {"small": 12, "medium": 11, "large": 10}  # plot size -> H3 resolution
+SIZES = {"small": 12, "medium": 11, "large": 10}
 
-
-# Plot references tried in the pilot cell, in order, for the default plot: a visitor who never taps "Use my location"
-# lands on one that is still free, so the pre-flight check reads "Ready." rather than "Not this one."
 DEMO_REFERENCES = tuple(f"plot-{n}" for n in range(1, 9))
 
-
 def default_reference(is_active, references: tuple[str, ...] = DEMO_REFERENCES) -> str:
-    """The first reference whose plot in the pilot cell is not registered yet, asked of the chain through the same
-    is_nullifier_active read the pre-flight makes. Falls back to DEFAULT_REFERENCE when the chain cannot be read
-    (or every candidate is taken), so the flow still renders offline."""
     try:
         for ref in references:
             if not is_active(h3_nullifier.derive(PILOT["lat"], PILOT["lng"], ref, SIZES["small"]).nullifier):
@@ -49,34 +30,25 @@ def default_reference(is_active, references: tuple[str, ...] = DEMO_REFERENCES) 
         pass
     return DEFAULT_REFERENCE
 
-
 def _defaults(chain: Chain, reference: str | None = None) -> dict:
     return {"p_step": 1, "p_dbh": DEFAULT_DBH, "p_lat": PILOT["lat"], "p_lng": PILOT["lng"], "p_from": "default",
             "p_size": "small", "p_ref": default_reference(chain.is_nullifier_active) if reference is None else reference,
             "p_wallet": chain.signer or "", "p_gps_ts": None, "p_check": None, "p_last_mint": None}
 
-
 def _carry(chain: Chain) -> None:
     ss = st.session_state
-    # The chain is asked for the default plot once per session, not on every rerun.
     for k, v in _defaults(chain, ss["p_ref"] if "p_ref" in ss else None).items():
         ss[k] = ss[k] if k in ss else v
 
-
 def _go(step: int) -> None:
     st.session_state["p_step"] = step
-
 
 def _start_over(chain: Chain) -> None:
     for k, v in _defaults(chain).items():
         st.session_state[k] = v
 
-
 def _typed() -> None:
     st.session_state["p_from"] = "typed"
-
-
-# --------------------------------------------------------------------------- pieces
 
 def steps_html(current: int) -> str:
     out = []
@@ -87,7 +59,6 @@ def steps_html(current: int) -> str:
                    f'<span class="short">{html.escape(t(f"step.{n}.short"))}</span></span>')
     return '<div class="br-steps" aria-label="steps">' + "".join(out) + "</div>"
 
-
 def metrics_html(e: allometry.Estimate) -> str:
     tiles = [("measure.biomass", e.biomass_kg, "kg"), ("measure.carbon", e.carbon_kg, "kg"),
              ("measure.co2e", e.co2e_kg, "kg CO₂e")]
@@ -95,23 +66,17 @@ def metrics_html(e: allometry.Estimate) -> str:
         f'<div class="br-metric"><div class="lab">{html.escape(t(k))}</div>'
         f'<div class="num">{v:,.0f} <small>{u}</small></div></div>' for k, v, u in tiles) + "</div>"
 
-
 def status_html(kind: str, icon: str, markdown_text: str) -> str:
-    """kind: '' (ok), 'warn' or 'idle'. **bold** in the wording becomes <b>."""
     body = html.escape(markdown_text)
     parts = body.split("**")
     body = "".join(f"<b>{p}</b>" if i % 2 else p for i, p in enumerate(parts))
     return f'<div class="br-status {kind}"><span class="ic">{icon}</span><span>{body}</span></div>'
 
-
 def across_m(area_m2: float) -> float:
-    """Flat-to-flat width of a regular hexagon of this area."""
     edge = math.sqrt(2 * area_m2 / (3 * math.sqrt(3)))
     return math.sqrt(3) * edge
 
-
 def plot_svg(lat: float, lng: float, resolution: int) -> str:
-    """The plot's H3 cell and its neighbours, projected around the tree, with the tree as a dot."""
     cell = h3.latlng_to_cell(lat, lng, resolution)
     k = math.cos(math.radians(lat))
 
@@ -140,7 +105,6 @@ def plot_svg(lat: float, lng: float, resolution: int) -> str:
             f'<text x="150" y="176" text-anchor="middle" style="font:12px var(--app-font);fill:var(--app-muted)">'
             f'{html.escape(t("locate.map_caption", area=area))}</text></svg></div>')
 
-
 def plain_reason(error: str | None) -> str:
     name = (error or "").split("(", 1)[0].strip()
     key = f"claim.reason.{name}"
@@ -149,27 +113,21 @@ def plain_reason(error: str | None) -> str:
     except KeyError:
         return t("claim.reason.other")
 
-
 @st.cache_data(ttl=60, show_spinner=False)
 def live_trees(_chain: Chain, chain_id: int, proxy: str, limit: int = 24) -> list[tuple[int, int, int, bool]]:
-    """(tokenId, dbh, biomass, alive) for every tree, read upwards from #1 until getTreeStats reverts."""
     out = []
     for token_id in range(1, limit + 1):
         try:
             s = _chain.get_tree_stats(token_id)
-        except Exception:  # noqa: BLE001 - the first id that reverts is one past the last tree
+        except Exception:
             break
         out.append((token_id, s.dbh, s.biomass, s.is_alive))
     return out
-
-
-# --------------------------------------------------------------------------- steps
 
 def _measure() -> None:
     st.markdown(f'<div class="br-h">{html.escape(t("measure.title"))}</div>'
                 f'<p class="br-lede">{html.escape(t("measure.lede"))}</p>', unsafe_allow_html=True)
     dbh = st.slider(t("measure.slider"), allometry.DBH_MIN_CM, allometry.DBH_MAX_CM, format="%d cm", key="p_dbh")
-    st.markdown(slider_thumb_css(int(dbh), allometry.DBH_MIN_CM, allometry.DBH_MAX_CM), unsafe_allow_html=True)
     e = allometry.estimate(int(dbh))
     st.markdown(metrics_html(e) + f'<p class="br-note">'
                 f'{html.escape(t("measure.assumes", height=e.height_m, density=allometry.DEFAULT_WOOD_DENSITY))}</p>',
@@ -177,12 +135,10 @@ def _measure() -> None:
     st.caption(t("measure.note"))
     st.button(t("nav.continue"), type="primary", key="p_next1", on_click=_go, args=(2,))
 
-
 def _derive():
     ss = st.session_state
     salt = (ss["p_ref"] or "").strip() or DEFAULT_REFERENCE
     return h3_nullifier.derive(float(ss["p_lat"]), float(ss["p_lng"]), salt, SIZES.get(ss["p_size"] or "small", 12))
-
 
 def _locate(chain: Chain) -> None:
     ss = st.session_state
@@ -191,7 +147,6 @@ def _locate(chain: Chain) -> None:
     reading = geolocate(label=t("locate.gps_button"), waiting=t("locate.gps_waiting"), found=t("locate.gps_found"),
                         denied=t("locate.gps_denied"), unavailable=t("locate.gps_unavailable"),
                         unsupported=t("locate.gps_unsupported"), key="p_geo")
-    # Apply a fresh reading before the coordinate inputs are drawn, so they show it on this same run.
     if reading and reading.get("ts") != ss["p_gps_ts"]:
         ss["p_gps_ts"] = reading.get("ts")
         if "lat" in reading and "lng" in reading:
@@ -233,14 +188,12 @@ def _locate(chain: Chain) -> None:
         st.button(t("nav.continue"), type="primary", key="p_next2", on_click=_go, args=(3,))
         st.button(t("nav.back"), key="p_back2", on_click=_go, args=(1,))
 
-
 def _fee_celo(chain: Chain, gas: int) -> str | None:
     try:
         wei = gas * chain.gas_price_wei()
-    except Exception:  # noqa: BLE001 - the fee is a courtesy; the check stands without it
+    except Exception:
         return None
     return f"{wei / 10**18:.3g}"
-
 
 def _claim(chain: Chain, overview: dict, key_problem: str | None) -> None:
     ss = st.session_state
@@ -322,9 +275,7 @@ def _claim(chain: Chain, overview: dict, key_problem: str | None) -> None:
                            mime="application/json", key="p_download")
     st.caption(t("claim.note"))
 
-
 def _register(chain: Chain, wallet: str, d, e: allometry.Estimate) -> None:
-    """Only reached where ALLOW_MINT is on: the owner's own machine with the verifier key."""
     confirm = st.checkbox(t("claim.confirm"), key="p_confirm")
     if st.button(t("claim.register"), type="primary", key="p_register", disabled=not confirm):
         with st.spinner(t("claim.registering")):
@@ -340,7 +291,6 @@ def _register(chain: Chain, wallet: str, d, e: allometry.Estimate) -> None:
         st.session_state["p_check"] = None
         live_trees.clear()
         st.rerun()
-
 
 def _trees(chain: Chain) -> None:
     settings = chain.settings
@@ -359,7 +309,6 @@ def _trees(chain: Chain) -> None:
     st.markdown(f'<div class="br-trees">{badges}</div><p class="br-note">{html.escape(t("trees.lede"))} '
                 f'<a class="br-link" href="{settings.explorer_url}/address/{chain.proxy}" target="_blank">'
                 f'{html.escape(t("trees.contract"))}</a></p>', unsafe_allow_html=True)
-
 
 def render(chain: Chain, overview: dict, key_problem: str | None) -> None:
     _carry(chain)
