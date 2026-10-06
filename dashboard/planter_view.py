@@ -12,7 +12,7 @@ from dashboard import allometry, h3_nullifier
 from dashboard.chain import Chain, compute_tba_address, short_hex, tba_salt
 from dashboard.geolocate import geolocate
 from dashboard.strings import t
-from dashboard.ui import rwos_html
+from dashboard.ui import rows_html
 
 PILOT = dict(lat=-1.2921, lng=36.8219)
 DEFAULT_REFERENCE = "plot-1"
