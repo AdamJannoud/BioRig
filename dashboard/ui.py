@@ -50,6 +50,8 @@ html[data-app-mode="dark"] {
 .stMarkdown p, .stMarkdown li { font-size: 15px; }
 [data-testid="stHeadingWithActionElements"] h3 { letter-spacing: -.02em; font-weight: 700; }
 
+[data-testid="stSlider"] { direction: ltr; }
+
 .br-appbar { display:flex; align-items:center; gap:10px 14px; flex-wrap:wrap; min-height:50px;
   background:var(--app-surface); border:1px solid var(--app-rule); border-radius:var(--app-radius-sm);
   padding:9px 16px; box-shadow:var(--app-shadow); }
