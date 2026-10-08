@@ -24,7 +24,10 @@ EN: dict[str, str] = {
     "view.protocol": "Protocol",
     "credit": "BioRig — project lead, author and sole deployer: Adam Jannoud",
     "connecting": "Connecting to the chain…",
-    "chain.unreachable": "Could not reach the chain: {error}",
+    "chain.unreachable": "Could not reach the chain right now. The page will load once the RPC answers.",
+    "chain.slow": "The chain is taking longer than {seconds} s to answer. The RPC may be busy; try again in a moment.",
+    "chain.reason": "RPC {rpc} · {error}",
+    "chain.retry": "Retry",
 
     # ------------------------------------------------------------------ home (the only marketing register)
     "home.kicker": "Verifiable climate action, on Celo",

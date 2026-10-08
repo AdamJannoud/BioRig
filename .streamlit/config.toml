@@ -15,8 +15,8 @@ textColor = "#0B1F16"
 
 [theme.dark]
 primaryColor = "#35D07F"
-backgroundColor = "#04120C"
-secondaryBackgroundColor = "#0A1F16"
+backgroundColor = "#07150E"
+secondaryBackgroundColor = "#0A1C14"
 textColor = "#EAF4EC"
 
 [server]

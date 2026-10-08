@@ -33,16 +33,16 @@ html, html[data-app-mode="light"] {
   --app-radius: 18px; --app-radius-sm: 14px; --app-shadow: 0 1px 3px rgba(2,58,36,.05);
 }
 html[data-app-mode="dark"] {
-  --app-bg: #04120C; --app-surface: #0A1F16; --app-surface-2: #0D281A; --app-field: #071A10;
+  --app-bg: #07150E; --app-surface: #0A1C14; --app-surface-2: #0E261B; --app-field: #091911;
   --app-rule: rgba(53,208,127,.17);
   --app-text: #EAF4EC; --app-muted: #9DB4A6; --app-accent: #35D07F; --app-accent-text: #04120C;
   --app-lime-text: #35D07F; --app-glow: 0 6px 20px rgba(53,208,127,.2); --app-hero-glow: rgba(53,208,127,.16);
   --app-gold-ring: rgba(252,255,82,.28); --app-gold-text: #FCFF52; --app-wordmark: #EAF4EC;
-  --app-chip-bg: #0D281A; --app-chip-text: #35D07F; --app-step-n: #12301F;
+  --app-chip-bg: #0E261B; --app-chip-text: #35D07F; --app-step-n: #12301F;
   --app-ok: #8FE0AC; --app-ok-bg: #0B2619; --app-ok-rule: rgba(53,208,127,.22);
   --app-warn: #E8C547; --app-warn-bg: #2A2410; --app-warn-rule: #4A3F18;
   --app-bad: #F87171; --app-bad-bg: #3A1414;
-  --app-plot-a: #0A2117; --app-plot-b: #071A10; --app-plot-grid: rgba(234,244,236,.06);
+  --app-plot-a: #0B1E15; --app-plot-b: #091911; --app-plot-grid: rgba(234,244,236,.06);
   --app-plot-cell: rgba(252,255,82,.22); --app-plot-line: #FCFF52; --app-plot-faint: rgba(234,244,236,.16);
   --app-shadow: none;
 }
@@ -260,13 +260,16 @@ def inline_svg(name: str, cls: str) -> str:
     svg = (BRAND_DIR / name).read_text().strip()
     return svg.replace("<svg ", f'<svg class="{cls}" ', 1)
 
-def header(chain_name: str, paused: bool) -> None:
-    st.markdown(
+def header(chain_name: str | None, paused: bool, target=st) -> None:
+    """The brand bar. chain_name None (no chain could be selected) drops the network chip; target is where it is
+    drawn, so app.py can paint it before the chain answers and repaint the same slot once it has."""
+    chip = ("" if chain_name is None else
+            f'<span class="br-chip{" paused" if paused else ""}"><span class="d"></span>{html.escape(chain_name)}</span>')
+    target.markdown(
         '<div class="br-appbar">'
         + inline_svg("mark.svg", "br-mark-light") + inline_svg("mark-reverse.svg", "br-mark-dark")
         + '<span class="br-wordmark">BioRig<span class="dot">.</span></span>'
-        + f'<span class="br-chip{" paused" if paused else ""}"><span class="d"></span>{html.escape(chain_name)}</span>'
-        + "</div>",
+        + chip + "</div>",
         unsafe_allow_html=True,
     )
 

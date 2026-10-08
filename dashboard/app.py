@@ -10,6 +10,10 @@ The older ?view=planter and ?view=operator are published in the proposal and the
 accepted as aliases of register and protocol. Every view reads the same chain connection, and every word on screen
 comes from dashboard/strings.py.
 
+Nothing touches the network before the header and the view control are on screen: the first reads of the chain run
+after them, under a spinner and inside chain.PROBE_BUDGET_S. A chain that is down or slow leaves the frame up with
+the reason and a Retry button, never a blank page.
+
 The verifier key is read from .env on the server and never sent to the browser: every signature happens
 in this Python process.
 """
@@ -23,7 +27,7 @@ import streamlit as st
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from dashboard import home_view, operator_view, planter_view, ui  # noqa: E402
-from dashboard.chain import Chain  # noqa: E402
+from dashboard.chain import PROBE_BUDGET_S, Chain, Probe, ProbeTimeout  # noqa: E402
 from dashboard.config import (ChainSelectionError, PrivateKeyError, ProxyResolutionError,  # noqa: E402
                               load_settings)
 from dashboard.strings import t  # noqa: E402
@@ -41,33 +45,45 @@ def initial_view(requested: str | None) -> str:
     return view if view in VIEWS else "home"
 
 
-
 # --------------------------------------------------------------------------- connection
 
-@st.cache_resource(show_spinner=t("connecting"))
+@st.cache_resource(show_spinner=False)
 def get_chain() -> tuple[Chain, str | None]:
     """The chain, and why signing is off when PRIVATE_KEY was set but rejected. Signing is optional: a bad key
-    drops to read-only here, so it can never take the telemetry down with it."""
+    drops to read-only here, so it can never take the telemetry down with it. No network: this only builds the
+    provider, so it is safe before the first paint."""
     try:
         return Chain(load_settings()), None
     except PrivateKeyError as exc:
         return Chain(exc.settings), str(exc)
 
 
-try:
-    chain, key_problem = get_chain()
-    settings = chain.settings
-    rpc_chain = chain.assert_chain()
-    overview = chain.overview()
-    is_verifier = chain.signer_is_verifier()
-except (ChainSelectionError, ProxyResolutionError) as exc:
-    st.error(str(exc))
-    st.stop()
-except Exception as exc:  # RPC down, wrong chain: show it rather than a blank page
-    st.error(t("chain.unreachable", error=exc))
+@st.cache_data(ttl=30, show_spinner=False)
+def probe_chain(_chain: Chain, rpc_url: str, chain_id: int, proxy: str, signer: str | None) -> Probe:
+    """chain id, overview and verifier role, bounded by PROBE_BUDGET_S. Cached for 30 s so a widget click does not
+    pay eleven round trips again; a raised error is not memoised, so the next run (or Retry) asks afresh."""
+    return _chain.probe(PROBE_BUDGET_S)
+
+
+def _retry() -> None:
+    get_chain.clear()
+    probe_chain.clear()
+
+
+def _unavailable(message: str, detail: str | None = None, alert=st.warning) -> None:
+    """The calm stand-in for a view when there is no chain to read: the reason and a way to ask again."""
+    alert(message)
+    if detail:
+        st.caption(detail)
+    st.button(t("chain.retry"), key="br-retry", on_click=_retry)  # the click itself reruns the script
+    ui.credit()
     st.stop()
 
-st.set_page_config(page_title=t("page.title_chain", chain=settings.chain_name))
+
+def _short(exc: Exception) -> str:
+    """One line of an RPC error: requests' messages run to several hundred characters of pool internals."""
+    text = " ".join(str(exc).split()) or type(exc).__name__
+    return text if len(text) <= 180 else text[:179] + "…"
 
 
 # --------------------------------------------------------------------------- header + view toggle
@@ -79,12 +95,38 @@ def _view_changed() -> None:
 if "br-view" not in st.session_state:
     st.session_state["br-view"] = initial_view(st.query_params.get("view"))
 
+try:
+    chain, key_problem = get_chain()
+    config_problem = None
+except (ChainSelectionError, ProxyResolutionError) as exc:
+    chain, key_problem, config_problem = None, None, str(exc)
+
+if chain is not None:
+    st.set_page_config(page_title=t("page.title_chain", chain=chain.settings.chain_name))
+
 bar, toggle = st.columns([3, 2], vertical_alignment="center")
 with bar:
-    ui.header(settings.chain_name, overview["paused"])
+    head = st.empty()  # painted now, repainted with the paused state once the chain has answered
+    ui.header(chain.settings.chain_name if chain else None, False, target=head)
 with toggle:
     view = st.segmented_control(t("view.label"), VIEWS, key="br-view", required=True, on_change=_view_changed,
                                 format_func=lambda v: t("view." + v))
+
+if config_problem is not None:
+    _unavailable(config_problem, alert=st.error)  # a settings fault: its own message says what to fix
+
+settings = chain.settings
+try:
+    with st.spinner(t("connecting")):
+        probe = probe_chain(chain, settings.rpc_url, settings.chain_id, chain.proxy, chain.signer)
+except ProbeTimeout as exc:
+    _unavailable(t("chain.slow", seconds=f"{PROBE_BUDGET_S:g}"), t("chain.reason", rpc=settings.rpc_url,
+                                                                   error=_short(exc)))
+except Exception as exc:  # RPC down, wrong chain: say so beside the frame rather than leave a blank page
+    _unavailable(t("chain.unreachable"), t("chain.reason", rpc=settings.rpc_url, error=_short(exc)))
+
+rpc_chain, overview, is_verifier = probe.rpc_chain, probe.overview, probe.is_verifier
+ui.header(settings.chain_name, overview["paused"], target=head)
 
 if view == "protocol":
     operator_view.render(chain, rpc_chain, overview, is_verifier, key_problem)

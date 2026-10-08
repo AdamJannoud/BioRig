@@ -9,14 +9,17 @@ from __future__ import annotations
 import json
 import time
 from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FutureTimeout
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
+import requests
 from eth_abi import encode as abi_encode
 from eth_utils import keccak, to_checksum_address
 from web3.exceptions import TransactionNotFound, Web3Exception
 from web3.logs import DISCARD
+from web3.providers.rpc.utils import ExceptionRetryConfiguration  # not re-exported by the package on web3 8
 
 from .config import Settings
 
@@ -38,6 +41,17 @@ MINT_WALKS = 3
 LOG_WORKERS = 8  # chunks read concurrently; each one may spend ~4 s confirming an empty answer
 _TRANSIENT = (OSError, Web3Exception)  # requests' ConnectionError/Timeout are OSErrors
 _sleep = time.sleep  # tests replace this to run the delays instantly
+
+# web3's HTTPProvider default retries a failed call 5 times; at the old 30 s timeout one unreachable RPC call blocked
+# for 152 s, which is what left a cold hosted dashboard blank. One attempt at 8 s keeps every call under ~10 s; the
+# log reads that need resilience against a flaky RPC already retry in Chain._rpc.
+RPC_TIMEOUT_S = 8
+# errors is spelled out because web3 8 validates it as a sequence; this is the tuple the provider's own default uses.
+RPC_RETRY = ExceptionRetryConfiguration(errors=(ConnectionError, requests.HTTPError, requests.Timeout),
+                                        retries=1, backoff_factor=0.1)
+# The whole startup probe (chain id, overview, verifier role) must answer inside this, or the dashboard says the
+# chain is slow and offers a retry instead of hanging its first render.
+PROBE_BUDGET_S = 20
 
 
 def load_abi(name: str) -> list:
@@ -147,6 +161,18 @@ class TbaCheck:
 
 
 @dataclass(frozen=True)
+class Probe:
+    """What the dashboard reads once before it renders a view."""
+    rpc_chain: int
+    overview: dict
+    is_verifier: bool
+
+
+class ProbeTimeout(TimeoutError):
+    """The startup probe did not finish inside its wall-clock budget."""
+
+
+@dataclass(frozen=True)
 class Simulation:
     ok: bool
     token_id: int | None
@@ -161,7 +187,8 @@ class Chain:
         from web3 import Web3
 
         self.settings = settings
-        self.w3 = Web3(Web3.HTTPProvider(settings.rpc_url, request_kwargs={"timeout": 30}))
+        self.w3 = Web3(Web3.HTTPProvider(settings.rpc_url, request_kwargs={"timeout": RPC_TIMEOUT_S},
+                                         exception_retry_configuration=RPC_RETRY))
         self.core_abi = load_abi("BioRigCoreV5")
         self.selectors = error_selectors(self.core_abi)
         self.proxy = to_checksum_address(settings.proxy.address)
@@ -203,6 +230,23 @@ class Chain:
             "bufferPool": f.bufferPool().call(),
             "block": int(self.w3.eth.block_number),
         }
+
+    def probe(self, budget_s: float = PROBE_BUDGET_S) -> Probe:
+        """assert_chain, overview and signer_is_verifier, finished inside budget_s of wall clock or ProbeTimeout.
+
+        Each call is bounded by RPC_TIMEOUT_S, but overview alone is eight sequential round trips, so a slow RPC
+        could still add up. The reads run on a worker thread the caller stops waiting for at the deadline; the
+        thread itself ends at its next call's timeout and its result is dropped."""
+        pool = ThreadPoolExecutor(max_workers=1)
+        future = pool.submit(lambda: Probe(self.assert_chain(), self.overview(), self.signer_is_verifier()))
+        try:
+            return future.result(timeout=budget_s)
+        except FutureTimeout:
+            if future.done():  # the reads themselves raised a TimeoutError (the builtin one, on 3.11): pass it on
+                raise
+            raise ProbeTimeout(f"no answer from {self.settings.rpc_url} within {budget_s:g} s") from None
+        finally:
+            pool.shutdown(wait=False, cancel_futures=True)
 
     def core_implementation(self) -> str:
         """BioRigCoreV5 implementation behind the proxy, read from the ERC-1967 implementation slot."""
