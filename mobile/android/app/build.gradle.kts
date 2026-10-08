@@ -1,3 +1,6 @@
+import java.nio.ByteBuffer
+import java.security.MessageDigest
+
 // :app — Compose UI, CameraX, fused location and the Room queue, on top of :core. Needs an Android SDK; see
 // settings.gradle.kts for why it is only included when one is found.
 plugins {
@@ -42,6 +45,13 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    testOptions {
+        // Robolectric reads the merged resources and manifest; the screen renders need both.
+        unitTests.isIncludeAndroidResources = true
+        // The renders are an artefact job, not a test: only :app:renderScreens runs them (below).
+        unitTests.all { if (it.name != "renderScreens") it.filter.excludeTestsMatching("org.biorig.app.ui.ScreenRenders") }
     }
 
     buildFeatures {
@@ -128,6 +138,11 @@ dependencies {
     implementation(libs.play.services.location)
     implementation(libs.exifinterface)
 
+    testImplementation(libs.junit)
+    testImplementation(libs.robolectric)
+    testImplementation(platform(libs.compose.bom))
+    testImplementation(libs.compose.ui.test.junit4)
+
     androidTestImplementation(libs.androidx.test.junit)
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.test.rules)
@@ -136,4 +151,51 @@ dependencies {
     androidTestImplementation(platform(libs.compose.bom))
     androidTestImplementation(libs.compose.ui.test.junit4)
     debugImplementation(libs.compose.ui.test.manifest)
+}
+
+// JVM renders of the six screens, light and dark: the real composables in ui/Screens.kt, drawn by Robolectric's native
+// graphics from the fixed states in src/test/.../ScreenRenders.kt (no emulator: this box has no KVM, and a TCG guest
+// never settles enough to screencap). One device spec, recorded in the manifest: 360 x 780 dp at xxhdpi (density 3.0,
+// 480 dpi), so every PNG is 1080 x 2340 px. The timezone is pinned to UTC so the queue's capture times are fixed.
+// Writes mobile/android/screenshots/<screen>-<mode>.png and manifest.json; tools/check_screenshots.py gates them.
+//   ./gradlew :app:renderScreens
+val renderScreenNames = listOf("setup", "fix", "photos", "submit", "queue", "tree")
+val renderModes = listOf("light", "dark")
+val screenshotsDir: File = rootProject.file("screenshots")
+
+tasks.register<Test>("renderScreens") {
+    group = "verification"
+    description = "Render the six screens, light and dark, to screenshots/ with a sha256 manifest."
+    val unit = tasks.getByName<Test>("testDebugUnitTest")
+    testClassesDirs = unit.testClassesDirs
+    classpath = unit.classpath
+    filter { includeTestsMatching("org.biorig.app.ui.ScreenRenders") }
+    systemProperty("biorig.renders.dir", screenshotsDir.absolutePath)
+    jvmArgs("-Duser.timezone=UTC", "-Duser.language=en", "-Duser.country=GB", "-Djava.awt.headless=true")
+    maxHeapSize = "1g"
+    outputs.dir(screenshotsDir)
+    // Always render: a cache hit or an up-to-date skip would leave the PNGs unproven (gradle.properties caches builds).
+    outputs.upToDateWhen { false }
+    outputs.cacheIf { false }
+    doFirst {
+        screenshotsDir.mkdirs()
+        screenshotsDir.listFiles { f -> f.name.endsWith(".png") || f.name == "manifest.json" }?.forEach { it.delete() }
+    }
+    doLast {
+        val renders = renderScreenNames.flatMap { screen -> renderModes.map { mode -> screen to mode } }.map { (screen, mode) ->
+            val png = File(screenshotsDir, "$screen-$mode.png")
+            check(png.isFile) { "renderScreens wrote no ${png.name}" }
+            val bytes = png.readBytes()
+            val ihdr = ByteBuffer.wrap(bytes, 16, 8)
+            val sha = MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
+            """    {"screen": "$screen", "mode": "$mode", "path": "${png.name}", "width": ${ihdr.int}, "height": ${ihdr.int}, "sha256": "$sha"}"""
+        }
+        File(screenshotsDir, "manifest.json").writeText(
+            "{\n" +
+                "  \"generator\": \":app:renderScreens (mobile/android/app/src/test/kotlin/org/biorig/app/ui/ScreenRenders.kt)\",\n" +
+                "  \"device\": {\"width_dp\": 360, \"height_dp\": 780, \"density\": 3.0, \"dpi\": 480, \"width_px\": 1080, \"height_px\": 2340},\n" +
+                "  \"renders\": [\n" + renders.joinToString(",\n") + "\n  ]\n}\n",
+        )
+        logger.lifecycle("renderScreens: ${renders.size} renders and manifest.json in $screenshotsDir")
+    }
 }

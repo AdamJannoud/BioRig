@@ -10,8 +10,9 @@ import androidx.camera.view.PreviewView
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.material3.Button
-import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
@@ -44,21 +45,18 @@ fun CameraCapture(label: String, fix: Fix, target: () -> File, onSaved: (File) -
     }
 
     Column {
-        AndroidView({ previewView }, Modifier.fillMaxWidth().height(260.dp))
-        Button(
-            onClick = {
-                val file = target()
-                val metadata = ImageCapture.Metadata().apply {
-                    location = Location("fix").apply { latitude = fix.lat; longitude = fix.lng }
-                }
-                val options = ImageCapture.OutputFileOptions.Builder(file).setMetadata(metadata).build()
-                capture.takePicture(options, ContextCompat.getMainExecutor(context),
-                    object : ImageCapture.OnImageSavedCallback {
-                        override fun onImageSaved(output: ImageCapture.OutputFileResults) = onSaved(file)
-                        override fun onError(exception: ImageCaptureException) = onError(exception.message ?: "camera error")
-                    })
-            },
-            modifier = Modifier.fillMaxWidth(),
-        ) { Text("Photograph the $label") }
+        AndroidView({ previewView }, Modifier.fillMaxWidth().padding(top = 8.dp).height(260.dp).clip(RoundedCornerShape(14.dp)))
+        Primary("Photograph the $label") {
+            val file = target()
+            val metadata = ImageCapture.Metadata().apply {
+                location = Location("fix").apply { latitude = fix.lat; longitude = fix.lng }
+            }
+            val options = ImageCapture.OutputFileOptions.Builder(file).setMetadata(metadata).build()
+            capture.takePicture(options, ContextCompat.getMainExecutor(context),
+                object : ImageCapture.OnImageSavedCallback {
+                    override fun onImageSaved(output: ImageCapture.OutputFileResults) = onSaved(file)
+                    override fun onError(exception: ImageCaptureException) = onError(exception.message ?: "camera error")
+                })
+        }
     }
 }

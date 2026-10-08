@@ -1,0 +1,18 @@
+{
+  "generator": ":app:renderScreens (mobile/android/app/src/test/kotlin/org/biorig/app/ui/ScreenRenders.kt)",
+  "device": {"width_dp": 360, "height_dp": 780, "density": 3.0, "dpi": 480, "width_px": 1080, "height_px": 2340},
+  "renders": [
+    {"screen": "setup", "mode": "light", "path": "setup-light.png", "width": 1080, "height": 2340, "sha256": "661c715b0ccec6aacf9ab0e034c13a1c431cbae54d2799400ff2f5da623008bc"},
+    {"screen": "setup", "mode": "dark", "path": "setup-dark.png", "width": 1080, "height": 2340, "sha256": "1cc800a7421cb05321be0260aec9ddc1d3f91e42df22cbe4a130e7f11fefdc6d"},
+    {"screen": "fix", "mode": "light", "path": "fix-light.png", "width": 1080, "height": 2340, "sha256": "f12f9522033819e787f1184708e37c1ccfc393dac0ea7c8e3b8ae7e36ea1f196"},
+    {"screen": "fix", "mode": "dark", "path": "fix-dark.png", "width": 1080, "height": 2340, "sha256": "43384276e2e1aa145369c8addefb42ebf77016ed730fb2a429b13a0253f57c7b"},
+    {"screen": "photos", "mode": "light", "path": "photos-light.png", "width": 1080, "height": 2340, "sha256": "f87b746a6b33322768ed360e1c3cf30fa7e1f618b3b587fb32565bc9f05364c3"},
+    {"screen": "photos", "mode": "dark", "path": "photos-dark.png", "width": 1080, "height": 2340, "sha256": "b136e9e952b9071b8a35696a176d9c183b04b72a6b2cb0e46852d09a17f9941d"},
+    {"screen": "submit", "mode": "light", "path": "submit-light.png", "width": 1080, "height": 2340, "sha256": "d37d52783fe2f921b218620ed1d882ad0455fb626ad74b25a9ace7bbbf3b46d7"},
+    {"screen": "submit", "mode": "dark", "path": "submit-dark.png", "width": 1080, "height": 2340, "sha256": "05922dddb9b4b790ba266846aa85f3d04a024beb137270796b27a68c11b7100c"},
+    {"screen": "queue", "mode": "light", "path": "queue-light.png", "width": 1080, "height": 2340, "sha256": "a44b44fd036d67495881e567744bbdc7ad69b94766f5a09eec9d8c471f39a4db"},
+    {"screen": "queue", "mode": "dark", "path": "queue-dark.png", "width": 1080, "height": 2340, "sha256": "07b0fc9b905043b396b06ab729644360ad56f175df7deb01883979d6bfd91be1"},
+    {"screen": "tree", "mode": "light", "path": "tree-light.png", "width": 1080, "height": 2340, "sha256": "3e1cc32289458fbf361c48518b2642f9532ff82f098443206011b9c66fae2528"},
+    {"screen": "tree", "mode": "dark", "path": "tree-dark.png", "width": 1080, "height": 2340, "sha256": "87e00ee4760e33b0890d709e7e4f15fd33a9a81e564429026f186ce318a7b4a8"}
+  ]
+}

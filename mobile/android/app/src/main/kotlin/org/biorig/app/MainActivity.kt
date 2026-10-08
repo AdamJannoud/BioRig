@@ -20,13 +20,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import kotlinx.coroutines.delay
 import org.biorig.app.ui.BioRigTheme
-import org.biorig.app.ui.FixScreen
-import org.biorig.app.ui.PhotosScreen
-import org.biorig.app.ui.QueueScreen
+import org.biorig.app.ui.FixRoute
+import org.biorig.app.ui.PhotosRoute
+import org.biorig.app.ui.QueueRoute
 import org.biorig.app.ui.Screen
-import org.biorig.app.ui.SetupScreen
-import org.biorig.app.ui.SubmitScreen
-import org.biorig.app.ui.TreeScreen
+import org.biorig.app.ui.SetupRoute
+import org.biorig.app.ui.SubmitRoute
+import org.biorig.app.ui.TreeRoute
 import org.biorig.app.ui.WizardViewModel
 
 class MainActivity : ComponentActivity() {
@@ -74,12 +74,12 @@ fun App(vm: WizardViewModel) {
     Scaffold(Modifier.fillMaxSize()) { pad ->
         androidx.compose.foundation.layout.Box(Modifier.padding(pad)) {
             when (state.screen) {
-                Screen.SETUP -> SetupScreen(state, vm::savePlanter)
-                Screen.FIX -> FixScreen(vm)
-                Screen.PHOTOS -> PhotosScreen(vm)
-                Screen.SUBMIT -> SubmitScreen(vm)
-                Screen.QUEUE -> QueueScreen(vm)
-                Screen.TREE -> TreeScreen(vm)
+                Screen.SETUP -> SetupRoute(vm)
+                Screen.FIX -> FixRoute(vm)
+                Screen.PHOTOS -> PhotosRoute(vm)
+                Screen.SUBMIT -> SubmitRoute(vm)
+                Screen.QUEUE -> QueueRoute(vm)
+                Screen.TREE -> TreeRoute(vm)
             }
         }
     }

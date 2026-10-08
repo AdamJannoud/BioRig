@@ -18,6 +18,7 @@ exifinterface = "1.3.7"
 androidxTestJunit = "1.2.1"
 androidxTestRunner = "1.6.2"
 androidxTestRules = "1.6.1"
+robolectric = "4.14.1"
 
 [libraries]
 h3 = { module = "com.uber:h3", version.ref = "h3" }
@@ -53,6 +54,7 @@ exifinterface = { module = "androidx.exifinterface:exifinterface", version.ref =
 androidx-test-junit = { module = "androidx.test.ext:junit", version.ref = "androidxTestJunit" }
 androidx-test-rules = { module = "androidx.test:rules", version.ref = "androidxTestRules" }
 androidx-test-runner = { module = "androidx.test:runner", version.ref = "androidxTestRunner" }
+robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
