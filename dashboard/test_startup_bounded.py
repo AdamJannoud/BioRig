@@ -17,7 +17,7 @@ import streamlit as st
 from streamlit.testing.v1 import AppTest
 
 from dashboard import chain as chain_mod
-from dashboard import config
+from dashboard import config, ui
 from dashboard.test_app_signing import OfflineChain
 from dashboard.test_config import _key_env
 
@@ -110,7 +110,7 @@ def _assert_frame_with_retry(at, wording):
 def test_unreachable_chain_keeps_the_frame_and_offers_retry(tmp_path, monkeypatch, view):
     at = _render(tmp_path, monkeypatch, DownChain, view)
     _assert_frame_with_retry(at, "Could not reach the chain")
-    assert any("10.255.255.1" in str(c.value) for c in at.caption)
+    assert any("ConnectionError" in str(c.value) for c in at.caption)  # named, not dumped
 
     # The RPC comes back: Retry drops the cached chain and the next run renders the view.
     monkeypatch.setattr(chain_mod, "Chain", OfflineChain)
@@ -126,3 +126,11 @@ def test_slow_chain_stops_at_the_budget(tmp_path, monkeypatch):
     at = _render(tmp_path, monkeypatch, SlowChain)
     assert time.monotonic() - start < 4  # the 6 s read was abandoned at the 0.5 s budget
     _assert_frame_with_retry(at, "taking longer than 0.5 s")
+
+
+def test_mode_script_cannot_feed_its_own_observer():
+    """The browser half of the same hang: MODE_JS observes body's dir and also writes it. A write queues a mutation
+    even when the value is unchanged, so every write must be guarded or the page's main thread spins forever."""
+    writes = [line for line in ui.MODE_JS.splitlines() if "'dir'" in line and "setAttribute" in line
+              or "style.direction =" in line]
+    assert writes and all("!==" in line for line in writes), writes

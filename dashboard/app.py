@@ -81,7 +81,10 @@ def _unavailable(message: str, detail: str | None = None, alert=st.warning) -> N
 
 
 def _short(exc: Exception) -> str:
-    """One line of an RPC error: requests' messages run to several hundred characters of pool internals."""
+    """One line of an RPC error. A transport error is named by its type (ConnectTimeout, ConnectionError):
+    requests' messages run to several hundred characters of pool internals and object addresses."""
+    if isinstance(exc, OSError):
+        return type(exc).__name__
     text = " ".join(str(exc).split()) or type(exc).__name__
     return text if len(text) <= 180 else text[:179] + "…"
 
@@ -121,7 +124,7 @@ try:
         probe = probe_chain(chain, settings.rpc_url, settings.chain_id, chain.proxy, chain.signer)
 except ProbeTimeout as exc:
     _unavailable(t("chain.slow", seconds=f"{PROBE_BUDGET_S:g}"), t("chain.reason", rpc=settings.rpc_url,
-                                                                   error=_short(exc)))
+                                                                   error="no answer"))
 except Exception as exc:  # RPC down, wrong chain: say so beside the frame rather than leave a blank page
     _unavailable(t("chain.unreachable"), t("chain.reason", rpc=settings.rpc_url, error=_short(exc)))
 

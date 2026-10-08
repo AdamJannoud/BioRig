@@ -242,9 +242,11 @@ MODE_JS = """
     if (doc.documentElement.getAttribute('data-app-mode') !== want) {
         doc.documentElement.setAttribute('data-app-mode', want);
     }
-    doc.documentElement.setAttribute('dir', 'ltr');
-    doc.body.setAttribute('dir', 'ltr');
-    doc.documentElement.style.direction = 'ltr';
+    // Every write is guarded: the observer below watches body's dir, and setting an attribute queues a mutation
+    // even when the value is unchanged, so an unguarded write re-fires mode() forever and freezes the page.
+    if (doc.documentElement.getAttribute('dir') !== 'ltr') doc.documentElement.setAttribute('dir', 'ltr');
+    if (doc.body.getAttribute('dir') !== 'ltr') doc.body.setAttribute('dir', 'ltr');
+    if (doc.documentElement.style.direction !== 'ltr') doc.documentElement.style.direction = 'ltr';
   }
   mode();
   new MutationObserver(mode).observe(doc.body, {attributes: true, subtree: true, attributeFilter: ['class', 'style', 'dir']});
