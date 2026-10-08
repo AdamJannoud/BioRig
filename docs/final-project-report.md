@@ -2,9 +2,11 @@
 
 **Project:** BioRig — on-chain forest-MRV with token-bound trees
 **Repository:** https://github.com/AdamJannoud/BioRig (public)
-**Evidence base:** commit `6ba5123cf1dcd752a766db0cf393da30bc23060e` — the main tip when this report was written (origin/main = local HEAD, 132 commits, clean tree, 0/0 divergence). The commit that carries this file changes only what §4.8 lists, and it is a byte-checked carrier itself.
+**Evidence base:** commit `b85e2530efcc0f64e4a02fe73c3046f779fdce1a` — the main tip when this report was written (origin/main = local HEAD, 132 commits, clean tree, 0/0 divergence). The commit that carries this file changes only what §4.8 lists, and it is a byte-checked carrier itself.
 **Date:** 4 October 2026, 13:50 UTC
 **Author / attribution:** Adam Jannoud (every commit in the history, see §4.2)
+
+**Identifiers:** every commit hash in this document was re-pointed on 8 October 2026 to the history produced by that day's repo-wide identity normalisation. That rewrite changed hashes and identity fields only — every tree, subject and date is unchanged, and §4.5 records the proof. Counts and command outputs are the 4 October capture they were recorded from.
 
 ---
 
@@ -104,7 +106,7 @@ Rate limits are keyed on what the app holds, not the edge's address:
 
 ### Test inventory at the reported tip
 
-- **Foundry:** 181 passed, 17 suites, 11.02 s (re-run against `61bb478` checkout, 3 Oct 2026).
+- **Foundry:** 181 passed, 17 suites, 11.02 s (re-run against `f6f2045` checkout, 3 Oct 2026).
 - **Python:** `pytest dashboard tools relay` → 440 passed; with `--chain-id 42220` → 412 passed.
 - **Android JVM:** 49 tests passed; `lintDebug` exit 0 (61 warnings, all by design or newer-library notices, zero errors); `assembleDebug` green and APK matched to committed source.
 - **Acceptance gate:** `scripts/verify-demo.sh` exit 0, **ALL DEMO CHECKS PASSED** (all nine earlier steps + the carrier step), including 427 tests in the clean-clone proof run and both mainnet fork rehearsals.
@@ -113,15 +115,15 @@ Rate limits are keyed on what the app holds, not the edge's address:
 
 ## 4. Sync, attribution & carrier audit (evidence)
 
-Everything below was re-run at 13:50–14:00 UTC against tip `6ba5123`.
+Everything below was re-run at 13:50–14:00 UTC against tip `b85e253`.
 
 ### 4.1 Repo state at tip
 
 ```
 $ git rev-parse HEAD
-6ba5123cf1dcd752a766db0cf393da30bc23060e
+b85e2530efcc0f64e4a02fe73c3046f779fdce1a
 $ git ls-remote origin refs/heads/main
-6ba5123cf1dcd752a766db0cf393da30bc23060e  refs/heads/main
+b85e2530efcc0f64e4a02fe73c3046f779fdce1a  refs/heads/main
 $ git rev-list --left-right --count origin/main...HEAD
 0  0
 $ git status --porcelain            # empty → clean tree
@@ -137,7 +139,12 @@ $ git log --format='%an <%ae>|%cn <%ce>' | sort | uniq -c
   1  Adam Jannoud <jannoud-adam@hotmail.com>|Adam Jannoud <jannoud-adam@hotmail.com>
 ```
 
-Every one of the 132 commits is authored and committed by the same person and email; the single variant (`7bc8d33`) differs only in the display-name spacing ("Adam Jannoud" vs "AdamJannoud"), same email. All README, DEPLOY, DEMO, proposal, milestone and deployment-plan docs attribute the project and author to Adam Jannoud and link `https://github.com/AdamJannoud/BioRig`.
+Every one of the 132 commits is authored and committed by the same person and email. The one name
+variant the audit found (`550942c`: "Adam Jannoud" against "AdamJannoud", same address) was
+normalized on 8 October 2026 by a repo-wide identity rewrite, so every commit in the current history
+reads `AdamJannoud <jannoud-adam@hotmail.com>`. All README, DEPLOY, DEMO, proposal, milestone and
+deployment-plan docs attribute the project and author to Adam Jannoud and link
+`https://github.com/AdamJannoud/BioRig`.
 
 ### 4.3 No obsolete platform links
 
@@ -164,12 +171,20 @@ $ .venv/bin/python -m pytest tools/test_carriers.py -q
 
 `tools/test_carriers.py` (42→62 tests as carriers grew) proves the gate catches drifted bytes — flipping a byte in the committed diagram SVG fails it.
 
-### 4.5 Clean-clone proofs (tip `6ba5123`)
+### 4.5 Clean-clone proofs (tip `b85e253`)
 
-Two independent proofs exist, both `verdict: PASS`, with `skipped_steps` none:
+Two independent proofs were recorded for that delivery, both `verdict: PASS`, with `skipped_steps`
+none:
 
-- `.git/clean-clone-proof/6ba5123….json` — **source=local**: fresh clone of the tip, key-free, README quick-start followed, full `verify-demo.sh` exit 0, **ALL DEMO CHECKS PASSED**, 427 tests, both fork rehearsals, 12/12→13/13 carriers, doc-path sweep clean.
-- `.git/clean-clone-proof/6ba5123….remote.json` — **source=github**: the pushed tip re-cloned back from GitHub, identical tree, same verdict `PASS`.
+- `.git/clean-clone-proof/6ba5123….json` — **source=local**: fresh clone of the tip, key-free, README
+  quick-start followed, full `verify-demo.sh` exit 0, **ALL DEMO CHECKS PASSED**, 427 tests, both fork
+  rehearsals, 12/12→13/13 carriers, doc-path sweep clean.
+- `.git/clean-clone-proof/6ba5123….remote.json` — **source=github**: the pushed tip re-cloned back from
+  GitHub, identical tree, same verdict `PASS`.
+
+Both records are named by pre-rewrite hashes, because a proof file is written at push time. The
+rewritten tip `09469fa68cfccfd5bfe961e1cb0809cb700c5d30` carries its own pair from the push that
+landed the rewrite (`.json` source=local, `.remote.json` source=github), and both read `PASS`.
 
 These run inside `scripts/push-verified.sh` (stage 1 local proof, stage 3 GitHub re-prove), so a push that does not survive a fresh clone never lands.
 
@@ -177,11 +192,11 @@ These run inside `scripts/push-verified.sh` (stage 1 local proof, stage 3 GitHub
 
 - **Build-source tree** `mobile/android` pinned in the carrier record: `421f7f03fe0db6ab473d8538e029b0b981357e16`.
 - **APK:** 16,079,038 bytes, sha256 `22d906d6c98b7d0a11829a1204dfea6334065c460d5808e87b830918a1740dd0`, org.biorig.app, debug-signed (valid v2 signature, zipalign 4-byte OK), natives arm64-v8a / armeabi-v7a / x86 with `libh3-java.so`.
-- **GitHub release `apk-04fbf40`** (prerelease): tag → `04fbf400aed587bdf7ebde8013fd9347132e1e5f`. Anonymous download verified: HTTP 200, 16,079,038 bytes, sha256 identical to the committed carrier record and to the local file.
+- **GitHub release `apk-04fbf40`** (prerelease): tag → `0c4c6406c64a69228fc6326715cabde666c58160`. Anonymous download verified: HTTP 200, 16,079,038 bytes, sha256 identical to the committed carrier record and to the local file.
 
 ### 4.7 Drift found, fixed and re-verified
 
-The audit caught a real staleness: both `docs/milestone-roadmap-report.md` and `docs/celo-mainnet-deployment-plan.md` claimed "six commits landed after 61bb478" when **nine** had landed. Both were rewritten to a bounded range ("between 61bb478 and 2341e5c, the head when this line was written"), the DOCX re-rendered, the carrier record re-recorded (diff = exactly the two changed rows), and the gate re-run green. That fix is commit `6ba5123`, the evidence base for this report.
+The audit caught a real staleness: both `docs/milestone-roadmap-report.md` and `docs/celo-mainnet-deployment-plan.md` claimed "six commits landed after f6f2045" when **nine** had landed. Both were rewritten to a bounded range ("between f6f2045 and ed14bfa, the head when this line was written"), the DOCX re-rendered, the carrier record re-recorded (diff = exactly the two changed rows), and the gate re-run green. That fix is commit `b85e253`, the evidence base for this report.
 
 ### 4.8 This edition's own change
 
@@ -193,7 +208,7 @@ This report is committed as `docs/final-project-report.md` and published as the 
 - names the report among the published files in `DEPLOY.md` section 9 and describes its derivation there;
 - touches nothing else: no contract, app, dashboard, relay, renderer or other carrier's bytes change.
 
-Every number quoted above is stated for the evidence base (`6ba5123`), where the record held thirteen carriers; after this commit it holds fourteen. The gate is re-run over the fourteen-carrier record before the commit lands, and the commit is pushed through `scripts/push-verified.sh`, so a fresh clone of it must pass the same gate before the push is accepted.
+Every number quoted above is stated for the evidence base (`b85e253`), where the record held thirteen carriers; after this commit it holds fourteen. The gate is re-run over the fourteen-carrier record before the commit lands, and the commit is pushed through `scripts/push-verified.sh`, so a fresh clone of it must pass the same gate before the push is accepted.
 
 ---
 

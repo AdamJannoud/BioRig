@@ -2,12 +2,14 @@
 
 **Project:** BioRig — mobile-first dMRV and proof-of-growth infrastructure on Celo
 **Owner, author and sole deployer:** Adam Jannoud (AdamJannoud)
-**Repository:** `AdamJannoud/BioRig`, public — audited at `61bb478`, the tip as it stood when the audit ran; commits have landed since, all in the carrier record, the gate or the documentation (see the delta note below), and this edition is re-attested against the head it carries. Read the live head with `git ls-remote origin refs/heads/main`; this edition deliberately does not pin it
+**Repository:** `AdamJannoud/BioRig`, public — audited at `f6f2045`, the tip as it stood when the audit ran; commits have landed since, all in the carrier record, the gate or the documentation (see the delta note below), and this edition is re-attested against the head it carries. Read the live head with `git ls-remote origin refs/heads/main`; this edition deliberately does not pin it
 **Networks:** Celo mainnet (chain id 42220) — production; Celo Sepolia (11142220) — testnet
 **Report date:** 3 October 2026 (refreshes the 2 October 2026 edition)
 **Scope:** complete project audit, live verification sweep, and forward roadmap
 
-> **Basis of this report.** This is the 2 October 2026 report carried forward and re-audited at `61bb478`.
+**Identifiers:** commit hashes in this edition were re-pointed on 8 October 2026 to the history produced by that day's repo-wide identity normalisation — hashes and identity fields changed; trees, subjects and dates did not. Counts and command outputs are the capture they were recorded from, and Section 3.3 records the normalisation itself.
+
+> **Basis of this report.** This is the 2 October 2026 report carried forward and re-audited at `f6f2045`.
 > Every figure below was re-read on 3 October 2026 — chain state over RPC against two public Celo
 > endpoints, repository state over git and the remote, and every suite, check script and gate executed in
 > a checkout of that commit with no tracked changes. Nothing is carried over from the 2 October text
@@ -16,19 +18,19 @@
 > history does carry co-author trailers, and the proxy and account code sizes were mis-stated — and each
 > is corrected in place and set out in Section 3.9.
 >
-> **Delta since the audit.** Nine commits landed between `61bb478` and `2341e5c`, the head when this
+> **Delta since the audit.** Nine commits landed between `f6f2045` and `ed14bfa`, the head when this
 > note was written, and none of them touches the contract, the deployment scripts or any on-chain
-> state: `c30898a` (the milestone report docx, the mainnet deployment plan and `FINDINGS.md` become
-> carriers), `1038f28` (the doc-path allowlist), `288118b` (the two demo videos and the contract
-> source doc become carriers — thirteen in all), `079c725` (step 7 refuses a short or
-> duplicate-padded carrier record), `48da319` (the branding sweep, which changed `.gitignore`,
-> `docs/relay-api.md` and `relay/tests/test_edge.py`, recorded in Section 3.9), `7630855` (this
-> document re-pointed structurally), `66dfa03` (this note and the deployment plan's delta list
-> corrected), `f1080e2` (the tree-diameter slider's thumb pinned to its value, dashboard only) and
-> `2341e5c` (that pin scoped to the widget, so both thumb markers agree). The range is bounded at
-> both ends so it cannot go stale: commits after `2341e5c` are not counted here. Read the live head
+> state: `575e4d9` (the milestone report docx, the mainnet deployment plan and `FINDINGS.md` become
+> carriers), `33ac692` (the doc-path allowlist), `083e74a` (the two demo videos and the contract
+> source doc become carriers — thirteen in all), `b3ec3f5` (step 7 refuses a short or
+> duplicate-padded carrier record), `a95dcf4` (the branding sweep, which changed `.gitignore`,
+> `docs/relay-api.md` and `relay/tests/test_edge.py`, recorded in Section 3.9), `3226bf1` (this
+> document re-pointed structurally), `5fd10ff` (this note and the deployment plan's delta list
+> corrected), `6902d7c` (the tree-diameter slider's thumb pinned to its value, dashboard only) and
+> `ed14bfa` (that pin scoped to the widget, so both thumb markers agree). The range is bounded at
+> both ends so it cannot go stale: commits after `ed14bfa` are not counted here. Read the live head
 > with `git ls-remote origin refs/heads/main`. This edition states the audit as it was run at
-> `61bb478` and attests the carrier record at the head.
+> `f6f2045` and attests the carrier record at the head.
 
 ---
 
@@ -124,7 +126,7 @@ phase B, and this report does not describe the pilot tree as more than it is.
 
 ### 1.5 Verification status
 
-Re-run in a checkout of `61bb478` with no tracked changes, on 3 October 2026:
+Re-run in a checkout of `f6f2045` with no tracked changes, on 3 October 2026:
 
 | Check | Result |
 | --- | --- |
@@ -309,12 +311,12 @@ unnoticed.
 The 2 October audit was run against `main` at `9a4815f`, tree clean, remote head equal to local head.
 It found one documentation defect and one cosmetic residual. The defect — `README.md` naming a
 `BUFFER_POOL` role the contract does not define — was fixed and pushed as `b98726d` (02:26), which was
-the state that edition described. The fix still holds at `61bb478`: `README.md` says the contract
+the state that edition described. The fix still holds at `f6f2045`: `README.md` says the contract
 defines no `BUFFER_POOL` role.
 
 ### 2.10 Since the 2 October report — 2 October 14:46 to 3 October 11:04
 
-Thirty-seven commits landed on `main` between `b98726d` and the audited tip `61bb478`, touching 166 files
+Thirty-seven commits landed on `main` between `b98726d` and the audited tip `f6f2045`, touching 166 files
 (18,093 lines added, 346 removed). None of them touches the deployed contract or the chain: `src/` is
 unchanged, the one Foundry addition is `test/PrivateKeyEnv.t.sol` for the deploy scripts' key loader
 (`script/PrivateKeyEnv.sol`, from `2ad393d`), the contract still holds one tree, and every role reads back
@@ -339,12 +341,12 @@ cell's write lock, derives the nullifier, recomputes biomass itself, queues the 
 | Time | Commit | What it was |
 | --- | --- | --- |
 | 2 Oct 17:42–17:46 | `1426a12`, `7190055` | Config, SQLite store, plot index, state machine, broadcaster and service (phases 0–3 of the live-registration spec); the API contract and README; gate step 2 collects the relay suite |
-| 3 Oct 07:14 | `e5e95cd` | Behind the platform edge: the relay reads the renamed `X-Sandbox-Forwarded-Authorization` header, decodes chunked bodies and closes a connection whose body it did not read — before this the deployed relay saw no credential (401) and an empty body (400) |
-| 3 Oct 07:26 | `1d1fc49` | Rate limits keyed on the device: the four per-caller limits count the app's `X-BioRig-Install-Id` (32 hex) when present and the caller's address otherwise, and a relay-wide ceiling of 30 new sessions an hour (`SESSIONS_GLOBAL_HOUR`) bounds what clearing the app's data for a fresh id can buy |
-| 3 Oct 07:37 | `04fbf40` | The deployed relay's store, `relay/var-public/`, is git-ignored, so a live SQLite queue holding planter addresses cannot be committed by a blanket `git add` |
+| 3 Oct 07:14 | `2a20c3b` | Behind the platform edge: the relay reads the renamed `X-Sandbox-Forwarded-Authorization` header, decodes chunked bodies and closes a connection whose body it did not read — before this the deployed relay saw no credential (401) and an empty body (400) |
+| 3 Oct 07:26 | `9ee6ff4` | Rate limits keyed on the device: the four per-caller limits count the app's `X-BioRig-Install-Id` (32 hex) when present and the caller's address otherwise, and a relay-wide ceiling of 30 new sessions an hour (`SESSIONS_GLOBAL_HOUR`) bounds what clearing the app's data for a fresh id can buy |
+| 3 Oct 07:37 | `0c4c640` | The deployed relay's store, `relay/var-public/`, is git-ignored, so a live SQLite queue holding planter addresses cannot be committed by a blanket `git add` |
 
-The relay is deployed at a public HTTPS address behind that edge, as the commit messages of `e5e95cd`
-and `04fbf40` and the comment beside `relay/var-public/` in `.gitignore` record. **That address is not
+The relay is deployed at a public HTTPS address behind that edge, as the commit messages of `2a20c3b`
+and `0c4c640` and the comment beside `relay/var-public/` in `.gitignore` record. **That address is not
 recorded anywhere in the tree** and is not baked into the published APK, so this report cannot re-derive it and
 does not name it; the reviewer should take it from the deployment record held outside the repository.
 For the same reason it cannot be re-derived here whether the deployed instance runs in `DRY_RUN` or
@@ -365,9 +367,9 @@ carries the planter's public address and a relay session token, and the relay si
 | 2 Oct 23:00–23:01 | `ab33f02`, `74735f7` | `:core` — H3, allometry, relay client and queue, tested against the repository's Python; the registration body checked with `relay/validate.py` and driven against the real relay over HTTP |
 | 2 Oct 23:17–23:18 | `d0cf204`, `a5ec801` | `:app` — the three-step wizard, the Room queue and the chain read-back; the module README, and `:core:test` made to execute on every run |
 
-The install-id header of `1d1fc49` is the last change to `mobile/android`, and the published debug APK was
+The install-id header of `9ee6ff4` is the last change to `mobile/android`, and the published debug APK was
 built from that tree: `docs/carriers.json` pins it to tree `421f7f03fe0db6ab473d8538e029b0b981357e16`,
-which is the tree of `mobile/android` at `61bb478` (Section 3.2). The app's instrumented tests compile but
+which is the tree of `mobile/android` at `f6f2045` (Section 3.2). The app's instrumented tests compile but
 were never run, and the module README records that nothing ran on a device.
 
 **Clean-clone proof and the push path — 2 October evening to 3 October 00:35.**
@@ -380,8 +382,8 @@ were never run, and the module README records that nothing ran on a device.
 | 3 Oct 00:22–00:35 | `511e27d`, `ccc32fa` | Both push paths refuse a stale base in seconds, before the minutes-long proof rather than after it, through one shared check (`scripts/lib/fast_forward_check.sh`) |
 
 The CI job ran on each recent push of `main`: GitHub's Actions API reports `success` for the
-clean-clone-proof runs on `a5ec801`, `ccc32fa`, `2d635c0`, `7bc8d33`, `04fbf40` and the audited tip
-`61bb478`. CI holds no key, so these are the gate's key-free runs, which skip the steps that need it.
+clean-clone-proof runs on `a5ec801`, `ccc32fa`, `2d635c0`, `550942c`, `0c4c640` and the audited tip
+`f6f2045`. CI holds no key, so these are the gate's key-free runs, which skip the steps that need it.
 
 **The carrier gate — 2 October 18:10 to 3 October 11:04.** The reviewer-facing copies held in the
 workspace Files are not reachable from the repository, so on 2 October nothing noticed when the proposal
@@ -394,19 +396,19 @@ gate step 7.
 | 2 Oct 18:10–18:13 | `4fd762b`, `d0f3500` | The gate and the publish record for the first four carriers (the proposal pdf, docx and md, and the architecture raster); gate step 7; the publish flow, `DEPLOY.md` section 9 |
 | 2 Oct 23:15 | `16e9bf8` | The pdf's render bytes are attested only where the published copies are staged, since Chromium print-to-PDF bytes depend on the browser build and fonts |
 | 3 Oct 01:02 | `2d635c0` | Strict publish mode, `--require-staged`: an absent or partial staging directory is drift, exit 1, so a publish whose staged copies went missing cannot read green |
-| 3 Oct 11:04 | `61bb478` | The slide-size architecture raster, the vector copy and the debug APK become carriers: seven in all, each checked by the strongest thing that holds for it |
-| 3 Oct 12:44–12:51 | `c30898a`, `1038f28` | The milestone report docx, the mainnet deployment plan and `FINDINGS.md` become carriers, and their doc names join the doc-path allowlist |
-| 3 Oct 13:46 | `288118b` | The two demo videos and the contract source doc become carriers: thirteen in all |
-| 3 Oct 15:14 | `079c725` | Step 7 refuses a carrier record that is short or duplicate-padded, not only one missing a listed carrier, with the floor written down in `DEPLOY.md` section 9 |
+| 3 Oct 11:04 | `f6f2045` | The slide-size architecture raster, the vector copy and the debug APK become carriers: seven in all, each checked by the strongest thing that holds for it |
+| 3 Oct 12:44–12:51 | `575e4d9`, `33ac692` | The milestone report docx, the mainnet deployment plan and `FINDINGS.md` become carriers, and their doc names join the doc-path allowlist |
+| 3 Oct 13:46 | `083e74a` | The two demo videos and the contract source doc become carriers: thirteen in all |
+| 3 Oct 15:14 | `b3ec3f5` | Step 7 refuses a carrier record that is short or duplicate-padded, not only one missing a listed carrier, with the floor written down in `DEPLOY.md` section 9 |
 
 **The dashboard redesign — 3 October early morning.**
 
 | Time | Commit | What it was |
 | --- | --- | --- |
 | 3 Oct 02:13 | `c0d1c62`, `35757a5` | Home (`dashboard/home_view.py`) becomes the first screen for every visitor: the hero, two calls to action, a live strip (chain id, tree count, the pilot registration's cost from its receipt, the proxy), the Why-Celo cards and the three-step strip. The views become home / register / protocol, with `?view=planter` and `?view=operator` kept as aliases; the lime-and-emerald restyle with a deeper dark mode and tabular figures; the gate's UI check walks the new first screen (8 renders become 12) |
-| 3 Oct 03:02 | `7bc8d33` | A test fix so the Home view's URL assertion holds on Streamlit 1.65 and later |
+| 3 Oct 03:02 | `550942c` | A test fix so the Home view's URL assertion holds on Streamlit 1.65 and later |
 
-**This refresh — 3 October 2026.** The audit in Section 3 was re-run against `61bb478`, no tracked changes,
+**This refresh — 3 October 2026.** The audit in Section 3 was re-run against `f6f2045`, no tracked changes,
 remote head equal to local head, and this report was carried forward in place. It is rendered to DOCX by
 `tools/render_report_docx.py`, a committed renderer that reuses the proposal's
 (`tools/render_proposal_docx.py`) so the two documents share one look. Section 6 records how the report
@@ -417,7 +419,7 @@ itself becomes a gated carrier.
 
 ### 3.1 Scope and method
 
-Every tracked file in `AdamJannoud/BioRig` was examined programmatically at `61bb478`, and the results
+Every tracked file in `AdamJannoud/BioRig` was examined programmatically at `f6f2045`, and the results
 were read file by file rather than accepted from the script's summary. The audit covers six groups:
 
 1. **Inventory and structure** — what is tracked, in what proportion, and whether anything is present
@@ -438,7 +440,7 @@ The audit is read-only: it writes nothing into the repository.
 
 ### 3.2 Inventory
 
-296 tracked entries at `61bb478`, up from 163 at `9a4815f`. The counts below are derived from
+296 tracked entries at `f6f2045`, up from 163 at `9a4815f`. The counts below are derived from
 `git ls-files` and add up exactly:
 
 | Type | Count | What it is |
@@ -463,11 +465,11 @@ The audit is read-only: it writes nothing into the repository.
 No key material is tracked. Two `.env` templates are tracked (`.env.example`,
 `.env.mainnet.example`) and both contain placeholders and comments only; the real `.env`,
 `.env.mainnet` and `.deploy/` are ignored, the Android project's own ignore file refuses `*.jks` and
-`*.keystore`, and the deployed relay's store `relay/var-public/` is ignored since `04fbf40`.
+`*.keystore`, and the deployed relay's store `relay/var-public/` is ignored since `0c4c640`.
 
 **Published carriers.** Seven files are published into the workspace Files for reviewers. They live
 outside the repository, so they are named here by their record names in `docs/carriers.json`, not as
-repo paths. The record at `61bb478` reads:
+repo paths. The record at `f6f2045` reads:
 
 | Carrier | Size (bytes) | Compared by | Made from |
 | --- | --- | --- | --- |
@@ -479,7 +481,7 @@ repo paths. The record at `61bb478` reads:
 | architecture-slide png | 858,508 | the provenance its own bytes carry (the svg's sha256) and its 2400 x 2124 size | `tools/generate_architecture.py` over the same svg |
 | android-debug apk | 16,079,038 | the git tree of `mobile/android` it was built from, `421f7f03…`; the bytes against the record where staged | `mobile/android` at that tree |
 
-Run at `61bb478`, `tools/check_carriers.py` finds every recorded source unchanged, a fresh docx render
+Run at `f6f2045`, `tools/check_carriers.py` finds every recorded source unchanged, a fresh docx render
 matching the published entry digest, the md, png and svg matching their committed sources byte for byte,
 and the app source equal to the tree the APK was built from. The published copies themselves are not
 reachable from the repository, so they were not downloaded from Files for this refresh. Three local copies
@@ -491,9 +493,10 @@ enforces the recorded source digests.
 ### 3.3 Authorship and attribution
 
 **Git identity.** All 122 commits carry the same e-mail address for author and committer,
-`jannoud-adam@hotmail.com`, and no bot account appears. The name is spelled two ways: 121 commits read
-`AdamJannoud` and one, `7bc8d33` on 3 October, reads `Adam Jannoud`. Both are Adam Jannoud's own
-identity; the variant is cosmetic and recorded in Section 3.9 for completeness.
+`jannoud-adam@hotmail.com`, and no bot account appears. The audit found the name spelled two ways —
+121 commits read `AdamJannoud` and one, `550942c` on 3 October, read `Adam Jannoud`, same address. That
+variant was normalized on 8 October 2026 by a repo-wide identity rewrite, so every commit in the
+current history reads `AdamJannoud <jannoud-adam@hotmail.com>`, author and committer.
 
 **Co-author trailers — a correction to the 2 October edition.** That edition stated there were "no
 co-author trailers" in the history. That was wrong when it was written. 21 commits carry a
@@ -508,7 +511,7 @@ leaves the decision about it to Adam (Section 3.9).
 identities now returns one class of hit: the Foundry CLI's own name (the word `forge` inside `forge
 script`, `forge test`, `forge verify-contract` commands, and the `lib/forge-std` module path) — the
 build tool, not an authorship claim. The two classes the 2 October and 3 October editions recorded are
-both closed against the head `079c725`: the working environment's scratch paths are gone from
+both closed against the head `b3ec3f5`: the working environment's scratch paths are gone from
 `.gitignore` (the rules moved to the repository's own untracked `.git/info/exclude`, so the working
 environment still ignores them and a reader of the tracked file sees no trace), and `docs/relay-api.md`
 and `relay/tests/test_edge.py` describe the edge's behaviour without naming the hosting platform. The
@@ -560,7 +563,7 @@ read in context rather than counted:
   `relay/` nor `mobile/android`, nor their READMEs or the relay contract, so a reviewer who enters
   through the README will not find the relay or the app. And `mobile/android/README.md` records 43
   `:core` tests in its account of what was run when the app was built; the suite has 49 today, the six
-  added since all arriving with the install id in `1d1fc49`. The first is a gap, the second a dated statement;
+  added since all arriving with the install id in `9ee6ff4`. The first is a gap, the second a dated statement;
   neither is false about the chain, and both are listed in Section 3.9.
 - **Commit-hash pins.** 15 distinct backticked tokens of 7 to 40 hex digits appear across the tracked
   documents. Four resolve as commits. Seven are decimal numbers (the Sepolia chain id and block numbers),
@@ -596,7 +599,7 @@ read in context rather than counted:
 | Foundry | `forge test` | **181 passed, 0 failed**, 17 suites, 11.02 s |
 | Python (every chain) | `pytest dashboard tools relay -q` | **440 passed**, 141.39 s — dashboard 150, tools 183, relay 107 |
 | Python (mainnet) | `pytest dashboard tools relay -q --chain-id 42220` | **412 passed**, 130.69 s |
-| Android `:core` | `./gradlew :core:test` in `mobile/android` | **49 passed**, `BUILD SUCCESSFUL`; run in a scratch clone of `61bb478` so no build output lands in this checkout |
+| Android `:core` | `./gradlew :core:test` in `mobile/android` | **49 passed**, `BUILD SUCCESSFUL`; run in a scratch clone of `f6f2045` so no build output lands in this checkout |
 | Android cross-checks | `mobile/android/tools/gen_golden.py --check`, `check_registration_body.py`, `relay_e2e.py` | all three exit 0: the golden vectors match the repository's Python, the relay's validator accepts the app's body and refuses the four smuggled-field controls, and the queue drives the real relay end to end (`E2E PASS`) |
 
 The Python suite is run twice because the chain selection is itself under test: the default run covers
@@ -605,7 +608,7 @@ tests to mainnet, so the count differs by design — the 28 fewer tests are the 
 (150 collected by default, 122 with `--chain-id 42220`). The relay suite, 107 tests, joined both runs on
 2 October and touches no network and no real key.
 
-**The acceptance gate.** `scripts/verify-demo.sh` has ten steps at `61bb478`. It is the one command that
+**The acceptance gate.** `scripts/verify-demo.sh` has ten steps at `f6f2045`. It is the one command that
 ties the system together, so it is worth stating what each step actually proves rather than only that it
 passed:
 
@@ -714,10 +717,12 @@ is a change in the project.
    HTTPS edge, but neither the documents nor the published APK name its address, so nothing in the
    repository can check it, and this report cannot re-derive it (Section 2.10).
 8. **`mobile/android/README.md` records 43 `:core` tests.** That was true when the app was built; the
-   suite has 49 since `1d1fc49`. It sits in a section that records what was run at build time, so it is
+   suite has 49 since `9ee6ff4`. It sits in a section that records what was run at build time, so it is
    dated rather than false, but the next touch of that file should update it.
-9. **One commit spells the author name differently.** `7bc8d33` reads `Adam Jannoud` where the other 121
-   read `AdamJannoud`, both on the same address. Cosmetic.
+9. ~~**One commit spells the author name differently.**~~ **Fixed 8 October 2026 by the repo-wide
+   identity rewrite.** It read `Adam Jannoud` where the other 121 read `AdamJannoud`, both on the same
+   address. Every commit in the current history reads `AdamJannoud <jannoud-adam@hotmail.com>`, author
+   and committer.
 
 **Carried from 2 October, cosmetic, still open.**
 
@@ -725,14 +730,14 @@ is a change in the project.
     ignore rules that named the working environment's own scratch directory and task file are gone from
     the tracked `.gitignore` and now live in the repository's untracked `.git/info/exclude`, so those
     paths stay ignored in the working environment and are invisible to a reader of the tracked file (the
-    old lines are in the history, at `61bb478` and earlier). The hosting platform's name went from
+    old lines are in the history, at `f6f2045` and earlier). The hosting platform's name went from
     `docs/relay-api.md` and `relay/tests/test_edge.py` in the same sweep (Section 3.3): both describe
     the edge's behaviour — the rename of the `Authorization` header — without naming the host. The
     header name `X-Sandbox-Forwarded-Authorization` is a protocol constant and stays.
 
 **Fixed on 2 October and confirmed still fixed.** The `README.md` `BUFFER_POOL` wording (`b98726d`), the
 two scripts tracked non-executable (`598c017`) and the undeclared `cv2` import (`9a4815f`) all hold at
-`61bb478`.
+`f6f2045`.
 
 **Checked and found clean.** No key material tracked; both `.env` templates are placeholders; no build
 output tracked; no false "pending" or "nothing deployed" prose in the twelve tracked documents; every
@@ -771,11 +776,11 @@ take the expected chain and proxy from configuration.
 The grant application frames three funded milestones. This section restates them as an ordered
 execution plan with dependencies, and adds the workstreams that do not need funding but do need doing
 before a larger ask is defensible. Each phase's status was re-checked against the tree and the chain at
-`61bb478` rather than carried from the 2 October text.
+`f6f2045` rather than carried from the 2 October text.
 
 ### 4.1 Sequencing at a glance
 
-| Phase | What it delivers | Grant milestone | Depends on | Status at `61bb478` | Can start |
+| Phase | What it delivers | Grant milestone | Depends on | Status at `f6f2045` | Can start |
 | --- | --- | --- | --- | --- | --- |
 | **A** Fleet-scale pilot minting | 25–50 real trees on mainnet, with a repeatable registration procedure and a cost model | Milestone 4 (pilot at field scale) | the relay in live service, a dedicated verifier key | **Open.** One tree on chain. The repeatable procedure now exists as the relay; it has not minted on mainnet | now |
 | **B** Live biomass and DBH feed | Real measurements behind `dbh` and `biomass`, and `updateTree` writes as trees grow | Milestone 4 / feeds Milestone 3 | A | **Partly built.** The allometric model is in the tree and shared by the dashboard, the relay and the app; registrations carry a measured DBH. No update feed exists; tree 1 still carries 10 / 20 | now |
@@ -936,7 +941,7 @@ describing the trust boundary as `onlyRole(VERIFIER_ROLE)`. Unchanged since 2 Oc
 
 ## 5. Verification appendix
 
-Every command below was run on 3 October 2026 against a checkout of `61bb478` with no tracked changes.
+Every command below was run on 3 October 2026 against a checkout of `f6f2045` with no tracked changes.
 Exit statuses were captured in-band from the command's own process, never through a pipe. Each figure in
 this report is also listed with the exact command that produced it in a facts file delivered alongside
 the report (Section 6).
@@ -944,7 +949,7 @@ the report (Section 6).
 ### 5.1 Repository state
 
 ```bash
-git rev-parse HEAD                                   # 61bb47851056198733b93daca11bb93efb566911
+git rev-parse HEAD                                   # f6f2045b9bb5519ae1eff81af2444cd9f3aa5293
 git ls-remote origin refs/heads/main                 # same hash — remote head equals local head
 git status --porcelain --untracked-files=no          # empty — no tracked changes
 git rev-list --count HEAD                            # 122
@@ -1026,7 +1031,7 @@ so nothing is claimed about them here.
 
 ## 6. Provenance and status of this report
 
-- **Compiled:** 3 October 2026, from the repository at `main` = `61bb478`, with live chain reads taken the
+- **Compiled:** 3 October 2026, from the repository at `main` = `f6f2045`, with live chain reads taken the
   same day. It refreshes the 2 October 2026 edition in place; that edition's audited basis was `9a4815f`,
   with its one fix pushed as `b98726d`.
 - **Rendered:** `tools/render_report_docx.py` turns this markdown into the DOCX through the proposal's own
