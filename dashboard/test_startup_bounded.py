@@ -134,3 +134,13 @@ def test_mode_script_cannot_feed_its_own_observer():
     writes = [line for line in ui.MODE_JS.splitlines() if "'dir'" in line and "setAttribute" in line
               or "style.direction =" in line]
     assert writes and all("!==" in line for line in writes), writes
+
+
+def test_mode_script_reports_the_language_the_slider_lays_itself_out_in():
+    """Streamlit's slider takes its writing direction from react-aria, and react-aria reads the BROWSER's locale, not
+    the page's dir/lang that MODE_JS pins. In an Arabic-language browser the handle and its value label were therefore
+    laid out at 100 - percent while the track's fill stayed at percent: the desync reported on the trunk slider.
+    MODE_JS must report the language the UI is actually written in and let the widget re-read it."""
+    assert "'language'" in ui.MODE_JS
+    assert "'en-US'" in ui.MODE_JS
+    assert "languagechange" in ui.MODE_JS

@@ -28,6 +28,11 @@ pinned where a deployment's real value is known; on any other chain it is read f
 
 The published ?view=planter and ?view=operator links are opened once at the end: they must still land on the planter
 flow and the operator view (they are aliases of ?view=register and ?view=protocol).
+
+The trunk slider's handle is measured against its own value and against the track's fill, in an English and in an
+explicitly Arabic-language browser. Streamlit takes the slider's writing direction from react-aria, which reads the
+browser's locale rather than the page's dir/lang, so an RTL-language browser used to lay the handle and its value
+label out at 100 - percent while the track's fill stayed at percent.
 """
 import sys
 import time
@@ -253,6 +258,51 @@ def wait_verdict(page, want: str, nullifier_hex: str) -> bool:
     except PlaywrightTimeout:
         return False
 
+# The trunk slider's handle must sit where its own value puts it, and the track's fill must end there too. All three
+# are read from independent places: the handle's inline left, the value input's min/max/value, and the fill stop
+# inside the track's background gradient.
+SLIDER_JS = """
+() => {
+  const sl = document.querySelector('[data-testid="stSlider"]');
+  if (!sl) return null;
+  const track = sl.querySelector('[role=group] > div > div');
+  const label = sl.querySelector('[data-testid="stSliderThumbValue"]');
+  const handle = label && label.parentElement;
+  const input = sl.querySelector('input[type=range]');
+  if (!track || !handle || !input) return null;
+  const tr = track.getBoundingClientRect(), hr = handle.getBoundingClientRect();
+  if (!tr.width) return null;
+  const min = parseFloat(input.min), max = parseFloat(input.max), value = parseFloat(input.value);
+  const valuePct = Math.round(((value - min) / (max - min)) * 1000) / 10;
+  const stops = (getComputedStyle(track).backgroundImage.match(/[0-9.]+%/g) || []).map(parseFloat);
+  const fill = stops.length ? stops.reduce((a, b) => (Math.abs(b - valuePct) < Math.abs(a - valuePct) ? b : a)) : null;
+  return {value: value, valuePct: valuePct,
+          handlePct: Math.round(((hr.x + hr.width / 2 - tr.x) / tr.width) * 1000) / 10,
+          fillPct: fill, stops: stops, inline: handle.getAttribute('style')};
+}
+"""
+
+
+def slider_missing(page) -> list[str]:
+    """The handle, the value and the track's fill must all sit at the same place on the trunk slider.
+
+    A disagreement means a visitor sees the bar ending somewhere other than where the handle is, which is the desync
+    reported on the live demo. The tolerance is 2% of the track: the geometry is read back from the browser at
+    whatever width the window happens to be, and sub-pixel rounding is not the bug (the desync was ~60% of the track).
+    """
+    g = page.evaluate(SLIDER_JS)
+    if g is None:
+        return ["the trunk slider: track, handle or value input not found"]
+    off = []
+    if abs(g["handlePct"] - g["valuePct"]) > 2:
+        off.append(f"the trunk slider's handle is at {g['handlePct']}% of the track but its value {g['value']} is "
+                   f"{g['valuePct']}% ({g['inline']})")
+    if g["fillPct"] is None or abs(g["fillPct"] - g["valuePct"]) > 2:
+        off.append(f"the trunk slider's fill ends at {g['fillPct']}% for a value of {g['valuePct']}% "
+                   f"(gradient stops {g['stops']})")
+    return off
+
+
 failures = []
 renders = 0
 with sync_playwright() as p:
@@ -346,6 +396,26 @@ with sync_playwright() as p:
         print(f"  alias    ?view={value:8} -> '{marker}'  {'ok' if alias_ok else 'FAIL'}")
         if not alias_ok:
             failures.append(("alias", value, marker))
+    # The renders above ran in the browser's own language. Repeat the slider check in an explicitly RTL-language
+    # browser: Streamlit's slider takes its writing direction from react-aria, which reads the browser's locale rather
+    # than the page's dir/lang, so an Arabic-language browser used to lay the handle and its value label out at
+    # 100 - percent while the track's fill stayed at percent. MODE_JS reports the language the UI is written in, so
+    # the handle, the value and the fill must agree in both.
+    for locale in ("en-US", "ar-SA"):
+        lctx = browser.new_context(viewport={"width": 1440, "height": 900}, color_scheme="dark", locale=locale,
+                                   geolocation=GEO, permissions=["geolocation"])
+        lpage = lctx.new_page()
+        lpage.goto(url.rstrip("/") + "/?view=planter")
+        try:
+            lpage.wait_for_selector('[data-testid="stSlider"]', timeout=90_000)
+            lpage.wait_for_timeout(1_500)
+            l_missing = slider_missing(lpage)
+        except PlaywrightTimeout:
+            l_missing = [f"the trunk slider never appeared (browser language {locale})"]
+        print(f"  slider   locale={locale:6} {'ok' if not l_missing else 'FAIL'}  {l_missing}")
+        if l_missing:
+            failures.append(("slider", locale, l_missing))
+        lctx.close()
     context.close()
     browser.close()
 print(f"{renders} renders")

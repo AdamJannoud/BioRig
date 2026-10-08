@@ -248,6 +248,29 @@ MODE_JS = """
     if (doc.body.getAttribute('dir') !== 'ltr') doc.body.setAttribute('dir', 'ltr');
     if (doc.documentElement.style.direction !== 'ltr') doc.documentElement.style.direction = 'ltr';
   }
+  // Streamlit's slider asks react-aria which way the writing runs, and react-aria answers from the BROWSER's locale
+  // (navigator.language), not from this page's dir/lang. This app is written in English and pinned to dir=ltr, but in
+  // a browser whose language is an RTL one the widget still laid itself out right-to-left: the handle and its value
+  // label landed at 100 - percent while Streamlit paints the track's fill from the left, so the bar looked cut off
+  // from the handle on the trunk-diameter slider. Report the language the UI is actually written in and let the
+  // widget re-read it, rather than leaving the layout to depend on the visitor's browser settings.
+  function pinLocale() {
+    const nav = window.parent.navigator;
+    if (nav.language === 'en-US') return;
+    try {
+      Object.defineProperty(nav, 'language', {get: () => 'en-US', configurable: true});
+      const changed = new Event('languagechange');
+      window.parent.dispatchEvent(changed);
+      doc.dispatchEvent(changed);
+    } catch (e) {
+      // A browser that will not let the property be shadowed keeps its own locale; the page still works, only the
+      // slider's handle mirrors again. Say so rather than failing silently.
+      console.warn('BioRig: could not pin the reported locale', e);
+    }
+  }
+  pinLocale();
+  // The widget may already have mounted before this frame ran, so pin once more after it has had a chance to settle.
+  window.parent.setTimeout(pinLocale, 1500);
   mode();
   new MutationObserver(mode).observe(doc.body, {attributes: true, subtree: true, attributeFilter: ['class', 'style', 'dir']});
 })();
