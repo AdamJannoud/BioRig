@@ -66,11 +66,11 @@
       "algorithm": "sha256",
       "build_source": {
         "path": "mobile/android",
-        "tree": "421f7f03fe0db6ab473d8538e029b0b981357e16"
+        "tree": "616ff0f9757bb005d493debcf71f242aec372e26"
       },
-      "digest": "22d906d6c98b7d0a11829a1204dfea6334065c460d5808e87b830918a1740dd0",
+      "digest": "a58fdcf5468aca83c09f34c81f5f52da5a37e98754978299dc262724c5d93c30",
       "name": "android-debug.apk",
-      "size": 16079038,
+      "size": 16192881,
       "sources": {}
     },
     {
