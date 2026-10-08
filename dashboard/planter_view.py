@@ -31,8 +31,9 @@ def default_reference(is_active, references: tuple[str, ...] = DEMO_REFERENCES) 
     return DEFAULT_REFERENCE
 
 def _defaults(chain: Chain, reference: str | None = None) -> dict:
+    is_active = lambda n: nullifier_active(chain, chain.settings.chain_id, chain.proxy, n)
     return {"p_step": 1, "p_dbh": DEFAULT_DBH, "p_lat": PILOT["lat"], "p_lng": PILOT["lng"], "p_from": "default",
-            "p_size": "small", "p_ref": default_reference(chain.is_nullifier_active) if reference is None else reference,
+            "p_size": "small", "p_ref": default_reference(is_active) if reference is None else reference,
             "p_wallet": chain.signer or "", "p_gps_ts": None, "p_check": None, "p_last_mint": None}
 
 def _carry(chain: Chain) -> None:
@@ -298,6 +299,7 @@ def _register(chain: Chain, wallet: str, d, e: allometry.Estimate) -> None:
                                            "h3_cell": d.cell, "lat": d.lat, "lng": d.lng}
         st.session_state["p_check"] = None
         live_trees.clear()
+        nullifier_active.clear()
         st.rerun()
 
 def _trees(chain: Chain) -> None:
