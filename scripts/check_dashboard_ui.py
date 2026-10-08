@@ -303,6 +303,21 @@ def slider_missing(page) -> list[str]:
     return off
 
 
+# Why a cell came up short, for the CI log: Streamlit's alerts (st.error / st.warning render as stAlert) and the text
+# of every panel. Diagnostic only; nothing here decides pass or fail.
+DIAGNOSE_JS = """() => ({
+  alerts: Array.from(document.querySelectorAll('[data-testid="stAlert"]')).map(e => e.innerText.trim()),
+  panels: Array.from(document.querySelectorAll('.br-panel')).map(e => e.innerText.trim()),
+})"""
+
+
+def diagnose(page) -> dict:
+    try:
+        return page.evaluate(DIAGNOSE_JS)
+    except Exception as exc:  # a page that cannot be read still has to report its cell
+        return {"diagnose_error": repr(exc)}
+
+
 failures = []
 renders = 0
 with sync_playwright() as p:
@@ -321,7 +336,11 @@ with sync_playwright() as p:
             h_status = "ok"
             if h_missing or errors or h_mode != scheme or h_overflow:
                 h_status = "FAIL"
-                failures.append(("home", scheme, width, h_missing, errors[:3], h_mode, h_overflow))
+                failure = ("home", scheme, width, h_missing, errors[:3], h_mode, h_overflow)
+                if h_missing:
+                    failure += (diagnose(page),)
+                    print(f"  home     {scheme:5} {width:4}px  diagnosis={failure[-1]}")
+                failures.append(failure)
             print(f"  home     {scheme:5} {width:4}px  mode={h_mode}  missing={h_missing}  "
                   f"console_errors={len(errors)}  h-overflow={h_overflow}  {h_status}")
             renders += 1
@@ -331,7 +350,11 @@ with sync_playwright() as p:
             p_status = "ok"
             if p_missing or errors or p_mode != scheme or p_overflow:
                 p_status = "FAIL"
-                failures.append(("planter", scheme, width, p_missing, errors[:3], p_mode, p_overflow))
+                failure = ("planter", scheme, width, p_missing, errors[:3], p_mode, p_overflow)
+                if p_missing:
+                    failure += (diagnose(page),)
+                    print(f"  planter  {scheme:5} {width:4}px  diagnosis={failure[-1]}")
+                failures.append(failure)
             print(f"  planter  {scheme:5} {width:4}px  mode={p_mode}  missing={p_missing}  "
                   f"console_errors={len(errors)}  h-overflow={p_overflow}  {p_status}")
             renders += 1
@@ -378,7 +401,11 @@ with sync_playwright() as p:
             status = "ok"
             if missing or errors or mode != scheme or (key and key in html) or overflow:
                 status = "FAIL"
-                failures.append((scheme, width, missing, errors[:3], mode, overflow))
+                failure = (scheme, width, missing, errors[:3], mode, overflow)
+                if missing:
+                    failure += (diagnose(page),)
+                    print(f"  operator {scheme:5} {width:4}px  diagnosis={failure[-1]}")
+                failures.append(failure)
             print(f"  operator {scheme:5} {width:4}px  mode={mode}  missing={missing}  console_errors={len(errors)}  "
                   f"h-overflow={overflow}  key_in_page={bool(key and key in html)}  {status}")
             renders += 1

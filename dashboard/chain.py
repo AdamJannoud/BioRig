@@ -17,7 +17,7 @@ from pathlib import Path
 import requests
 from eth_abi import encode as abi_encode
 from eth_utils import keccak, to_checksum_address
-from web3.exceptions import TransactionNotFound, Web3Exception
+from web3.exceptions import ContractLogicError, TransactionNotFound, Web3Exception
 from web3.logs import DISCARD
 from web3.providers.rpc.utils import ExceptionRetryConfiguration  # not re-exported by the package on web3 8
 
@@ -254,8 +254,22 @@ class Chain:
         return to_checksum_address(bytes(word)[-20:])
 
     # ---- reads
+    def _view(self, call):
+        """A view call(), retried after each TRANSIENT_RETRY_DELAYS on a transport or RPC error; the last error is
+        raised. A revert is the contract's answer, not a fault, so ContractLogicError is raised at once. Unlike _rpc
+        this cannot share _TRANSIENT as is: Web3Exception covers reverts, which must never be retried."""
+        for delay in (*TRANSIENT_RETRY_DELAYS, None):
+            try:
+                return call()
+            except ContractLogicError:
+                raise
+            except _TRANSIENT:
+                if delay is None:
+                    raise
+                _sleep(delay)
+
     def get_tree_stats(self, token_id: int) -> TreeStats:
-        return TreeStats.from_tuple(self.core.functions.getTreeStats(token_id).call())
+        return TreeStats.from_tuple(self._view(self.core.functions.getTreeStats(token_id).call))
 
     def gas_price_wei(self) -> int:
         return int(self.w3.eth.gas_price)
@@ -264,10 +278,10 @@ class Chain:
         return bool(self.core.functions.isNullifierActive(nullifier).call())
 
     def owner_of(self, token_id: int) -> str:
-        return self.core.functions.ownerOf(token_id).call()
+        return self._view(self.core.functions.ownerOf(token_id).call)
 
     def token_uri(self, token_id: int) -> str:
-        return self.core.functions.tokenURI(token_id).call()
+        return self._view(self.core.functions.tokenURI(token_id).call)
 
     # ---- log reads that survive an RPC answering empty for a range that holds logs
     def _rpc(self, call):
