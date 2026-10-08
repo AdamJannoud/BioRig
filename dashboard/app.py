@@ -58,10 +58,15 @@ def get_chain() -> tuple[Chain, str | None]:
         return Chain(exc.settings), str(exc)
 
 
-@st.cache_data(ttl=30, show_spinner=False)
+@st.cache_resource(ttl=30, show_spinner=False)
 def probe_chain(_chain: Chain, rpc_url: str, chain_id: int, proxy: str, signer: str | None) -> Probe:
     """chain id, overview and verifier role, bounded by PROBE_BUDGET_S. Cached for 30 s so a widget click does not
-    pay eleven round trips again; a raised error is not memoised, so the next run (or Retry) asks afresh."""
+    pay eleven round trips again; a raised error is not memoised, so the next run (or Retry) asks afresh.
+
+    Held as a resource, not in the data cache: cache_data pickles what a function returns on the way in, and a hosted
+    run raised UnserializableReturnValueError for Probe, which left every view on the retry frame. Whether a Probe
+    serializes is decided by the host's own web3/pickle build, so the fix is to stop serializing it: a resource is
+    kept by reference. The value is chain state read once per window and never mutated."""
     return _chain.probe(PROBE_BUDGET_S)
 
 
