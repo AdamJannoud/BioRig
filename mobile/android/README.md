@@ -27,7 +27,10 @@ mobile/android/
       queue/               CaptureEntity (the Room row), SubmissionQueue (send, retry, poll)
     src/test/...           JUnit tests + golden/vectors.json (generated, see below)
   app/                     Compose UI, fused location, CameraX, Room; manual constructor injection (AppGraph)
+    src/main/.../ui/       Theme.kt (direction B tokens), Screens.kt (six stateless screens), Routes.kt (ViewModel wiring)
+    src/test/...           ScreenRenders: the JVM renders behind :app:renderScreens (Robolectric)
     src/androidTest/...    instrumented tests: present, compiled, NOT RUN here (no emulator)
+  screenshots/             the six screens x light/dark as PNGs, plus manifest.json (sha256 per render)
   tools/
     gen_golden.py               writes core/src/test/resources/golden/vectors.json from the repo's own Python
     check_registration_body.py  runs the body :core builds through relay/validate.py
@@ -137,6 +140,35 @@ from Java resources when it packages an APK. `app/build.gradle.kts` therefore co
 loads them with `H3Core.newSystemInstance()`. h3-java publishes no x86/x86_64 Android build, so **an x86_64
 emulator image cannot run the H3 index**. Use an arm64 image or a device.
 
+### Screen renders — `:app:renderScreens`
+
+The app wears plan 10's **direction B**, the BioRig brand: deep-green ink, an emerald accent, hairline rules and
+tabular monospace figures, light and dark. `BioRigTheme(darkTheme = isSystemInDarkTheme())` follows the phone and
+lets a caller pin a mode. Each screen in `ui/Screens.kt` draws from plain state (a `WizardState`, a list of
+`CaptureEntity`, a `ChainView`) and reports through callbacks. `ui/Routes.kt` connects the screens to
+`WizardViewModel`, and the photo screen takes its camera as a slot.
+
+That is what makes them renderable without a device. This box has no KVM, so an emulator runs under TCG, never
+settles and screencaps black. The screenshots are therefore drawn on the JVM by Robolectric's native graphics,
+from the real composables:
+
+```bash
+cd mobile/android && ANDROID_HOME=/opt/android-sdk ./gradlew :app:renderScreens --console=plain
+```
+
+It writes `screenshots/<screen>-<mode>.png` for setup, fix, photos, submit, queue and tree in light and dark, 12
+files. The device spec is fixed: 360 x 780 dp at xxhdpi (density 3.0, 480 dpi), so every file is 1080 x 2340 px.
+It also writes `screenshots/manifest.json` with the screen, mode, path, width, height and sha256 of each render,
+plus the device spec. The states are fixed in `ScreenRenders.kt`: no clock, no random id, and the timezone pinned
+to UTC. Two consecutive runs produce byte-identical PNGs and manifest. The task always re-renders and is never
+served from the build cache. `tools/check_screenshots.py` (step 9 of `scripts/verify-demo.sh`) fails when a
+committed PNG disagrees with the manifest, when a screen/mode is missing, or when a listed file is absent. Commit
+the PNGs and the manifest together.
+
+`compose.onRoot().captureToImage()` is not used. Under Robolectric it waits for a frame-commit callback that never
+arrives, so it times out in either render mode. Instead the task lays the window out under Robolectric and draws
+its decor view onto a Skia canvas.
+
 ## Known limits under contract v1
 
 - **The offline queue has a 10-minute window.** The relay refuses a fix older than `FIX_MAX_AGE_S` (600 s) when it
@@ -161,5 +193,6 @@ The machine has four cores, about 1 GB of free memory and no emulator.
   and `ANDROID_HOME=... ./gradlew :app:assembleDebug :app:compileDebugAndroidTestKotlin`. The debug APK assembled,
   with `lib/arm64-v8a/libh3-java.so` and `lib/armeabi-v7a/libh3-java.so` inside.
 - Not run: `app/src/androidTest` (`CaptureDaoTest`, `FixScreenTest`). They compile, but nothing executed them;
-  each file says so in its header. No screen was photographed, and nothing ran on a device. That includes the
+  each file says so in its header. No screen was photographed, and nothing ran on a device (the screenshots are
+  JVM renders of the composables, `:app:renderScreens` above). That includes the
   location, camera, Room, `H3Core.newSystemInstance()` and the chain read-back.

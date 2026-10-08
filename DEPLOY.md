@@ -873,6 +873,25 @@ clone never receives the `.env`, so it runs on the repository's default chain (C
 read-only against the chain: step 3 is an `eth_call` simulation and step 4b broadcasts only to an anvil fork. A full
 proof takes about nine minutes, most of it the toolchain install and the gate's video render.
 
+**The gate's steps.** `scripts/verify-demo.sh` runs these in order and stops at the first failure:
+
+1. contract sources untouched: `src/` and `test/` match HEAD
+2. unit tests: `pytest` over `dashboard`, `tools` and `relay`; zero tests is a failure
+3. live chain: `getTreeStats`, TBA derivation, a `mintTree` `eth_call` simulation (no broadcast)
+4. the dashboard in a real browser, with no framing header (4-sim: its simulation verdicts)
+4b. the two mainnet rehearsals on a fork: the Safe owner swap, then the role handover
+5. the video: render and probe (1920x1080, 30 fps, 2700 frames, 90 s); 5b, the roadmap label in the rendered pixels
+6. secrets: the `.env` key is in no tracked file
+7. proposal carriers: the record's floor, then `tools/check_carriers.py` (section 9)
+8. documentation: `tools/check_docs_paths.py`
+9. Android screen renders: `tools/check_screenshots.py` re-hashes `mobile/android/screenshots/*.png` against their
+   `manifest.json` and fails on a changed, missing or unlisted render. It renders nothing and needs no Android SDK.
+   To regenerate after a UI change, run `./gradlew :app:renderScreens` in `mobile/android` with `ANDROID_HOME` set
+   (`mobile/android/README.md`, Screen renders). It draws the six screens of the app, light and dark, under
+   Robolectric at 360 x 780 dp, xxhdpi (1080 x 2340 px). The output is byte-stable: two runs give identical files.
+   Then commit the PNGs and manifest together. A UI change also moves the app source past the tree the published
+   apk was pinned to, so step 7 asks for the apk to be rebuilt and republished as well.
+
 **Key-free mode.** `VERIFY_ALLOW_NO_KEY=1 bash scripts/verify-demo.sh` skips the steps that need the deployer key: step
 3 (the live mint simulation), step 4-sim (the dashboard's simulation verdicts: with no signer the dashboard is read-only
 by design, and the browser check asserts that state instead), step 4b (the two mainnet fork rehearsals) and step 6's

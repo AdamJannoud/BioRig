@@ -226,6 +226,12 @@ $PY tools/check_carriers.py || { echo "carriers drifted: see DEPLOY.md section 9
 step "8. documentation: every path, link, command, port and env var the docs name is real"
 $PY tools/check_docs_paths.py || { echo "the docs name something that does not exist: see the findings above"; exit 1; }
 
+step "9. Android screen renders: the committed PNGs are the ones mobile/android/screenshots/manifest.json names"
+# `./gradlew :app:renderScreens` (mobile/android) draws the six screens, light and dark, on the JVM under Robolectric;
+# the renders are byte-stable, so each manifest sha256 is a claim about the committed bytes. This step re-hashes them
+# and fails on a changed, missing or unlisted render. It renders nothing, so it needs no JDK or Android SDK.
+$PY tools/check_screenshots.py || { echo "the Android renders drifted from their manifest: re-run :app:renderScreens (DEPLOY.md section 10)"; exit 1; }
+
 if [ "${#SKIPPED[@]}" -gt 0 ]; then
     printf '\nPARTIAL: DEMO CHECKS PASSED EXCEPT SKIPPED STEPS: %s (key-free mode, not a full acceptance pass)\n' \
         "${SKIPPED[*]}"
