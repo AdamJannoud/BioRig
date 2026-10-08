@@ -124,6 +124,14 @@ def live_trees(_chain: Chain, chain_id: int, proxy: str, limit: int = 24) -> lis
         out.append((token_id, s.dbh, s.biomass, s.is_alive))
     return out
 
+@st.cache_data(ttl=60, show_spinner=False)
+def nullifier_active(_chain: Chain, chain_id: int, proxy: str, nullifier: bytes) -> bool:
+    return _chain.is_nullifier_active(nullifier)
+
+@st.cache_data(ttl=60, show_spinner=False)
+def gas_price_wei(_chain: Chain, chain_id: int, proxy: str) -> int:
+    return _chain.gas_price_wei()
+
 def _measure() -> None:
     st.markdown(f'<div class="br-h">{html.escape(t("measure.title"))}</div>'
                 f'<p class="br-lede">{html.escape(t("measure.lede"))}</p>', unsafe_allow_html=True)
@@ -168,7 +176,7 @@ def _locate(chain: Chain) -> None:
     except ValueError as exc:
         st.error(t("locate.bad_coords", error=exc))
         return
-    taken = chain.is_nullifier_active(d.nullifier)
+    taken = nullifier_active(chain, chain.settings.chain_id, chain.proxy, d.nullifier)
     size = ss["p_size"] or "small"
     left, right = st.columns([1, 1], gap="medium")
     left.markdown(plot_svg(d.lat, d.lng, d.resolution), unsafe_allow_html=True)
@@ -190,7 +198,7 @@ def _locate(chain: Chain) -> None:
 
 def _fee_celo(chain: Chain, gas: int) -> str | None:
     try:
-        wei = gas * chain.gas_price_wei()
+        wei = gas * gas_price_wei(chain, chain.settings.chain_id, chain.proxy)
     except Exception:
         return None
     return f"{wei / 10**18:.3g}"
@@ -208,7 +216,7 @@ def _claim(chain: Chain, overview: dict, key_problem: str | None) -> None:
     except ValueError as exc:
         st.error(t("locate.bad_coords", error=exc))
         return
-    taken = chain.is_nullifier_active(d.nullifier)
+    taken = nullifier_active(chain, settings.chain_id, chain.proxy, d.nullifier)
     wallet = (ss["p_wallet"] or "").strip()
     inputs = (wallet, d.nullifier_hex, e.dbh_cm, e.mint_biomass_kg)
     check = ss["p_check"] if ss["p_check"] and ss["p_check"]["inputs"] == inputs else None
