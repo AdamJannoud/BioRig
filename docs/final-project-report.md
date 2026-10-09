@@ -184,7 +184,7 @@ none:
 
 Both records are named by pre-rewrite hashes, because a proof file is written at push time. The
 rewritten tip `09469fa68cfccfd5bfe961e1cb0809cb700c5d30` carries its own pair from the push that
-landed the rewrite (`.json` source=local, `.remote.json` source=github), and both read `PASS`.
+landed the rewrite (`.git/clean-clone-proof/09469fa68cfccfd5bfe961e1cb0809cb700c5d30.json` source=local, `.git/clean-clone-proof/09469fa68cfccfd5bfe961e1cb0809cb700c5d30.remote.json` source=github), and both read `PASS`.
 
 These run inside `scripts/push-verified.sh` (stage 1 local proof, stage 3 GitHub re-prove), so a push that does not survive a fresh clone never lands.
 

@@ -96,11 +96,11 @@
     },
     {
       "algorithm": "sha256",
-      "digest": "adebca8bb18891f06cfd33d6b79feec0615b6b998263c82ffc5feea4f8d258ce",
+      "digest": "30f14c6346503aa5470a6ec30d7786a3bf855e2db84ce71299c6e233d9307ece",
       "name": "final-project-report.md",
-      "size": 17180,
+      "size": 17306,
       "sources": {
-        "docs/final-project-report.md": "adebca8bb18891f06cfd33d6b79feec0615b6b998263c82ffc5feea4f8d258ce"
+        "docs/final-project-report.md": "30f14c6346503aa5470a6ec30d7786a3bf855e2db84ce71299c6e233d9307ece"
       }
     },
     {
